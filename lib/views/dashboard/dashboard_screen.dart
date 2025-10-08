@@ -2,6 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/dashboard_viewmodel.dart';
 import '../../utils/constants.dart';
+import '../../views/actividades/actividades_screen.dart';
+import '../../views/cursos_materias/cursos_materia_screen.dart';
+import '../../views/estudiantes_inscritos/estudiantes_screen.dart';
+import '../../views/inicio/inicio_screen.dart';
+import '../../views/registro_huella/registro_huella_screen.dart';
+import '../../views/reportes/reportes_screen.dart';
+import '../../views/soporte/soporte_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -11,13 +18,13 @@ class DashboardScreen extends StatelessWidget {
     final dashboardVM = Provider.of<DashboardViewModel>(context);
 
     final List<Widget> pages = [
-      _buildModuleInConstruction("Actividades Académicas"), // 0
-      _buildModuleInConstruction("Programas de Estudio"), // 1
-      _buildModuleInConstruction("Postulación"), // 2
-      _buildModuleInConstruction("Inicio"), // 3 -> botón central
-      _buildModuleInConstruction("Inscripción"), // 4
-      _buildModuleInConstruction("Mensajería"), // 5
-      _buildModuleInConstruction("Soporte"), // 6
+      ActividadesScreen(), // 0
+      CursosMateriaScreen(), // 1
+      EstudiantesScreen(), // 2
+      InicioScreen(), // 3 -> botón central
+      RegistroHuellaScreen(), // 4
+      ReportesScreen(), // 5
+      SoporteScreen(), // 6
     ];
 
     return Scaffold(
@@ -33,46 +40,6 @@ class DashboardScreen extends StatelessWidget {
       bottomNavigationBar: _buildResponsiveBottomNavigationBar(
         dashboardVM,
         context,
-      ),
-    );
-  }
-
-  Widget _buildModuleInConstruction(String moduleName) {
-    return Container(
-      color: AppColors.background,
-      child: Center(
-        child: Card(
-          margin: const EdgeInsets.all(AppSpacing.large),
-          elevation: 8,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.medium),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.large),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.construction, size: 64, color: AppColors.primary),
-                const SizedBox(height: AppSpacing.large),
-                Text(
-                  "$moduleName\nEn Construcción",
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.heading1.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.medium),
-                Text(
-                  "Este módulo está actualmente en desarrollo y estará disponible pronto.",
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.body.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -100,52 +67,16 @@ class DashboardScreen extends StatelessWidget {
             currentAccountPicture: CircleAvatar(
               radius: 28,
               backgroundColor: AppColors.accent,
-              child: Icon(Icons.person, size: 40, color: Colors.white),
+              child: Icon(Icons.person, size: 40, color: AppColors.primary),
             ),
           ),
           _buildDrawerItem(context, Icons.home, "Inicio", 3, dashboardVM),
-          _buildDrawerItem(
-            context,
-            Icons.event_note,
-            "Actividades Académicas",
-            0,
-            dashboardVM,
-          ),
-          _buildDrawerItem(
-            context,
-            Icons.menu_book,
-            "Programas de Estudio",
-            1,
-            dashboardVM,
-          ),
-          _buildDrawerItem(
-            context,
-            Icons.assignment,
-            "Postulación",
-            2,
-            dashboardVM,
-          ),
-          _buildDrawerItem(
-            context,
-            Icons.school,
-            "Inscripción",
-            4,
-            dashboardVM,
-          ),
-          _buildDrawerItem(
-            context,
-            Icons.message,
-            "Mensajería",
-            5,
-            dashboardVM,
-          ),
-          _buildDrawerItem(
-            context,
-            Icons.support_agent,
-            "Soporte",
-            6,
-            dashboardVM,
-          ),
+          _buildDrawerItem(context, Icons.event_note, "Actividades", 0, dashboardVM),
+          _buildDrawerItem(context, Icons.menu_book, "Materias", 1, dashboardVM),
+          _buildDrawerItem(context, Icons.assignment, "Estudiantes", 2, dashboardVM),
+          _buildDrawerItem(context, Icons.school, "Registro_Huellas", 4, dashboardVM),
+          _buildDrawerItem(context, Icons.message, "Reportes", 5, dashboardVM),
+          _buildDrawerItem(context, Icons.support_agent, "Soporte", 6, dashboardVM),
           const Spacer(),
           const Divider(height: 1, color: AppColors.textSecondary),
           ListTile(
@@ -164,21 +95,16 @@ class DashboardScreen extends StatelessWidget {
   }
 
   ListTile _buildDrawerItem(
-    BuildContext context,
-    IconData icon,
-    String label,
-    int index,
-    DashboardViewModel dashboardVM,
-  ) {
+      BuildContext context, IconData icon, String label, int index, DashboardViewModel dashboardVM) {
     final bool isSelected = dashboardVM.selectedIndex == index;
-
+    
     return ListTile(
       leading: Icon(
-        icon,
+        icon, 
         color: isSelected ? AppColors.primary : AppColors.textSecondary,
       ),
       title: Text(
-        label,
+        label, 
         style: AppTextStyles.body.copyWith(
           color: isSelected ? AppColors.primary : AppColors.textPrimary,
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -232,21 +158,21 @@ class DashboardScreen extends StatelessWidget {
             children: [
               _buildNavItem(
                 Icons.event_note,
-                "Académico",
+                "Actividades Academicas",
                 0,
                 dashboardVM,
                 isMobile: true,
               ),
               _buildNavItem(
                 Icons.menu_book,
-                "Programas",
+                "Cursos y Materias",
                 1,
                 dashboardVM,
                 isMobile: true,
               ),
               _buildNavItem(
                 Icons.assignment,
-                "Postulación",
+                "Estudiantes",
                 2,
                 dashboardVM,
                 isMobile: true,
@@ -254,14 +180,14 @@ class DashboardScreen extends StatelessWidget {
               _buildNavItemInicio(dashboardVM, isMobile: true),
               _buildNavItem(
                 Icons.school,
-                "Inscripción",
+                "Registro Huella",
                 4,
                 dashboardVM,
                 isMobile: true,
               ),
               _buildNavItem(
                 Icons.message,
-                "Mensajería",
+                "Reportes",
                 5,
                 dashboardVM,
                 isMobile: true,
@@ -315,14 +241,14 @@ class DashboardScreen extends StatelessWidget {
                     ),
                     _buildNavItem(
                       Icons.menu_book,
-                      "Programas de\nEstudio",
+                      "Cursos y\nMateria",
                       1,
                       dashboardVM,
                       isTablet: true,
                     ),
                     _buildNavItem(
                       Icons.assignment,
-                      "Postulación",
+                      "Estudiantes",
                       2,
                       dashboardVM,
                       isTablet: true,
@@ -337,14 +263,14 @@ class DashboardScreen extends StatelessWidget {
                   children: [
                     _buildNavItem(
                       Icons.school,
-                      "Inscripción",
+                      "Registro de Huella",
                       4,
                       dashboardVM,
                       isTablet: true,
                     ),
                     _buildNavItem(
                       Icons.message,
-                      "Mensajería",
+                      "Reportes",
                       5,
                       dashboardVM,
                       isTablet: true,
@@ -401,14 +327,14 @@ class DashboardScreen extends StatelessWidget {
                     ),
                     _buildNavItem(
                       Icons.menu_book,
-                      "Programas de Estudio",
+                      "Cursos y Materia",
                       1,
                       dashboardVM,
                       isDesktop: true,
                     ),
                     _buildNavItem(
                       Icons.assignment,
-                      "Postulación",
+                      "Estudiantes",
                       2,
                       dashboardVM,
                       isDesktop: true,
@@ -423,14 +349,14 @@ class DashboardScreen extends StatelessWidget {
                   children: [
                     _buildNavItem(
                       Icons.school,
-                      "Inscripción",
+                      "Registro de Huella",
                       4,
                       dashboardVM,
                       isDesktop: true,
                     ),
                     _buildNavItem(
                       Icons.message,
-                      "Mensajería",
+                      "Reportes Academicos",
                       5,
                       dashboardVM,
                       isDesktop: true,

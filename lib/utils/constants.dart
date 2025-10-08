@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 /// 🎨 COLORES DE LA APP
 /// ===========================
 class AppColors {
-  static const primary = Color(0xFF2E7D32); // Verde principal
-  static const secondary = Color(0xFF66BB6A); // Verde claro
-  static const accent = Color.fromARGB(255, 171, 219, 169);
+  static const primary = Color(0xFF1565C0); // Azul fuerte
+  static const secondary = Color(0xFF42A5F5); // Celeste
+  static const accent = Color(0xFF90CAF9); // Azul claro
   static const background = Color(0xFFF5F5F5);
 
   static const success = Color(0xFF28A745);
@@ -20,10 +20,10 @@ class AppColors {
 /// 🧍 Colores personalizados por tipo de usuario
 class UserThemeColors {
   static const administrador = Color(0xFF1565C0); // Azul fuerte
-  static const docente = Color(0xFF8E24AA);      // Morado
-  static const estudiante = Color(0xFFFF6F00);   // Naranja fuerte
-  static const jefeCarrera = Color(0xFF009688);  // Verde azulado
-  static const directorAcademico = Color(0xFFD32F2F); // Rojo fuerte
+  static const docente = Color(0xFF42A5F5);      // Celeste
+  static const estudiante = Color(0xFF29B6F6);   // Azul intermedio
+  static const jefeCarrera = Color(0xFF64B5F6);  // Azul claro
+  static const directorAcademico = Color(0xFF1976D2); // Azul intenso
 }
 
 /// ===========================
@@ -85,7 +85,7 @@ class AppStrings {
   static const appName = "IncosCheck";
   static const login = "Iniciar Sesión";
   static const logout = "Cerrar Sesión";
-  static const dashboard = "Panel de Control";
+  static const dashboard = " IncosCheck ";
   static const asistencia = "Registro de Asistencia";
   static const estudiantes = "Estudiantes";
   static const docentes = "Docentes";
@@ -138,4 +138,67 @@ class Messages {
   static const registroExitoso = 'Registro guardado exitosamente';
   static const errorGeneral = 'Ocurrió un error inesperado';
   static const confirmacion = '¿Estás segura/o de continuar?';
+}
+
+/// ===========================
+/// 📝 DISEÑO DE TABLA VISUAL
+/// ===========================
+class TablaVisual extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Tabla General'),
+        backgroundColor: AppColors.primary,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            headingRowColor: MaterialStateProperty.all(AppColors.secondary),
+            headingTextStyle: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+            dataRowColor: MaterialStateProperty.resolveWith<Color?>(
+              (Set<MaterialState> states) {
+                if (states.contains(MaterialState.selected)) {
+                  return AppColors.accent; // Azul claro al seleccionar
+                }
+                return Colors.white; // Fondo de filas
+              },
+            ),
+            border: TableBorder.all(
+              color: AppColors.primary,
+              width: 2,
+            ),
+            columns: const [
+              DataColumn(label: Text('ID')),
+              DataColumn(label: Text('Nombre')),
+              DataColumn(label: Text('Descripción')),
+              DataColumn(label: Text('Estado')),
+              DataColumn(label: Text('Fecha')),
+            ],
+            rows: const [
+              DataRow(cells: [
+                DataCell(Text('1')),
+                DataCell(Text('Juan Perez')),
+                DataCell(Text('Estudiante de sistemas')),
+                DataCell(Text('Activo')),
+                DataCell(Text('2025-10-02')),
+              ]),
+              DataRow(cells: [
+                DataCell(Text('2')),
+                DataCell(Text('Maria Lopez')),
+                DataCell(Text('Estudiante de informática')),
+                DataCell(Text('Inactivo')),
+                DataCell(Text('2025-10-01')),
+              ]),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
