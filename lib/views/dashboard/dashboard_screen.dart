@@ -75,7 +75,7 @@ class DashboardScreen extends StatelessWidget {
           _buildDrawerItem(context, Icons.menu_book, "Materias", 1, dashboardVM),
           _buildDrawerItem(context, Icons.assignment, "Estudiantes", 2, dashboardVM),
           _buildDrawerItem(context, Icons.school, "Registro_Huellas", 4, dashboardVM),
-          _buildDrawerItem(context, Icons.message, "Reportes", 5, dashboardVM),
+          _buildDrawerItem(context, Icons.message, "Reportess", 5, dashboardVM),
           _buildDrawerItem(context, Icons.support_agent, "Soporte", 6, dashboardVM),
           const Spacer(),
           const Divider(height: 1, color: AppColors.textSecondary),
