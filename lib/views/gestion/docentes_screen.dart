@@ -33,6 +33,28 @@ class _DocentesScreenState extends State<DocentesScreen> {
       'telefono': '+591 70012346',
       'estado': Estados.activo,
     },
+    {
+      'id': 3,
+      'apellidoPaterno': 'LOPEZ',
+      'apellidoMaterno': 'ROJAS',
+      'nombres': 'ANA MARIA',
+      'ci': '6543212',
+      'especialidad': 'CONTADURÍA',
+      'email': 'alopez@incos.edu.bo',
+      'telefono': '+591 70012347',
+      'estado': Estados.activo,
+    },
+    {
+      'id': 4,
+      'apellidoPaterno': 'PEREZ',
+      'apellidoMaterno': 'CASTRO',
+      'nombres': 'JUAN CARLOS',
+      'ci': '6543213',
+      'especialidad': 'MATEMÁTICAS',
+      'email': 'jperez@incos.edu.bo',
+      'telefono': '+591 70012348',
+      'estado': Estados.inactivo,
+    },
   ];
 
   final TextEditingController _searchController = TextEditingController();
@@ -65,12 +87,75 @@ class _DocentesScreenState extends State<DocentesScreen> {
         _filteredDocentes = _docentes.where((docente) {
           final nombreCompleto = '${docente['apellidoPaterno']} ${docente['apellidoMaterno']} ${docente['nombres']}'.toLowerCase();
           final especialidad = docente['especialidad'].toString().toLowerCase();
+          final ci = docente['ci'].toString().toLowerCase();
           return nombreCompleto.contains(query.toLowerCase()) || 
-                 especialidad.contains(query.toLowerCase());
+                 especialidad.contains(query.toLowerCase()) ||
+                 ci.contains(query.toLowerCase());
         }).toList();
       }
       _sortDocentesAlphabetically();
     });
+  }
+
+  void _showDocenteDetails(Map<String, dynamic> docente) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Detalles del Docente',
+          style: AppTextStyles.heading2,
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildDetailRow('CI:', docente['ci']),
+              _buildDetailRow('Apellido Paterno:', docente['apellidoPaterno']),
+              _buildDetailRow('Apellido Materno:', docente['apellidoMaterno']),
+              _buildDetailRow('Nombres:', docente['nombres']),
+              _buildDetailRow('Especialidad:', docente['especialidad']),
+              _buildDetailRow('Email:', docente['email']),
+              _buildDetailRow('Teléfono:', docente['telefono']),
+              _buildDetailRow('Estado:', docente['estado']),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cerrar', style: AppTextStyles.body),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.body.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value,
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -175,6 +260,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
                           ? AppColors.success 
                           : AppColors.error,
                     ),
+                    onTap: () => _showDocenteDetails(docente),
                   ),
                 );
               },

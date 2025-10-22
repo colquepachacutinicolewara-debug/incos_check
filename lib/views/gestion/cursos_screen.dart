@@ -1,116 +1,250 @@
 import 'package:flutter/material.dart';
 import 'package:incos_check/utils/constants.dart';
 import 'package:incos_check/utils/helpers.dart';
-import '../../views/gestion/estudiantes_screent.dart';
 
-class CursosScreen extends StatelessWidget {
+class CursosScreen extends StatefulWidget {
   final String carrera;
   final String turno;
 
   const CursosScreen({
-    super.key, 
-    required this.carrera, 
-    required this.turno
+    super.key,
+    required this.carrera,
+    required this.turno,
   });
 
   @override
-  Widget build(BuildContext context) {
-    List<Map<String, dynamic>> cursos = _obtenerCursosPorTurno(turno);
+  State<CursosScreen> createState() => _CursosScreenState();
+}
 
-    return Scaffold(
-      appBar: AppBar(
+class _CursosScreenState extends State<CursosScreen> {
+  final List<Map<String, dynamic>> _cursos = [
+    {
+      'id': 1,
+      'nombre': '3RO B - SISTEMAS',
+      'codigo': '3B-SIS',
+      'carrera': 'INGENIERÍA DE SISTEMAS',
+      'docente': 'LIC. MARIA FERNANDEZ',
+      'estudiantes': 25,
+      'estado': Estados.activo,
+    },
+    {
+      'id': 2,
+      'nombre': '2DO A - ADMINISTRACIÓN',
+      'codigo': '2A-ADM',
+      'carrera': 'ADMINISTRACIÓN DE EMPRESAS',
+      'docente': 'LIC. CARLOS BUSTOS',
+      'estudiantes': 30,
+      'estado': Estados.activo,
+    },
+    {
+      'id': 3,
+      'nombre': '4TO C - CONTADURÍA',
+      'codigo': '4C-CON',
+      'carrera': 'CONTADURÍA PÚBLICA',
+      'docente': 'CPA. ANA LOPEZ',
+      'estudiantes': 28,
+      'estado': Estados.activo,
+    },
+    {
+      'id': 4,
+      'nombre': '1RO B - SISTEMAS',
+      'codigo': '1B-SIS',
+      'carrera': 'INGENIERÍA DE SISTEMAS',
+      'docente': 'ING. JUAN PEREZ',
+      'estudiantes': 22,
+      'estado': Estados.activo,
+    },
+  ];
+
+  final TextEditingController _searchController = TextEditingController();
+  List<Map<String, dynamic>> _filteredCursos = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _filteredCursos = _cursos;
+  }
+
+  void _filterCursos(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        _filteredCursos = _cursos;
+      } else {
+        _filteredCursos = _cursos.where((curso) {
+          final nombre = curso['nombre'].toString().toLowerCase();
+          final docente = curso['docente'].toString().toLowerCase();
+          final carrera = curso['carrera'].toString().toLowerCase();
+          return nombre.contains(query.toLowerCase()) ||
+              docente.contains(query.toLowerCase()) ||
+              carrera.contains(query.toLowerCase());
+        }).toList();
+      }
+    });
+  }
+
+  void _showCursoDetails(Map<String, dynamic> curso) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
         title: Text(
-          'Cursos - $turno',
-          style: AppTextStyles.heading2.copyWith(color: Colors.white),
+          'Detalles del Curso',
+          style: AppTextStyles.heading2,
         ),
-        backgroundColor: AppColors.secondary,
-      ),
-      body: ListView(
-        padding: EdgeInsets.all(AppSpacing.medium),
-        children: cursos.map((curso) {
-          return _buildCursoCard(context, curso);
-        }).toList(),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildDetailRow('Código:', curso['codigo']),
+              _buildDetailRow('Nombre:', curso['nombre']),
+              _buildDetailRow('Carrera:', curso['carrera']),
+              _buildDetailRow('Docente:', curso['docente']),
+              _buildDetailRow('Estudiantes:', '${curso['estudiantes']}'),
+              _buildDetailRow('Estado:', curso['estado']),
+              _buildDetailRow('Turno:', widget.turno),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cerrar', style: AppTextStyles.body),
+          ),
+        ],
       ),
     );
   }
 
-  List<Map<String, dynamic>> _obtenerCursosPorTurno(String turno) {
-    switch (turno) {
-      case 'NOCHE':
-        return [
-          {'nombre': '1RO A', 'codigo': '1A-SIS-N', 'estudiantes': 25},
-          {'nombre': '1RO B', 'codigo': '1B-SIS-N', 'estudiantes': 28},
-          {'nombre': '2DO A', 'codigo': '2A-SIS-N', 'estudiantes': 30},
-          {'nombre': '2DO B', 'codigo': '2B-SIS-N', 'estudiantes': 27},
-          {'nombre': '3RO A', 'codigo': '3A-SIS-N', 'estudiantes': 32},
-          {'nombre': '3RO B', 'codigo': '3B-SIS-N', 'estudiantes': 29},
-        ];
-      case 'MAÑANA':
-        return [
-          {'nombre': '1RO A', 'codigo': '1A-SIS-M', 'estudiantes': 26},
-          {'nombre': '1RO B', 'codigo': '1B-SIS-M', 'estudiantes': 24},
-          {'nombre': '2DO A', 'codigo': '2A-SIS-M', 'estudiantes': 28},
-          {'nombre': '2DO B', 'codigo': '2B-SIS-M', 'estudiantes': 25},
-          {'nombre': '3RO A', 'codigo': '3A-SIS-M', 'estudiantes': 30},
-          {'nombre': '3RO B', 'codigo': '3B-SIS-M', 'estudiantes': 27},
-        ];
-      case 'TARDE':
-        return [
-          {'nombre': '1RO A', 'codigo': '1A-SIS-T', 'estudiantes': 23},
-          {'nombre': '1RO B', 'codigo': '1B-SIS-T', 'estudiantes': 26},
-          {'nombre': '2DO A', 'codigo': '2A-SIS-T', 'estudiantes': 29},
-          {'nombre': '2DO B', 'codigo': '2B-SIS-T', 'estudiantes': 24},
-          {'nombre': '3RO A', 'codigo': '3A-SIS-T', 'estudiantes': 31},
-          {'nombre': '3RO B', 'codigo': '3B-SIS-T', 'estudiantes': 28},
-        ];
-      default:
-        return [];
-    }
-  }
-
-  Widget _buildCursoCard(BuildContext context, Map<String, dynamic> curso) {
-    return Card(
-      elevation: 4,
-      margin: EdgeInsets.symmetric(vertical: AppSpacing.small),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: AppColors.primary,
-          child: Text(
-            curso['nombre'].split(' ')[0],
-            style: TextStyle(
-              color: Colors.white,
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.body.copyWith(
               fontWeight: FontWeight.bold,
-              fontSize: 12,
+              color: AppColors.textPrimary,
             ),
           ),
-        ),
-        title: Text(
-          '${curso['nombre']} - SISTEMAS',
-          style: AppTextStyles.body.copyWith(
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        subtitle: Text(
-          '${curso['estudiantes']} estudiantes • Código: ${curso['codigo']}',
-          style: AppTextStyles.body.copyWith(
-            color: AppColors.textSecondary,
-          ),
-        ),
-        trailing: Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.textSecondary),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => EstudiantesScreen(
-                carrera: carrera,
-                turno: turno,
-                curso: curso['nombre'],
-                codigoCurso: curso['codigo'],
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value,
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.textSecondary,
               ),
             ),
-          );
-        },
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          'Cursos - ${widget.carrera} (${widget.turno})',
+          style: AppTextStyles.heading2.copyWith(color: Colors.white),
+        ),
+        backgroundColor: AppColors.success,
+      ),
+      body: Column(
+        children: [
+          // Barra de búsqueda
+          Padding(
+            padding: EdgeInsets.all(AppSpacing.medium),
+            child: TextFormField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                labelText: 'Buscar curso...',
+                prefixIcon: Icon(Icons.search, color: AppColors.primary),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.small),
+                ),
+                filled: true,
+                fillColor: AppColors.background,
+              ),
+              onChanged: _filterCursos,
+            ),
+          ),
+
+          // Resumen
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: AppSpacing.medium),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Total Cursos: ${_filteredCursos.length}',
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+                Text(
+                  'Estudiantes: ${_cursos.fold<int>(0, (sum, curso) => sum + (curso['estudiantes'] as int))}',
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          SizedBox(height: AppSpacing.small),
+
+          // Lista de cursos
+          Expanded(
+            child: ListView.builder(
+              itemCount: _filteredCursos.length,
+              itemBuilder: (context, index) {
+                final curso = _filteredCursos[index];
+                return Card(
+                  margin: EdgeInsets.symmetric(
+                    horizontal: AppSpacing.medium,
+                    vertical: AppSpacing.small,
+                  ),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: AppColors.success,
+                      child: Icon(Icons.book, color: Colors.white),
+                    ),
+                    title: Text(
+                      curso['nombre'],
+                      style: AppTextStyles.body.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Docente: ${curso['docente']}'),
+                        Text('${curso['estudiantes']} estudiantes • ${curso['carrera']}'),
+                      ],
+                    ),
+                    trailing: Chip(
+                      label: Text(
+                        curso['estado'],
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                      ),
+                      backgroundColor: curso['estado'] == Estados.activo
+                          ? AppColors.success
+                          : AppColors.error,
+                    ),
+                    onTap: () => _showCursoDetails(curso),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

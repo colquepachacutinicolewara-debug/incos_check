@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:incos_check/utils/constants.dart';
 import 'package:incos_check/utils/helpers.dart';
-import '../estudiantes_screent.dart';
-
+// IMPORT CORRECTO (ajusta la ruta si tu proyecto tiene otra estructura)
+import '../estudiantes_screen.dart';
 class CursosScreen extends StatelessWidget {
   final String carrera;
   final String turno;
@@ -13,7 +13,7 @@ class CursosScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     // Definir cursos según el turno
     List<Map<String, dynamic>> cursos = [];
-    
+
     if (turno == 'NOCHE') {
       cursos = [
         {'nombre': '1RO A', 'codigo': '1A-SIS-N', 'estudiantes': 25},
@@ -43,6 +43,9 @@ class CursosScreen extends StatelessWidget {
       ];
     }
 
+    // Si quieres mostrar solo Sistemas Noche al inicio, puedes filtrar aquí.
+    // Por ahora dejo la lógica flexible (usa el 'turno' que pases al crear el widget).
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -68,7 +71,8 @@ class CursosScreen extends StatelessWidget {
         leading: CircleAvatar(
           backgroundColor: AppColors.primary,
           child: Text(
-            curso['nombre'].split(' ')[0],
+            // Mostrar la primera parte del nombre (ej. "1RO")
+            curso['nombre'].toString().split(' ')[0],
             style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
