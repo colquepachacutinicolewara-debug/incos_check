@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/dashboard_viewmodel.dart';
 import '../../utils/constants.dart';
-import '../../views/actividades/actividades_screen.dart';
-import '../../views/cursos_materias/cursos_materia_screen.dart';
-import '../../views/estudiantes_inscritos/estudiantes_screen.dart';
+import '../../views/gestion/gestion_screen.dart';
+import '../../views/asistencia/registrar_asistencia_screen.dart';
 import '../../views/inicio/inicio_screen.dart';
-import '../../views/registro_huella/registro_huella_screen.dart';
 import '../../views/reportes/reportes_screen.dart';
+import '../../views/configuracion/configuracion_screen.dart';
 import '../../views/soporte/soporte_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -18,13 +17,12 @@ class DashboardScreen extends StatelessWidget {
     final dashboardVM = Provider.of<DashboardViewModel>(context);
 
     final List<Widget> pages = [
-      ActividadesScreen(), // 0
-      CursosMateriaScreen(), // 1
-      EstudiantesScreen(), // 2
-      InicioScreen(), // 3 -> botón central
-      RegistroHuellaScreen(), // 4
-      ReportesScreen(), // 5
-      SoporteScreen(), // 6
+      GestionScreen(), // 0 - Gestión
+      RegistrarAsistenciaScreen(), // 1 - Asistencia
+      InicioScreen(), // 2 - Inicio (botón central)
+      ReportesScreen(), // 3 - Reportes
+      SoporteScreen(), // 4 - Configuración/Perfil
+      SoporteScreen(), // 5 - Soporte
     ];
 
     return Scaffold(
@@ -70,13 +68,12 @@ class DashboardScreen extends StatelessWidget {
               child: Icon(Icons.person, size: 40, color: AppColors.primary),
             ),
           ),
-          _buildDrawerItem(context, Icons.home, "Inicio", 3, dashboardVM),
-          _buildDrawerItem(context, Icons.event_note, "Actividades", 0, dashboardVM),
-          _buildDrawerItem(context, Icons.menu_book, "Materias", 1, dashboardVM),
-          _buildDrawerItem(context, Icons.assignment, "Estudiantes", 2, dashboardVM),
-          _buildDrawerItem(context, Icons.school, "Registro_Huellas", 4, dashboardVM),
-          _buildDrawerItem(context, Icons.message, "Reportess", 5, dashboardVM),
-          _buildDrawerItem(context, Icons.support_agent, "Soporte", 6, dashboardVM),
+          _buildDrawerItem(context, Icons.home, "Inicio", 2, dashboardVM),
+          _buildDrawerItem(context, Icons.person_add, "Registro de Estudiante", 0, dashboardVM),
+          _buildDrawerItem(context, Icons.event_note, "Registro de Asistencia", 1, dashboardVM),
+          _buildDrawerItem(context, Icons.assignment, "Reportes", 3, dashboardVM),
+          _buildDrawerItem(context, Icons.settings, "Perfil", 4, dashboardVM),
+          _buildDrawerItem(context, Icons.help, "Soporte", 5, dashboardVM),
           const Spacer(),
           const Divider(height: 1, color: AppColors.textSecondary),
           ListTile(
@@ -157,45 +154,31 @@ class DashboardScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _buildNavItem(
-                Icons.event_note,
-                "Actividades Academicas",
+                Icons.person_add,
+                "ESTUDIANTES",
                 0,
                 dashboardVM,
                 isMobile: true,
               ),
               _buildNavItem(
-                Icons.menu_book,
-                "Cursos y Materias",
+                Icons.event_note,
+                "ASISTENCIAS",
                 1,
-                dashboardVM,
-                isMobile: true,
-              ),
-              _buildNavItem(
-                Icons.assignment,
-                "Estudiantes",
-                2,
                 dashboardVM,
                 isMobile: true,
               ),
               _buildNavItemInicio(dashboardVM, isMobile: true),
               _buildNavItem(
-                Icons.school,
-                "Registro Huella",
+                Icons.assignment,
+                "REPORTES",
+                3,
+                dashboardVM,
+                isMobile: true,
+              ),
+              _buildNavItem(
+                Icons.settings,
+                "PERFIL",
                 4,
-                dashboardVM,
-                isMobile: true,
-              ),
-              _buildNavItem(
-                Icons.message,
-                "Reportes",
-                5,
-                dashboardVM,
-                isMobile: true,
-              ),
-              _buildNavItem(
-                Icons.support_agent,
-                "Soporte",
-                6,
                 dashboardVM,
                 isMobile: true,
               ),
@@ -233,23 +216,16 @@ class DashboardScreen extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _buildNavItem(
-                      Icons.event_note,
-                      "Actividades\nAcadémicas",
+                      Icons.person_add,
+                      "Registro de\nEstudiantes",
                       0,
                       dashboardVM,
                       isTablet: true,
                     ),
                     _buildNavItem(
-                      Icons.menu_book,
-                      "Cursos y\nMateria",
+                      Icons.event_note,
+                      "Registro de\nAsistencia",
                       1,
-                      dashboardVM,
-                      isTablet: true,
-                    ),
-                    _buildNavItem(
-                      Icons.assignment,
-                      "Estudiantes",
-                      2,
                       dashboardVM,
                       isTablet: true,
                     ),
@@ -262,23 +238,16 @@ class DashboardScreen extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _buildNavItem(
-                      Icons.school,
-                      "Registro de Huella",
-                      4,
-                      dashboardVM,
-                      isTablet: true,
-                    ),
-                    _buildNavItem(
-                      Icons.message,
+                      Icons.assignment,
                       "Reportes",
-                      5,
+                      3,
                       dashboardVM,
                       isTablet: true,
                     ),
                     _buildNavItem(
-                      Icons.support_agent,
-                      "Soporte",
-                      6,
+                      Icons.settings,
+                      "Perfil",
+                      4,
                       dashboardVM,
                       isTablet: true,
                     ),
@@ -319,23 +288,16 @@ class DashboardScreen extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     _buildNavItem(
-                      Icons.event_note,
-                      "Actividades Académicas",
+                      Icons.person_add,
+                      "Estudiantes",
                       0,
                       dashboardVM,
                       isDesktop: true,
                     ),
                     _buildNavItem(
-                      Icons.menu_book,
-                      "Cursos y Materia",
+                      Icons.event_note,
+                      "Asistencia",
                       1,
-                      dashboardVM,
-                      isDesktop: true,
-                    ),
-                    _buildNavItem(
-                      Icons.assignment,
-                      "Estudiantes",
-                      2,
                       dashboardVM,
                       isDesktop: true,
                     ),
@@ -348,23 +310,16 @@ class DashboardScreen extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     _buildNavItem(
-                      Icons.school,
-                      "Registro de Huella",
+                      Icons.assignment,
+                      "Reportes",
+                      3,
+                      dashboardVM,
+                      isDesktop: true,
+                    ),
+                    _buildNavItem(
+                      Icons.settings,
+                      "Perfil",
                       4,
-                      dashboardVM,
-                      isDesktop: true,
-                    ),
-                    _buildNavItem(
-                      Icons.message,
-                      "Reportes Academicos",
-                      5,
-                      dashboardVM,
-                      isDesktop: true,
-                    ),
-                    _buildNavItem(
-                      Icons.support_agent,
-                      "Soporte Técnico",
-                      6,
                       dashboardVM,
                       isDesktop: true,
                     ),
@@ -438,14 +393,14 @@ class DashboardScreen extends StatelessWidget {
     bool isTablet = false,
     bool isDesktop = false,
   }) {
-    final bool isSelected = dashboardVM.selectedIndex == 3;
+    final bool isSelected = dashboardVM.selectedIndex == 2;
 
     return Padding(
       padding: EdgeInsets.symmetric(
         horizontal: isMobile ? AppSpacing.medium : AppSpacing.large,
       ),
       child: GestureDetector(
-        onTap: () => dashboardVM.changeIndex(3),
+        onTap: () => dashboardVM.changeIndex(2),
         child: Container(
           decoration: BoxDecoration(
             color: isSelected ? AppColors.primary : AppColors.success,

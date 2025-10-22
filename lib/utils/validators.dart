@@ -1,9 +1,10 @@
+// utils/validators.dart
 class Validators {
 
   /// Validar email
   static String? validateEmail(String? value) {
     if (value == null || value.isEmpty) return 'Correo obligatorio';
-    final regex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w]{2,4}$');
+    final regex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     if (!regex.hasMatch(value)) return 'Correo inválido';
     return null;
   }
@@ -22,7 +23,6 @@ class Validators {
   }
 
   /// Validar nombre (solo letras y espacios)
-  /// Devuelve el nombre convertido a mayúsculas
   static String? validateName(String? value) {
     if (value == null || value.isEmpty) return 'Nombre obligatorio';
     if (value.length < 2) return 'Nombre demasiado corto';
@@ -32,7 +32,7 @@ class Validators {
   }
 
   /// Convertir nombre a mayúsculas (para usar después de validar)
-  static String formatName(String name) => name.toUpperCase();
+  static String formatName(String name) => name.trim().toUpperCase();
 
   /// Validar CI (solo números, 6-10 dígitos)
   static String? validateCI(String? value) {
@@ -44,17 +44,27 @@ class Validators {
   }
 
   /// Convertir departamento a mayúsculas
-  static String formatDepartment(String dept) => dept.toUpperCase();
+  static String formatDepartment(String dept) => dept.trim().toUpperCase();
 
   /// Validar teléfono Bolivia (+591) con 8 dígitos y departamento opcional
   static String? validatePhone(String? value, {String? departamento}) {
     if (value == null || value.isEmpty) return 'Teléfono obligatorio';
-    if (!value.startsWith('+591')) return 'El teléfono debe iniciar con +591';
+    
+    // Si no empieza con +591, agregarlo automáticamente
+    String phoneValue = value;
+    if (!value.startsWith('+591')) {
+      // Si solo tiene números, agregar el prefijo
+      if (RegExp(r'^\d+$').hasMatch(value)) {
+        phoneValue = '+591$value';
+      } else {
+        return 'El teléfono debe iniciar con +591 o tener solo números';
+      }
+    }
 
-    String numberPart = value.replaceFirst('+591', '');
+    String numberPart = phoneValue.replaceFirst('+591', '');
     final regex = RegExp(r'^\d+$');
-    if (!regex.hasMatch(numberPart)) return 'Teléfono inválido, solo números';
-    if (numberPart.length != 8) return 'El teléfono debe tener 8 dígitos';
+    if (!regex.hasMatch(numberPart)) return 'Teléfono inválido, solo números después de +591';
+    if (numberPart.length != 8) return 'El teléfono debe tener 8 dígitos después de +591';
 
     if (departamento != null) {
       final validDepartments = ['LP','SCZ','CBBA','OR','PT','CH','TJA','BE','PD'];
@@ -76,14 +86,18 @@ class Validators {
   /// Validar fecha (YYYY-MM-DD)
   static String? validateDate(String? value) {
     if (value == null || value.isEmpty) return 'Fecha obligatoria';
-    // Opcional: validar formato con DateTime.tryParse(value)
+    // Validar formato con DateTime.tryParse
+    final date = DateTime.tryParse(value);
+    if (date == null) return 'Formato de fecha inválido (YYYY-MM-DD)';
     return null;
   }
 
   /// Validar hora (HH:MM)
   static String? validateTime(String? value) {
     if (value == null || value.isEmpty) return 'Hora obligatoria';
-    // Opcional: validar formato con RegExp o DateTime.tryParse
+    // Validar formato con RegExp
+    final regex = RegExp(r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$');
+    if (!regex.hasMatch(value)) return 'Formato de hora inválido (HH:MM)';
     return null;
   }
 }

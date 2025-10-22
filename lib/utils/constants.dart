@@ -1,3 +1,4 @@
+// utils/constants.dart
 import 'package:flutter/material.dart';
 
 /// ===========================
@@ -52,6 +53,12 @@ class AppTextStyles {
     fontWeight: FontWeight.bold,
     color: Colors.white,
   );
+  
+  // Añadido para el drawer
+  static const drawerItem = TextStyle(
+    fontSize: 16,
+    color: AppColors.textPrimary,
+  );
 }
 
 /// ===========================
@@ -61,6 +68,7 @@ class AppSpacing {
   static const small = 8.0;
   static const medium = 16.0;
   static const large = 24.0;
+  static const xlarge = 32.0;
 }
 
 class AppRadius {
@@ -75,7 +83,7 @@ class AppRadius {
 class AppAssets {
   static const logo = "assets/logo.png";
   static const userPlaceholder = "assets/images/user.png";
-  static const huellaIcon = "assets/icons/huella.png"; // 👆 ícono para asistencia biométrica
+  static const huellaIcon = "assets/icons/huella.png";
 }
 
 /// ===========================
@@ -85,10 +93,15 @@ class AppStrings {
   static const appName = "IncosCheck";
   static const login = "Iniciar Sesión";
   static const logout = "Cerrar Sesión";
-  static const dashboard = " IncosCheck ";
+  static const dashboard = "IncosCheck";
   static const asistencia = "Registro de Asistencia";
   static const estudiantes = "Estudiantes";
   static const docentes = "Docentes";
+  static const gestion = "Gestión Académica";
+  static const reportes = "Reportes";
+  static const configuracion = "Configuración";
+  static const soporte = "Soporte";
+  static const inicio = "Inicio";
 }
 
 /// ===========================
@@ -114,19 +127,6 @@ class Estados {
 }
 
 /// ===========================
-/// 🗄 COLECCIONES FIRESTORE
-/// ===========================
-class Collections {
-  static const usuarios = 'usuarios';
-  static const estudiantes = 'estudiantes';
-  static const docentes = 'docentes';
-  static const cursos = 'cursos';
-  static const asistencias = 'asistencias';
-  static const materias = 'materias';
-  static const configuraciones = 'configuraciones';
-}
-
-/// ===========================
 /// 💬 MENSAJES COMUNES
 /// ===========================
 class Messages {
@@ -139,66 +139,12 @@ class Messages {
   static const errorGeneral = 'Ocurrió un error inesperado';
   static const confirmacion = '¿Estás segura/o de continuar?';
 }
-
 /// ===========================
-/// 📝 DISEÑO DE TABLA VISUAL
+/// ⏱ DURACIONES DE ANIMACIÓN
 /// ===========================
-class TablaVisual extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Tabla General'),
-        backgroundColor: AppColors.primary,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
-            headingRowColor: MaterialStateProperty.all(AppColors.secondary),
-            headingTextStyle: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-            dataRowColor: MaterialStateProperty.resolveWith<Color?>(
-              (Set<MaterialState> states) {
-                if (states.contains(MaterialState.selected)) {
-                  return AppColors.accent; // Azul claro al seleccionar
-                }
-                return Colors.white; // Fondo de filas
-              },
-            ),
-            border: TableBorder.all(
-              color: AppColors.primary,
-              width: 2,
-            ),
-            columns: const [
-              DataColumn(label: Text('ID')),
-              DataColumn(label: Text('Nombre')),
-              DataColumn(label: Text('Descripción')),
-              DataColumn(label: Text('Estado')),
-              DataColumn(label: Text('Fecha')),
-            ],
-            rows: const [
-              DataRow(cells: [
-                DataCell(Text('1')),
-                DataCell(Text('Juan Perez')),
-                DataCell(Text('Estudiante de sistemas')),
-                DataCell(Text('Activo')),
-                DataCell(Text('2025-10-02')),
-              ]),
-              DataRow(cells: [
-                DataCell(Text('2')),
-                DataCell(Text('Maria Lopez')),
-                DataCell(Text('Estudiante de informática')),
-                DataCell(Text('Inactivo')),
-                DataCell(Text('2025-10-01')),
-              ]),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+class AppDurations {
+  static const short = Duration(milliseconds: 200);
+  static const medium = Duration(milliseconds: 500);
+  static const long = Duration(milliseconds: 1000);
+  static const splashDelay = Duration(seconds: 2);
 }

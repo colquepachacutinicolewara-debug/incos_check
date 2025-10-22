@@ -1,3 +1,4 @@
+// utils/helpers.dart
 import 'package:flutter/material.dart';
 import 'constants.dart'; // Para usar colores de la app
 
@@ -91,3 +92,4 @@ class Helpers {
     return regex.hasMatch(value);
   }
 }
+

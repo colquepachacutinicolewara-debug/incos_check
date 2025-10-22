@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import '../../utils/constants.dart';
+import '../constants.dart';
 
-class RegistroHuellaScreen extends StatelessWidget {
-  const RegistroHuellaScreen({super.key});
+class EstudiantesScreen extends StatelessWidget {
+  const EstudiantesScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Registro_Huella"),
+        title: const Text("Estudiantes"),
         centerTitle: true,
         elevation: 4,
         backgroundColor: AppColors.primary,
@@ -32,7 +32,7 @@ class RegistroHuellaScreen extends StatelessWidget {
                 ),
                 SizedBox(height: AppSpacing.medium),
                 Text(
-                  "La pantalla de registro de huella está en inicio de proceso",
+                  "La pantalla de estudiantes inscritos está en inicio de proceso",
                   style: AppTextStyles.heading1,
                   textAlign: TextAlign.center,
                 ),
