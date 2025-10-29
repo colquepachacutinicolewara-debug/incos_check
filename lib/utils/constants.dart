@@ -16,6 +16,9 @@ class AppColors {
 
   static const textPrimary = Colors.black87;
   static const textSecondary = Colors.black54;
+  
+  static const Color border = Color(0xFFE0E0E0); // ejemplo de gris
+  
 }
 
 /// 🧍 Colores personalizados por tipo de usuario
@@ -40,6 +43,13 @@ class AppTextStyles {
   static const heading2 = TextStyle(
     fontSize: 20,
     fontWeight: FontWeight.w600,
+    color: AppColors.textPrimary,
+  );
+
+    /// 🆕 NUEVO ESTILO HEADING3 - SIGUIENDO EL PATRÓN EXISTENTE
+  static const heading3 = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w500,
     color: AppColors.textPrimary,
   );
 
@@ -124,7 +134,9 @@ class Estados {
   static const presente = 'Presente';
   static const ausente = 'Ausente';
   static const tardanza = 'Tardanza';
+  static const String suspendido = 'Suspendido';
 }
+
 
 /// ===========================
 /// 💬 MENSAJES COMUNES

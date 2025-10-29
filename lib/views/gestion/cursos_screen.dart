@@ -3,8 +3,8 @@ import 'package:incos_check/utils/constants.dart';
 import 'package:incos_check/utils/helpers.dart';
 
 class CursosScreen extends StatefulWidget {
-  final String carrera;
-  final String turno;
+  final Map<String, dynamic> carrera;
+  final Map<String, dynamic> turno;
 
   const CursosScreen({
     super.key,
@@ -101,7 +101,7 @@ class _CursosScreenState extends State<CursosScreen> {
               _buildDetailRow('Docente:', curso['docente']),
               _buildDetailRow('Estudiantes:', '${curso['estudiantes']}'),
               _buildDetailRow('Estado:', curso['estado']),
-              _buildDetailRow('Turno:', widget.turno),
+              _buildDetailRow('Turno:', widget.turno['nombre']),
             ],
           ),
         ),

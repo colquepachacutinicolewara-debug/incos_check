@@ -1,26 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:incos_check/utils/constants.dart';
-import 'niveles_screen.dart';
+import '../../views/gestion/estudiantes_screen.dart';
 
-class TurnosScreen extends StatefulWidget {
+class ParalelosScreen extends StatefulWidget {
   final String tipo;
   final Map<String, dynamic> carrera;
+  final Map<String, dynamic> turno;
+  final Map<String, dynamic> nivel;
   
-  const TurnosScreen({
+  const ParalelosScreen({
     super.key, 
     required this.tipo, 
-    required this.carrera
+    required this.carrera,
+    required this.turno,
+    required this.nivel
   });
 
   @override
-  State<TurnosScreen> createState() => _TurnosScreenState();
+  State<ParalelosScreen> createState() => _ParalelosScreenState();
 }
 
-class _TurnosScreenState extends State<TurnosScreen> {
-  final List<Map<String, dynamic>> _turnos = [
-    {'id': 1, 'nombre': 'Mañana', 'icon': Icons.wb_sunny},
-    {'id': 2, 'nombre': 'Tarde', 'icon': Icons.brightness_6},
-    {'id': 3, 'nombre': 'Noche', 'icon': Icons.nights_stay},
+class _ParalelosScreenState extends State<ParalelosScreen> {
+  final List<Map<String, dynamic>> _paralelos = [
+    {'id': 1, 'nombre': 'A'},
+    {'id': 2, 'nombre': 'B'},
+    {'id': 3, 'nombre': 'C'},
   ];
 
   @override
@@ -30,33 +34,36 @@ class _TurnosScreenState extends State<TurnosScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          '${widget.carrera['nombre']} - Turnos',
+          '${widget.carrera['nombre']} - ${widget.turno['nombre']} - ${widget.nivel['nombre']}',
           style: AppTextStyles.heading2.copyWith(color: Colors.white),
         ),
         backgroundColor: carreraColor,
       ),
       body: ListView.builder(
         padding: EdgeInsets.all(AppSpacing.medium),
-        itemCount: _turnos.length,
+        itemCount: _paralelos.length,
         itemBuilder: (context, index) {
-          final turno = _turnos[index];
-          return _buildTurnoCard(turno, context, carreraColor);
+          final paralelo = _paralelos[index];
+          return _buildParaleloCard(paralelo, context, carreraColor);
         },
       ),
     );
   }
 
-  Widget _buildTurnoCard(Map<String, dynamic> turno, BuildContext context, Color color) {
+  Widget _buildParaleloCard(Map<String, dynamic> paralelo, BuildContext context, Color color) {
     return Card(
       elevation: 4,
       margin: EdgeInsets.only(bottom: AppSpacing.medium),
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: color.withOpacity(0.2),
-          child: Icon(turno['icon'], color: color),
+          child: Text(
+            paralelo['nombre'],
+            style: TextStyle(color: color, fontWeight: FontWeight.bold),
+          ),
         ),
         title: Text(
-          'Turno ${turno['nombre']}',
+          'Paralelo ${paralelo['nombre']}',
           style: AppTextStyles.heading3,
         ),
         trailing: Icon(Icons.arrow_forward_ios, size: 16),
@@ -64,10 +71,12 @@ class _TurnosScreenState extends State<TurnosScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => NivelesScreen(
+              builder: (context) => EstudiantesListScreen(
                 tipo: widget.tipo,
                 carrera: widget.carrera,
-                turno: turno,
+                turno: widget.turno,
+                nivel: widget.nivel,
+                paralelo: paralelo,
               ),
             ),
           );

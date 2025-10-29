@@ -14,17 +14,6 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dashboardVM = Provider.of<DashboardViewModel>(context);
-
-    final List<Widget> pages = [
-      GestionScreen(), // 0 - Gestión
-      RegistrarAsistenciaScreen(), // 1 - Asistencia
-      InicioScreen(), // 2 - Inicio (botón central)
-      ReportesScreen(), // 3 - Reportes
-      SoporteScreen(), // 4 - Configuración/Perfil
-      SoporteScreen(), // 5 - Soporte
-    ];
-
     return Scaffold(
       appBar: AppBar(
         title: const Text(AppStrings.dashboard),
@@ -33,16 +22,30 @@ class DashboardScreen extends StatelessWidget {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
-      drawer: _buildDrawer(context, dashboardVM),
-      body: pages[dashboardVM.selectedIndex],
-      bottomNavigationBar: _buildResponsiveBottomNavigationBar(
-        dashboardVM,
-        context,
-      ),
+      drawer: _buildDrawer(context),
+      body: _buildBody(context),
+      bottomNavigationBar: _buildResponsiveBottomNavigationBar(context),
     );
   }
 
-  Drawer _buildDrawer(BuildContext context, DashboardViewModel dashboardVM) {
+  Widget _buildBody(BuildContext context) {
+    final dashboardVM = Provider.of<DashboardViewModel>(context);
+    
+    final List<Widget> pages = [
+      GestionScreen(), // 0 - Gestión
+      RegistrarAsistenciaScreen(), // 1 - Asistencia
+      InicioScreen(), // 2 - Inicio (botón central)
+      ReportesScreen(), // 3 - Reportes
+      ConfiguracionScreen(), // 4 - Configuración/Perfil (CORREGIDO)
+      SoporteScreen(), // 5 - Soporte
+    ];
+
+    return pages[dashboardVM.selectedIndex];
+  }
+
+  Drawer _buildDrawer(BuildContext context) {
+    final dashboardVM = Provider.of<DashboardViewModel>(context);
+    
     return Drawer(
       child: Column(
         children: [
@@ -116,10 +119,8 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildResponsiveBottomNavigationBar(
-    DashboardViewModel dashboardVM,
-    BuildContext context,
-  ) {
+  Widget _buildResponsiveBottomNavigationBar(BuildContext context) {
+    final dashboardVM = Provider.of<DashboardViewModel>(context);
     final screenWidth = MediaQuery.of(context).size.width;
 
     // Definir breakpoints para diferentes tamaños de pantalla
@@ -158,29 +159,29 @@ class DashboardScreen extends StatelessWidget {
                 "ESTUDIANTES",
                 0,
                 dashboardVM,
-                isMobile: true,
+                deviceType: DeviceType.mobile,
               ),
               _buildNavItem(
                 Icons.event_note,
                 "ASISTENCIAS",
                 1,
                 dashboardVM,
-                isMobile: true,
+                deviceType: DeviceType.mobile,
               ),
-              _buildNavItemInicio(dashboardVM, isMobile: true),
+              _buildNavItemInicio(dashboardVM, deviceType: DeviceType.mobile),
               _buildNavItem(
                 Icons.assignment,
                 "REPORTES",
                 3,
                 dashboardVM,
-                isMobile: true,
+                deviceType: DeviceType.mobile,
               ),
               _buildNavItem(
                 Icons.settings,
                 "PERFIL",
                 4,
                 dashboardVM,
-                isMobile: true,
+                deviceType: DeviceType.mobile,
               ),
             ],
           ),
@@ -220,19 +221,19 @@ class DashboardScreen extends StatelessWidget {
                       "Registro de\nEstudiantes",
                       0,
                       dashboardVM,
-                      isTablet: true,
+                      deviceType: DeviceType.tablet,
                     ),
                     _buildNavItem(
                       Icons.event_note,
                       "Registro de\nAsistencia",
                       1,
                       dashboardVM,
-                      isTablet: true,
+                      deviceType: DeviceType.tablet,
                     ),
                   ],
                 ),
               ),
-              _buildNavItemInicio(dashboardVM, isTablet: true),
+              _buildNavItemInicio(dashboardVM, deviceType: DeviceType.tablet),
               Expanded(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -242,14 +243,14 @@ class DashboardScreen extends StatelessWidget {
                       "Reportes",
                       3,
                       dashboardVM,
-                      isTablet: true,
+                      deviceType: DeviceType.tablet,
                     ),
                     _buildNavItem(
                       Icons.settings,
                       "Perfil",
                       4,
                       dashboardVM,
-                      isTablet: true,
+                      deviceType: DeviceType.tablet,
                     ),
                   ],
                 ),
@@ -292,19 +293,19 @@ class DashboardScreen extends StatelessWidget {
                       "Estudiantes",
                       0,
                       dashboardVM,
-                      isDesktop: true,
+                      deviceType: DeviceType.desktop,
                     ),
                     _buildNavItem(
                       Icons.event_note,
                       "Asistencia",
                       1,
                       dashboardVM,
-                      isDesktop: true,
+                      deviceType: DeviceType.desktop,
                     ),
                   ],
                 ),
               ),
-              _buildNavItemInicio(dashboardVM, isDesktop: true),
+              _buildNavItemInicio(dashboardVM, deviceType: DeviceType.desktop),
               Expanded(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -314,14 +315,14 @@ class DashboardScreen extends StatelessWidget {
                       "Reportes",
                       3,
                       dashboardVM,
-                      isDesktop: true,
+                      deviceType: DeviceType.desktop,
                     ),
                     _buildNavItem(
                       Icons.settings,
                       "Perfil",
                       4,
                       dashboardVM,
-                      isDesktop: true,
+                      deviceType: DeviceType.desktop,
                     ),
                   ],
                 ),
@@ -338,18 +339,13 @@ class DashboardScreen extends StatelessWidget {
     String label,
     int index,
     DashboardViewModel dashboardVM, {
-    bool isMobile = false,
-    bool isTablet = false,
-    bool isDesktop = false,
+    required DeviceType deviceType,
   }) {
     final bool isSelected = dashboardVM.selectedIndex == index;
+    final sizes = _getSizesForDevice(deviceType);
 
     return MaterialButton(
-      minWidth: isMobile
-          ? 40
-          : isTablet
-          ? 60
-          : 80,
+      minWidth: sizes.minWidth,
       onPressed: () => dashboardVM.changeIndex(index),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -358,11 +354,7 @@ class DashboardScreen extends StatelessWidget {
           Icon(
             icon,
             color: isSelected ? AppColors.primary : AppColors.textSecondary,
-            size: isMobile
-                ? 20
-                : isTablet
-                ? 24
-                : 28,
+            size: sizes.iconSize,
           ),
           const SizedBox(height: 4),
           Flexible(
@@ -370,15 +362,11 @@ class DashboardScreen extends StatelessWidget {
               label,
               style: AppTextStyles.body.copyWith(
                 color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                fontSize: isMobile
-                    ? 10
-                    : isTablet
-                    ? 12
-                    : 14,
+                fontSize: sizes.fontSize,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
               ),
               textAlign: TextAlign.center,
-              maxLines: isTablet ? 2 : 1,
+              maxLines: sizes.maxLines,
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -389,15 +377,16 @@ class DashboardScreen extends StatelessWidget {
 
   Widget _buildNavItemInicio(
     DashboardViewModel dashboardVM, {
-    bool isMobile = false,
-    bool isTablet = false,
-    bool isDesktop = false,
+    required DeviceType deviceType,
   }) {
     final bool isSelected = dashboardVM.selectedIndex == 2;
+    final sizes = _getSizesForDevice(deviceType);
 
     return Padding(
       padding: EdgeInsets.symmetric(
-        horizontal: isMobile ? AppSpacing.medium : AppSpacing.large,
+        horizontal: deviceType == DeviceType.mobile 
+            ? AppSpacing.medium 
+            : AppSpacing.large,
       ),
       child: GestureDetector(
         onTap: () => dashboardVM.changeIndex(2),
@@ -413,27 +402,67 @@ class DashboardScreen extends StatelessWidget {
               ),
             ],
           ),
-          width: isMobile
-              ? 56
-              : isTablet
-              ? 64
-              : 72,
-          height: isMobile
-              ? 56
-              : isTablet
-              ? 64
-              : 72,
+          width: sizes.homeButtonSize,
+          height: sizes.homeButtonSize,
           child: Icon(
             Icons.home,
             color: Colors.white,
-            size: isMobile
-                ? 24
-                : isTablet
-                ? 28
-                : 32,
+            size: sizes.homeIconSize,
           ),
         ),
       ),
     );
   }
+
+  _DeviceSizes _getSizesForDevice(DeviceType deviceType) {
+    switch (deviceType) {
+      case DeviceType.mobile:
+        return _DeviceSizes(
+          minWidth: 40,
+          iconSize: 20,
+          fontSize: 10,
+          maxLines: 1,
+          homeButtonSize: 56,
+          homeIconSize: 24,
+        );
+      case DeviceType.tablet:
+        return _DeviceSizes(
+          minWidth: 60,
+          iconSize: 24,
+          fontSize: 12,
+          maxLines: 2,
+          homeButtonSize: 64,
+          homeIconSize: 28,
+        );
+      case DeviceType.desktop:
+        return _DeviceSizes(
+          minWidth: 80,
+          iconSize: 28,
+          fontSize: 14,
+          maxLines: 1,
+          homeButtonSize: 72,
+          homeIconSize: 32,
+        );
+    }
+  }
 }
+
+class _DeviceSizes {
+  final double minWidth;
+  final double iconSize;
+  final double fontSize;
+  final int maxLines;
+  final double homeButtonSize;
+  final double homeIconSize;
+  
+  _DeviceSizes({
+    required this.minWidth,
+    required this.iconSize,
+    required this.fontSize,
+    required this.maxLines,
+    required this.homeButtonSize,
+    required this.homeIconSize,
+  });
+}
+
+enum DeviceType { mobile, tablet, desktop }

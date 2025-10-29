@@ -1,10 +1,8 @@
+// gestion_screen.dart
 import 'package:flutter/material.dart';
 import 'package:incos_check/utils/constants.dart';
 import 'package:incos_check/utils/helpers.dart';
-import '../../views/gestion/estudiantes_screen.dart'; // Importar la pantalla de estudiantes
-import '../../views/gestion/cursos_screen.dart'; // Importar la pantalla de cursos
-import '../../views/gestion/carreras_screen.dart'; // Importar la pantalla de carreras
-import '../../views/gestion/docentes_screen.dart'; // Importar la pantalla de docentes
+import 'carreras_screen.dart';
 
 class GestionScreen extends StatelessWidget {
   const GestionScreen({super.key});
@@ -17,7 +15,7 @@ class GestionScreen extends StatelessWidget {
           'Gestión Académica',
           style: AppTextStyles.heading2.copyWith(color: Colors.white),
         ),
-        backgroundColor: AppColors.secondary, // Color celeste
+        backgroundColor: AppColors.secondary,
       ),
       body: GridView.count(
         crossAxisCount: 2,
@@ -26,31 +24,31 @@ class GestionScreen extends StatelessWidget {
         children: [
           _buildMenuCard(
             context,
-            AppStrings.estudiantes,
+            'Estudiantes',
             Icons.people,
             UserThemeColors.estudiante,
-            () => _navigateToEstudiantes(context),
+            () => _navigateToCarreras(context, 'Estudiantes'),
           ),
           _buildMenuCard(
             context,
             'Cursos',
             Icons.book,
             AppColors.success,
-            () => _navigateToCursos(context),
+            () => _navigateToCarreras(context, 'Cursos'),
           ),
           _buildMenuCard(
             context,
             'Carreras',
             Icons.school,
             AppColors.warning,
-            () => _navigateToCarreras(context),
+            () => _navigateToCarreras(context, 'Carreras'),
           ),
           _buildMenuCard(
             context,
-            AppStrings.docentes,
+            'Docentes',
             Icons.person,
             UserThemeColors.docente,
-            () => _navigateToDocentes(context),
+            () => _navigateToCarreras(context, 'Docentes'),
           ),
         ],
       ),
@@ -87,45 +85,12 @@ class GestionScreen extends StatelessWidget {
     );
   }
 
-  // ESTUNDENT CORREGIDOS
-  void _navigateToEstudiantes(BuildContext context) {
+  void _navigateToCarreras(BuildContext context, String tipo) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => EstudiantesScreen(
-          carrera: 'INGENIERÍA DE SISTEMAS',
-          turno: 'Mañana',
-          curso: '3RO B',
-          codigoCurso: '3B-SIS',
-        ),
+        builder: (context) => CarrerasScreen(tipo: tipo),
       ),
-    );
-  }
-
-  //  CURSOS CORRIGIDO
-  void _navigateToCursos(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CursosScreen(
-          carrera: 'INGENIERÍA DE SISTEMAS',
-          turno: 'Mañana',
-        ),
-      ),
-    );
-  }
-
-  void _navigateToCarreras(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => CarreraScreen()),
-    );
-  }
-
-  void _navigateToDocentes(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => DocentesScreen()),
     );
   }
 }
