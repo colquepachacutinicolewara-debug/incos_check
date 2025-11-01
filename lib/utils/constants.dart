@@ -156,3 +156,95 @@ class AppDurations {
   static const long = Duration(milliseconds: 1000);
   static const splashDelay = Duration(seconds: 2);
 }
+
+/// ===========================
+/// 📚 MATERIAS Y BIMESTRES
+/// ===========================
+class AppAcademic {
+  static const List<String> bimestres = [
+    'Primer Bimestre',
+    'Segundo Bimestre',
+    'Tercer Bimestre',
+    'Cuarto Bimestre',
+  ];
+
+  static const List<String> semestres = ['Primer Semestre', 'Segundo Semestre'];
+
+  static const List<String> tiposPeriodo = ['Bimestral', 'Semestral'];
+}
+
+/// 🎨 Colores para materias
+class MateriaColors {
+  static const matematica = Color(0xFFE74C3C);
+  static const fisica = Color(0xFF3498DB);
+  static const quimica = Color(0xFF2ECC71);
+  static const programacion = Color(0xFF9B59B6);
+  static const baseDatos = Color(0xFFF39C12);
+  static const redes = Color(0xFF1ABC9C);
+  static const ingles = Color(0xFFE67E22);
+  static const etica = Color(0xFF95A5A6);
+
+  static List<Color> get colors => [
+    matematica,
+    fisica,
+    quimica,
+    programacion,
+    baseDatos,
+    redes,
+    ingles,
+    etica,
+  ];
+}
+
+/// ===========================
+/// 📚 BIMESTRES Y SEMESTRES
+/// ===========================
+class AppPeriodos {
+  static const List<String> nombresBimestres = [
+    'Primer Bimestre',
+    'Segundo Bimestre',
+    'Tercer Bimestre',
+    'Cuarto Bimestre',
+  ];
+
+  static const List<String> nombresSemestres = [
+    'Primer Semestre',
+    'Segundo Semestre',
+  ];
+
+  static const List<String> tiposPeriodo = [
+    'Bimestral',
+    'Semestral',
+    'Trimestral',
+  ];
+
+  static const List<String> estadosPeriodo = [
+    'Planificado',
+    'En Curso',
+    'Finalizado',
+    'Cancelado',
+  ];
+}
+
+/// 🎨 Colores para períodos
+class PeriodoColors {
+  static const planificado = Color(0xFF2196F3); // Azul
+  static const enCurso = Color(0xFF4CAF50); // Verde
+  static const finalizado = Color(0xFF607D8B); // Gris
+  static const cancelado = Color(0xFFF44336); // Rojo
+
+  static Color getColorPorEstado(String estado) {
+    switch (estado) {
+      case 'Planificado':
+        return planificado;
+      case 'En Curso':
+        return enCurso;
+      case 'Finalizado':
+        return finalizado;
+      case 'Cancelado':
+        return cancelado;
+      default:
+        return planificado;
+    }
+  }
+}

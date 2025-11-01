@@ -1,47 +1,42 @@
-class Estudiante {
+class AsistenciaCompleta {
   final String id;
-  final String nombre;
-  final String apellidos;
-  final String ci;
+  final String estudianteId;
+  final String estudianteNombre;
+  final String materiaId;
+  final String bimestreId;
+  final Map<String, String> asistencias; // fecha -> estado
   final String carrera;
+  final String turno;
   final String curso;
-  final String? huellaId;
-  final bool activo;
 
-  Estudiante({
+  AsistenciaCompleta({
     required this.id,
-    required this.nombre,
-    required this.apellidos,
-    required this.ci,
+    required this.estudianteId,
+    required this.estudianteNombre,
+    required this.materiaId,
+    required this.bimestreId,
+    required this.asistencias,
     required this.carrera,
+    required this.turno,
     required this.curso,
-    this.huellaId,
-    this.activo = true,
   });
 
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'nombre': nombre,
-      'apellidos': apellidos,
-      'ci': ci,
-      'carrera': carrera,
-      'curso': curso,
-      'huellaId': huellaId,
-      'activo': activo,
-    };
+  int get totalAsistencias {
+    int total = 0;
+    for (String estado in asistencias.values) {
+      if (estado.trim().isNotEmpty && estado.toUpperCase() == 'P') {
+        total++;
+      }
+    }
+    return total;
   }
 
-  factory Estudiante.fromMap(Map<String, dynamic> map) {
-    return Estudiante(
-      id: map['id'],
-      nombre: map['nombre'],
-      apellidos: map['apellidos'],
-      ci: map['ci'],
-      carrera: map['carrera'],
-      curso: map['curso'],
-      huellaId: map['huellaId'],
-      activo: map['activo'] ?? true,
-    );
+  int get totalClases => asistencias.length;
+  String get totalDisplay => '$totalAsistencias/$totalClases';
+  double get porcentaje =>
+      totalClases > 0 ? (totalAsistencias / totalClases) * 100 : 0;
+
+  String getEstadoPorFecha(String fecha) {
+    return asistencias[fecha] ?? '';
   }
 }
