@@ -105,7 +105,9 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
       appBar: AppBar(
         title: Text(
           'Paralelo ${widget.paralelo['nombre']} - Estudiantes',
-          style: AppTextStyles.heading2.copyWith(color: Colors.white),
+          style: AppTextStyles.heading2Dark(
+            context,
+          ).copyWith(color: Colors.white),
         ),
         backgroundColor: carreraColor,
         actions: [
@@ -114,22 +116,34 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
             itemBuilder: (BuildContext context) => [
               PopupMenuItem(
                 value: 'excel_simple',
-                child: Text('Exportar Lista Simple (Excel)'),
+                child: Text(
+                  'Exportar Lista Simple (Excel)',
+                  style: AppTextStyles.bodyDark(context),
+                ),
               ),
               PopupMenuItem(
                 value: 'excel_completo',
-                child: Text('Exportar Lista Completa (Excel)'),
+                child: Text(
+                  'Exportar Lista Completa (Excel)',
+                  style: AppTextStyles.bodyDark(context),
+                ),
               ),
               PopupMenuItem(
                 value: 'pdf_simple',
-                child: Text('Exportar Lista Simple (PDF)'),
+                child: Text(
+                  'Exportar Lista Simple (PDF)',
+                  style: AppTextStyles.bodyDark(context),
+                ),
               ),
               PopupMenuItem(
                 value: 'pdf_completo',
-                child: Text('Exportar Lista Completa (PDF)'),
+                child: Text(
+                  'Exportar Lista Completa (PDF)',
+                  style: AppTextStyles.bodyDark(context),
+                ),
               ),
             ],
-            icon: Icon(Icons.download),
+            icon: Icon(Icons.download, color: Colors.white),
           ),
         ],
       ),
@@ -142,17 +156,19 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
               controller: _searchController,
               decoration: InputDecoration(
                 labelText: 'Buscar estudiante...',
-                prefixIcon: Icon(Icons.search),
+                labelStyle: AppTextStyles.bodyDark(context),
+                prefixIcon: Icon(Icons.search, color: AppColors.primary),
                 border: OutlineInputBorder(),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
-                        icon: Icon(Icons.clear),
+                        icon: Icon(Icons.clear, color: AppColors.primary),
                         onPressed: () {
                           _searchController.clear();
                         },
                       )
                     : null,
               ),
+              style: AppTextStyles.bodyDark(context),
             ),
           ),
           // Contador de resultados
@@ -163,15 +179,17 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
               children: [
                 Text(
                   '${_estudiantesFiltrados.length} estudiante${_estudiantesFiltrados.length != 1 ? 's' : ''}',
-                  style: TextStyle(
-                    color: Colors.grey[600],
+                  style: AppTextStyles.bodyDark(context).copyWith(
+                    color: AppColors.textSecondaryDark(context),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 if (_searchController.text.isNotEmpty)
                   Text(
                     'Búsqueda: "${_searchController.text}"',
-                    style: TextStyle(color: Colors.blue[600], fontSize: 12),
+                    style: AppTextStyles.bodyDark(
+                      context,
+                    ).copyWith(color: Colors.blue[600], fontSize: 12),
                   ),
               ],
             ),
@@ -224,13 +242,19 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
         ),
         title: Text(
           '${estudiante['apellidoPaterno']} ${estudiante['apellidoMaterno']} ${estudiante['nombres']}',
-          style: AppTextStyles.heading3,
+          style: AppTextStyles.heading3Dark(context),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('CI: ${estudiante['ci']}'),
-            Text('Registro: ${estudiante['fechaRegistro']}'),
+            Text(
+              'CI: ${estudiante['ci']}',
+              style: AppTextStyles.bodyDark(context),
+            ),
+            Text(
+              'Registro: ${estudiante['fechaRegistro']}',
+              style: AppTextStyles.bodyDark(context),
+            ),
             Row(
               children: [
                 Icon(
@@ -241,7 +265,7 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
                 SizedBox(width: 4),
                 Text(
                   'Huellas: $huellasRegistradas/3',
-                  style: TextStyle(
+                  style: AppTextStyles.bodyDark(context).copyWith(
                     color: huellasRegistradas == 3
                         ? Colors.green
                         : Colors.orange,
@@ -265,12 +289,27 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
               onSelected: (value) =>
                   _handleMenuAction(value, estudiante, index),
               itemBuilder: (BuildContext context) => [
-                PopupMenuItem(value: 'edit', child: Text('Modificar')),
+                PopupMenuItem(
+                  value: 'edit',
+                  child: Text(
+                    'Modificar',
+                    style: AppTextStyles.bodyDark(context),
+                  ),
+                ),
                 PopupMenuItem(
                   value: 'huellas',
-                  child: Text('Gestionar Huellas'),
+                  child: Text(
+                    'Gestionar Huellas',
+                    style: AppTextStyles.bodyDark(context),
+                  ),
                 ),
-                PopupMenuItem(value: 'delete', child: Text('Eliminar')),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Text(
+                    'Eliminar',
+                    style: AppTextStyles.bodyDark(context),
+                  ),
+                ),
               ],
             ),
           ],
@@ -284,20 +323,28 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.people_outline, size: 80, color: Colors.grey.shade400),
+          Icon(
+            Icons.people_outline,
+            size: 80,
+            color: AppColors.textSecondaryDark(context),
+          ),
           SizedBox(height: AppSpacing.medium),
           Text(
             _searchController.text.isEmpty
                 ? 'No hay estudiantes registrados'
                 : 'No se encontraron resultados',
-            style: AppTextStyles.heading3.copyWith(color: Colors.grey),
+            style: AppTextStyles.heading3Dark(
+              context,
+            ).copyWith(color: AppColors.textSecondaryDark(context)),
           ),
           SizedBox(height: AppSpacing.small),
           Text(
             _searchController.text.isEmpty
                 ? 'Presiona el botón + para agregar el primer estudiante'
                 : 'Intenta con otros términos de búsqueda',
-            style: AppTextStyles.body.copyWith(color: Colors.grey.shade500),
+            style: AppTextStyles.bodyDark(
+              context,
+            ).copyWith(color: AppColors.textSecondaryDark(context)),
             textAlign: TextAlign.center,
           ),
           if (_searchController.text.isNotEmpty)
@@ -305,7 +352,10 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
               onPressed: () {
                 _searchController.clear();
               },
-              child: Text('Limpiar búsqueda'),
+              child: Text(
+                'Limpiar búsqueda',
+                style: AppTextStyles.bodyDark(context),
+              ),
             ),
         ],
       ),
@@ -456,7 +506,6 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
           '¿Exportar lista $tipo con ${estudiantesExportar.length} estudiante${estudiantesExportar.length != 1 ? 's' : ''} a Excel?',
     ).then((confirmed) {
       if (confirmed) {
-        // Simular exportación real a Excel
         _realExportacionExcel(estudiantesExportar, simple);
         Helpers.showSnackBar(
           context,
@@ -478,7 +527,6 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
           '¿Exportar lista $tipo con ${estudiantesExportar.length} estudiante${estudiantesExportar.length != 1 ? 's' : ''} a PDF?',
     ).then((confirmed) {
       if (confirmed) {
-        // Simular exportación real a PDF
         _realExportacionPDF(estudiantesExportar, simple);
         Helpers.showSnackBar(
           context,
@@ -493,9 +541,6 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
     List<Map<String, dynamic>> estudiantes,
     bool simple,
   ) {
-    // Aquí iría la lógica real de exportación a Excel
-    // Por ejemplo usando excel: ^5.1.1 o syncfusion_flutter_xlsio: ^23.1.44
-
     print('=== EXPORTACIÓN REAL EXCEL ${simple ? 'SIMPLE' : 'COMPLETA'} ===');
     print('Institución: ${widget.carrera['nombre']}');
     print('Turno: ${widget.turno['nombre']}');
@@ -519,18 +564,12 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
         );
       }
     }
-
-    // En una implementación real, aquí se generaría el archivo Excel
-    // y se descargaría o compartiría
   }
 
   void _realExportacionPDF(
     List<Map<String, dynamic>> estudiantes,
     bool simple,
   ) {
-    // Aquí iría la lógica real de exportación a PDF
-    // Por ejemplo usando pdf: ^3.10.4 o syncfusion_flutter_pdf: ^23.1.44
-
     print('=== EXPORTACIÓN REAL PDF ${simple ? 'SIMPLE' : 'COMPLETA'} ===');
     print('Institución: ${widget.carrera['nombre']}');
     print('Turno: ${widget.turno['nombre']}');
@@ -557,9 +596,6 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
         );
       }
     }
-
-    // En una implementación real, aquí se generaría el archivo PDF
-    // y se descargaría o compartiría
   }
 
   Color _parseColor(String colorString) {
@@ -602,7 +638,12 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Registro de Huellas'),
+        title: Text(
+          'Registro de Huellas',
+          style: AppTextStyles.heading2Dark(
+            context,
+          ).copyWith(color: Colors.white),
+        ),
         backgroundColor: AppColors.primary,
       ),
       body: Padding(
@@ -622,9 +663,12 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
                 ),
                 title: Text(
                   '${widget.estudiante['apellidoPaterno']} ${widget.estudiante['apellidoMaterno']} ${widget.estudiante['nombres']}',
-                  style: AppTextStyles.heading3,
+                  style: AppTextStyles.heading3Dark(context),
                 ),
-                subtitle: Text('CI: ${widget.estudiante['ci']}'),
+                subtitle: Text(
+                  'CI: ${widget.estudiante['ci']}',
+                  style: AppTextStyles.bodyDark(context),
+                ),
               ),
             ),
             SizedBox(height: AppSpacing.large),
@@ -632,12 +676,12 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
             // Progreso
             Text(
               'Progreso: ${_huellasRegistradas.where((h) => h).length}/3 huellas registradas',
-              style: AppTextStyles.heading2,
+              style: AppTextStyles.heading2Dark(context),
             ),
             SizedBox(height: AppSpacing.small),
             LinearProgressIndicator(
               value: _huellasRegistradas.where((h) => h).length / 3,
-              backgroundColor: Colors.grey[300],
+              backgroundColor: AppColors.textSecondaryDark(context),
               color: AppColors.primary,
             ),
             SizedBox(height: AppSpacing.large),
@@ -656,7 +700,7 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
                   SizedBox(height: AppSpacing.medium),
                   Text(
                     _nombresDedos[_huellaActual],
-                    style: AppTextStyles.heading2,
+                    style: AppTextStyles.heading2Dark(context),
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: AppSpacing.small),
@@ -664,7 +708,7 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
                     _huellasRegistradas[_huellaActual]
                         ? '✅ Huella registrada'
                         : 'Presiona el botón para registrar esta huella',
-                    style: AppTextStyles.body,
+                    style: AppTextStyles.bodyDark(context),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -678,7 +722,10 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
               children: [
                 ElevatedButton(
                   onPressed: _huellaActual > 0 ? _anteriorHuella : null,
-                  child: Text('Anterior'),
+                  child: Text(
+                    'Anterior',
+                    style: AppTextStyles.bodyDark(context),
+                  ),
                 ),
                 ElevatedButton(
                   onPressed: _huellasRegistradas[_huellaActual]
@@ -699,7 +746,10 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
 
             // Lista de huellas
             SizedBox(height: AppSpacing.large),
-            Text('Huellas registradas:', style: AppTextStyles.heading3),
+            Text(
+              'Huellas registradas:',
+              style: AppTextStyles.heading3Dark(context),
+            ),
             SizedBox(height: AppSpacing.small),
             ..._nombresDedos.asMap().entries.map((entry) {
               int index = entry.key;
@@ -711,9 +761,9 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
                       : Icons.radio_button_unchecked,
                   color: _huellasRegistradas[index]
                       ? Colors.green
-                      : Colors.grey,
+                      : AppColors.textSecondaryDark(context),
                 ),
-                title: Text(nombre),
+                title: Text(nombre, style: AppTextStyles.bodyDark(context)),
                 trailing: _huellasRegistradas[index]
                     ? Icon(Icons.check, color: Colors.green)
                     : null,
@@ -726,17 +776,17 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
           ? FloatingActionButton.extended(
               onPressed: _finalizarRegistro,
               backgroundColor: Colors.green,
-              icon: Icon(Icons.done_all),
-              label: Text('Finalizar Registro'),
+              icon: Icon(Icons.done_all, color: Colors.white),
+              label: Text(
+                'Finalizar Registro',
+                style: TextStyle(color: Colors.white),
+              ),
             )
           : null,
     );
   }
 
   void _registrarHuellaActual() {
-    // Aquí iría la lógica real de registro de huella con el dispositivo
-    // Por ahora simulamos el registro
-
     setState(() {
       _huellasRegistradas[_huellaActual] = true;
     });
@@ -747,7 +797,6 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
       type: 'success',
     );
 
-    // Si es la última huella, finalizar
     if (_huellaActual == 2) {
       _finalizarRegistro();
     }
@@ -831,7 +880,7 @@ class _EstudianteDialogState extends State<_EstudianteDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(widget.title, style: AppTextStyles.heading2),
+            Text(widget.title, style: AppTextStyles.heading2Dark(context)),
             SizedBox(height: AppSpacing.medium),
             Form(
               key: _formKey,
@@ -842,8 +891,10 @@ class _EstudianteDialogState extends State<_EstudianteDialog> {
                     controller: _nombresController,
                     decoration: InputDecoration(
                       labelText: 'Nombres *',
+                      labelStyle: AppTextStyles.bodyDark(context),
                       border: OutlineInputBorder(),
                     ),
+                    style: AppTextStyles.bodyDark(context),
                     validator: (value) => Validators.validateName(value),
                   ),
                   SizedBox(height: AppSpacing.small),
@@ -851,8 +902,10 @@ class _EstudianteDialogState extends State<_EstudianteDialog> {
                     controller: _paternoController,
                     decoration: InputDecoration(
                       labelText: 'Apellido Paterno *',
+                      labelStyle: AppTextStyles.bodyDark(context),
                       border: OutlineInputBorder(),
                     ),
+                    style: AppTextStyles.bodyDark(context),
                     validator: (value) => Validators.validateName(value),
                   ),
                   SizedBox(height: AppSpacing.small),
@@ -860,8 +913,10 @@ class _EstudianteDialogState extends State<_EstudianteDialog> {
                     controller: _maternoController,
                     decoration: InputDecoration(
                       labelText: 'Apellido Materno',
+                      labelStyle: AppTextStyles.bodyDark(context),
                       border: OutlineInputBorder(),
                     ),
+                    style: AppTextStyles.bodyDark(context),
                     validator: (value) {
                       if (value != null && value.isNotEmpty) {
                         return Validators.validateName(value);
@@ -874,8 +929,10 @@ class _EstudianteDialogState extends State<_EstudianteDialog> {
                     controller: _ciController,
                     decoration: InputDecoration(
                       labelText: 'Cédula de Identidad *',
+                      labelStyle: AppTextStyles.bodyDark(context),
                       border: OutlineInputBorder(),
                     ),
+                    style: AppTextStyles.bodyDark(context),
                     keyboardType: TextInputType.number,
                     validator: (value) => Validators.validateCI(value),
                   ),
@@ -888,12 +945,18 @@ class _EstudianteDialogState extends State<_EstudianteDialog> {
               children: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: Text('Cancelar'),
+                  child: Text(
+                    'Cancelar',
+                    style: AppTextStyles.bodyDark(context),
+                  ),
                 ),
                 SizedBox(width: AppSpacing.small),
                 ElevatedButton(
                   onPressed: _guardarEstudiante,
-                  child: Text('Guardar'),
+                  child: Text(
+                    'Guardar',
+                    style: AppTextStyles.bodyDark(context),
+                  ),
                 ),
               ],
             ),

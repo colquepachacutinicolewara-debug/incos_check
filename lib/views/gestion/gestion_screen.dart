@@ -13,7 +13,9 @@ class GestionScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(
           'Gestión Académica',
-          style: AppTextStyles.heading2.copyWith(color: Colors.white),
+          style: AppTextStyles.heading2Dark(
+            context,
+          ).copyWith(color: Colors.white),
         ),
         backgroundColor: AppColors.secondary,
       ),
@@ -41,7 +43,7 @@ class GestionScreen extends StatelessWidget {
             'Carreras',
             Icons.school,
             AppColors.warning,
-            () => _navigateToProgramas(context), // Cambiado aquí
+            () => _navigateToProgramas(context),
           ),
           _buildMenuCard(
             context,
@@ -78,9 +80,9 @@ class GestionScreen extends StatelessWidget {
             SizedBox(height: AppSpacing.small),
             Text(
               title,
-              style: AppTextStyles.body.copyWith(
+              style: AppTextStyles.bodyDark(context).copyWith(
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: AppColors.textPrimaryDark(context),
               ),
               textAlign: TextAlign.center,
             ),
@@ -97,7 +99,6 @@ class GestionScreen extends StatelessWidget {
     );
   }
 
-  // NUEVO MÉTODO PARA NAVEGAR A PROGRAMAS_SCREEN
   void _navigateToProgramas(BuildContext context) {
     Navigator.push(
       context,

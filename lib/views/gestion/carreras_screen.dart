@@ -13,7 +13,6 @@ class CarrerasScreen extends StatefulWidget {
 }
 
 class _CarrerasScreenState extends State<CarrerasScreen> {
-  // CORRECCIÓN: Cambiar final por List para que sea mutable
   List<Map<String, dynamic>> _carreras = [
     {
       'id': 1,
@@ -30,7 +29,9 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
       appBar: AppBar(
         title: Text(
           'Carreras - ${widget.tipo}',
-          style: AppTextStyles.heading2.copyWith(color: Colors.white),
+          style: AppTextStyles.heading2Dark(
+            context,
+          ).copyWith(color: Colors.white),
         ),
         backgroundColor: AppColors.secondary,
       ),
@@ -39,19 +40,23 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.school, size: 64, color: AppColors.textSecondary),
+                  Icon(
+                    Icons.school,
+                    size: 64,
+                    color: AppColors.textSecondaryDark(context),
+                  ),
                   SizedBox(height: AppSpacing.medium),
                   Text(
                     'No hay carreras registradas',
-                    style: AppTextStyles.body.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                    style: AppTextStyles.bodyDark(
+                      context,
+                    ).copyWith(color: AppColors.textSecondaryDark(context)),
                   ),
                   Text(
                     'Presiona el botón + para agregar una carrera',
-                    style: AppTextStyles.body.copyWith(
+                    style: AppTextStyles.bodyDark(context).copyWith(
                       fontSize: 12,
-                      color: AppColors.textSecondary,
+                      color: AppColors.textSecondaryDark(context),
                     ),
                   ),
                 ],
@@ -80,7 +85,9 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
     return Card(
       elevation: 4,
       margin: EdgeInsets.only(bottom: AppSpacing.medium),
-      color: isActiva ? null : Colors.grey.shade100,
+      color: isActiva
+          ? Theme.of(context).cardColor
+          : Colors.grey.shade300.withOpacity(0.5),
       child: Container(
         height: 80,
         child: ListTile(
@@ -99,8 +106,10 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
                     Expanded(
                       child: Text(
                         carrera['nombre'],
-                        style: AppTextStyles.heading3.copyWith(
-                          color: isActiva ? null : Colors.grey,
+                        style: AppTextStyles.heading3Dark(context).copyWith(
+                          color: isActiva
+                              ? _getTextColor(context)
+                              : AppColors.textSecondaryDark(context),
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -131,12 +140,33 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
           trailing: PopupMenuButton<String>(
             onSelected: (value) => _handleMenuAction(value, carrera),
             itemBuilder: (BuildContext context) => [
-              PopupMenuItem(value: 'edit', child: Text('Modificar')),
+              PopupMenuItem(
+                value: 'edit',
+                child: Text(
+                  'Modificar',
+                  style: AppTextStyles.bodyDark(
+                    context,
+                  ).copyWith(color: _getTextColor(context)),
+                ),
+              ),
               PopupMenuItem(
                 value: 'toggle_active',
-                child: Text(carrera['activa'] ? 'Desactivar' : 'Activar'),
+                child: Text(
+                  carrera['activa'] ? 'Desactivar' : 'Activar',
+                  style: AppTextStyles.bodyDark(
+                    context,
+                  ).copyWith(color: _getTextColor(context)),
+                ),
               ),
-              PopupMenuItem(value: 'delete', child: Text('Eliminar')),
+              PopupMenuItem(
+                value: 'delete',
+                child: Text(
+                  'Eliminar',
+                  style: AppTextStyles.bodyDark(
+                    context,
+                  ).copyWith(color: _getTextColor(context)),
+                ),
+              ),
             ],
           ),
           onTap: isActiva
@@ -164,6 +194,12 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
     );
   }
 
+  Color _getTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+  }
+
   void _handleMenuAction(String action, Map<String, dynamic> carrera) {
     switch (action) {
       case 'edit':
@@ -187,6 +223,7 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
       SnackBar(
         content: Text(
           '${carrera['nombre']} ${carrera['activa'] ? 'activada' : 'desactivada'}',
+          style: AppTextStyles.bodyDark(context).copyWith(color: Colors.white),
         ),
         backgroundColor: carrera['activa']
             ? AppColors.success
@@ -207,15 +244,19 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
               'nombre': nombre,
               'color': color,
               'icon': icono,
-              'activa':
-                  true, // Cambiado a true para que esté activa por defecto
+              'activa': true,
             });
           });
 
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Carrera "$nombre" agregada correctamente'),
+              content: Text(
+                'Carrera "$nombre" agregada correctamente',
+                style: AppTextStyles.bodyDark(
+                  context,
+                ).copyWith(color: Colors.white),
+              ),
               backgroundColor: AppColors.success,
             ),
           );
@@ -242,7 +283,12 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Carrera "$nombre" modificada correctamente'),
+              content: Text(
+                'Carrera "$nombre" modificada correctamente',
+                style: AppTextStyles.bodyDark(
+                  context,
+                ).copyWith(color: Colors.white),
+              ),
               backgroundColor: AppColors.success,
             ),
           );
@@ -255,14 +301,28 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Eliminar Carrera'),
+        backgroundColor: Theme.of(context).cardColor,
+        title: Text(
+          'Eliminar Carrera',
+          style: AppTextStyles.heading2Dark(
+            context,
+          ).copyWith(color: _getTextColor(context)),
+        ),
         content: Text(
           '¿Estás seguro de eliminar la carrera "${carrera['nombre']}"? Esta acción no se puede deshacer.',
+          style: AppTextStyles.bodyDark(
+            context,
+          ).copyWith(color: _getTextColor(context)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
+            child: Text(
+              'Cancelar',
+              style: AppTextStyles.bodyDark(
+                context,
+              ).copyWith(color: _getTextColor(context)),
+            ),
           ),
           TextButton(
             onPressed: () {
@@ -274,12 +334,22 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
 
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Carrera "$nombreCarrera" eliminada'),
+                  content: Text(
+                    'Carrera "$nombreCarrera" eliminada',
+                    style: AppTextStyles.bodyDark(
+                      context,
+                    ).copyWith(color: Colors.white),
+                  ),
                   backgroundColor: AppColors.error,
                 ),
               );
             },
-            child: Text('Eliminar', style: TextStyle(color: Colors.red)),
+            child: Text(
+              'Eliminar',
+              style: AppTextStyles.bodyDark(
+                context,
+              ).copyWith(color: Colors.red),
+            ),
           ),
         ],
       ),
@@ -322,7 +392,6 @@ class _CarreraDialogState extends State<_CarreraDialog> {
   bool _mostrarMasIconos = false;
   bool _mostrarMasColores = false;
 
-  // CARRERAS PREDEFINIDAS CON SUS COLORES E ICONOS
   final List<Map<String, dynamic>> _carrerasPredefinidas = [
     {
       'nombre': 'Sistemas Informáticos',
@@ -352,7 +421,6 @@ class _CarreraDialogState extends State<_CarreraDialog> {
     {'nombre': 'Idioma Inglés', 'color': '#F44336', 'icon': Icons.language},
   ];
 
-  // TODOS los colores disponibles
   final List<Map<String, dynamic>> _coloresDisponibles = [
     {'nombre': 'Azul Sistemas', 'color': '#1565C0'},
     {'nombre': 'Naranja Comercio', 'color': '#FF9800'},
@@ -381,7 +449,6 @@ class _CarreraDialogState extends State<_CarreraDialog> {
     {'nombre': 'Deep Orange', 'color': '#FF5722'},
   ];
 
-  // TODOS los íconos disponibles
   final List<Map<String, dynamic>> _iconosDisponibles = [
     {'icon': Icons.computer, 'nombre': 'Sistemas'},
     {'icon': Icons.business, 'nombre': 'Comercio'},
@@ -466,17 +533,38 @@ class _CarreraDialogState extends State<_CarreraDialog> {
     });
   }
 
+  Color _getTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+  }
+
+  Color _getSecondaryTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white70
+        : Colors.black87;
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.title),
+      backgroundColor: Theme.of(context).cardColor,
+      title: Text(
+        widget.title,
+        style: AppTextStyles.heading2Dark(
+          context,
+        ).copyWith(color: _getTextColor(context)),
+      ),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               'Carreras predefinidas:',
-              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold),
+              style: AppTextStyles.bodyDark(context).copyWith(
+                fontWeight: FontWeight.bold,
+                color: _getTextColor(context),
+              ),
             ),
             SizedBox(height: AppSpacing.small),
             Wrap(
@@ -493,6 +581,11 @@ class _CarreraDialogState extends State<_CarreraDialog> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
+                        style: AppTextStyles.bodyDark(context).copyWith(
+                          color: _nombreController.text == carrera['nombre']
+                              ? _parseColor(carrera['color'])
+                              : _getTextColor(context),
+                        ),
                       ),
                     ),
                     selected: _nombreController.text == carrera['nombre'],
@@ -501,32 +594,47 @@ class _CarreraDialogState extends State<_CarreraDialog> {
                         _seleccionarCarreraPredefinida(carrera);
                       }
                     },
-                    backgroundColor: Colors.grey.shade100,
+                    backgroundColor:
+                        Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey.shade800
+                        : Colors.grey.shade100,
                     selectedColor: _parseColor(
                       carrera['color'],
                     ).withOpacity(0.2),
                     checkmarkColor: _parseColor(carrera['color']),
-                    labelStyle: TextStyle(
-                      color: _nombreController.text == carrera['nombre']
-                          ? _parseColor(carrera['color'])
-                          : Colors.black87,
-                    ),
                   ),
                 );
               }).toList(),
             ),
 
             SizedBox(height: AppSpacing.medium),
-            Divider(),
+            Divider(color: _getSecondaryTextColor(context)),
             SizedBox(height: AppSpacing.medium),
 
             TextField(
               controller: _nombreController,
               decoration: InputDecoration(
                 labelText: 'Nombre de la carrera',
+                labelStyle: AppTextStyles.bodyDark(
+                  context,
+                ).copyWith(color: _getTextColor(context)),
                 border: OutlineInputBorder(),
                 hintText: 'O escribe un nombre personalizado',
+                hintStyle: AppTextStyles.bodyDark(
+                  context,
+                ).copyWith(color: _getSecondaryTextColor(context)),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(
+                    color: _getSecondaryTextColor(context),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: AppColors.primary),
+                ),
               ),
+              style: AppTextStyles.bodyDark(
+                context,
+              ).copyWith(color: _getTextColor(context)),
               maxLines: 2,
             ),
             SizedBox(height: AppSpacing.medium),
@@ -535,8 +643,9 @@ class _CarreraDialogState extends State<_CarreraDialog> {
               children: [
                 Text(
                   'Colores:',
-                  style: AppTextStyles.body.copyWith(
+                  style: AppTextStyles.bodyDark(context).copyWith(
                     fontWeight: FontWeight.bold,
+                    color: _getTextColor(context),
                   ),
                 ),
                 Spacer(),
@@ -571,7 +680,7 @@ class _CarreraDialogState extends State<_CarreraDialog> {
                       color: _parseColor(colorInfo['color']),
                       borderRadius: BorderRadius.circular(18),
                       border: _colorController.text == colorInfo['color']
-                          ? Border.all(color: Colors.black, width: 3)
+                          ? Border.all(color: Colors.white, width: 3)
                           : null,
                     ),
                     child: _colorController.text == colorInfo['color']
@@ -588,8 +697,9 @@ class _CarreraDialogState extends State<_CarreraDialog> {
               children: [
                 Text(
                   'Íconos:',
-                  style: AppTextStyles.body.copyWith(
+                  style: AppTextStyles.bodyDark(context).copyWith(
                     fontWeight: FontWeight.bold,
+                    color: _getTextColor(context),
                   ),
                 ),
                 Spacer(),
@@ -623,6 +733,8 @@ class _CarreraDialogState extends State<_CarreraDialog> {
                     decoration: BoxDecoration(
                       color: _iconoSeleccionado == iconInfo['icon']
                           ? _parseColor(_colorController.text).withOpacity(0.2)
+                          : Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey.shade800
                           : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(24),
                       border: _iconoSeleccionado == iconInfo['icon']
@@ -636,6 +748,8 @@ class _CarreraDialogState extends State<_CarreraDialog> {
                       iconInfo['icon'],
                       color: _iconoSeleccionado == iconInfo['icon']
                           ? _parseColor(_colorController.text)
+                          : Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey.shade400
                           : Colors.grey.shade600,
                       size: 20,
                     ),
@@ -649,9 +763,15 @@ class _CarreraDialogState extends State<_CarreraDialog> {
             Container(
               padding: EdgeInsets.all(AppSpacing.medium),
               decoration: BoxDecoration(
-                color: Colors.grey.shade50,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey.shade800
+                    : Colors.grey.shade50,
                 borderRadius: BorderRadius.circular(AppRadius.medium),
-                border: Border.all(color: Colors.grey.shade300),
+                border: Border.all(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey.shade600
+                      : Colors.grey.shade300,
+                ),
               ),
               child: Row(
                 children: [
@@ -669,12 +789,19 @@ class _CarreraDialogState extends State<_CarreraDialog> {
                           _nombreController.text.isNotEmpty
                               ? _nombreController.text
                               : 'Nombre de la carrera',
-                          style: AppTextStyles.heading3,
+                          style: AppTextStyles.heading3Dark(
+                            context,
+                          ).copyWith(color: _getTextColor(context)),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                         SizedBox(height: 4),
-                        Text('Vista previa', style: AppTextStyles.body),
+                        Text(
+                          'Vista previa',
+                          style: AppTextStyles.bodyDark(
+                            context,
+                          ).copyWith(color: _getSecondaryTextColor(context)),
+                        ),
                       ],
                     ),
                   ),
@@ -687,7 +814,12 @@ class _CarreraDialogState extends State<_CarreraDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text('Cancelar'),
+          child: Text(
+            'Cancelar',
+            style: AppTextStyles.bodyDark(
+              context,
+            ).copyWith(color: _getTextColor(context)),
+          ),
         ),
         ElevatedButton(
           onPressed: () {
@@ -699,7 +831,12 @@ class _CarreraDialogState extends State<_CarreraDialog> {
               );
             }
           },
-          child: Text('Guardar'),
+          child: Text(
+            'Guardar',
+            style: AppTextStyles.bodyDark(
+              context,
+            ).copyWith(color: Colors.white),
+          ),
         ),
       ],
     );

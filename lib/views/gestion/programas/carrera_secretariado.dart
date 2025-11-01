@@ -5,132 +5,194 @@ import 'package:incos_check/utils/constants.dart';
 class CarreraSecretariado extends StatelessWidget {
   const CarreraSecretariado({super.key});
 
+  Color _getTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+  }
+
+  Color _getSecondaryTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white70
+        : Colors.black87;
+  }
+
+  Color _getBackgroundColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : Colors.grey.shade50;
+  }
+
+  Color _getHeaderBackgroundColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade700
+        : Colors.grey.shade300;
+  }
+
+  Color _getBorderColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade600
+        : Colors.grey.shade300;
+  }
+
+  Color _getRowColor(BuildContext context, int index) {
+    if (Theme.of(context).brightness == Brightness.dark) {
+      return index.isEven ? Colors.grey.shade800 : Colors.grey.shade900;
+    } else {
+      return index.isEven ? Colors.grey.shade50 : Colors.white;
+    }
+  }
+
   Widget _buildYearSection(String title, List<Map<String, String>> courses) {
-    return Card(
-      margin: const EdgeInsets.all(AppSpacing.small),
-      elevation: 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.medium),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.medium),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return Builder(
+      builder: (context) {
+        return Card(
+          margin: const EdgeInsets.all(AppSpacing.small),
+          elevation: 3,
+          color: Theme.of(context).cardColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.medium),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.medium),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.school, color: AppColors.primary),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: AppTextStyles.heading2.copyWith(
-                    color: AppColors.primary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.small),
-            Table(
-              border: TableBorder.all(color: Colors.grey.shade300),
-              columnWidths: const {
-                0: FlexColumnWidth(1.5),
-                1: FlexColumnWidth(3),
-                2: FlexColumnWidth(1),
-                3: FlexColumnWidth(1.5),
-              },
-              children: [
-                const TableRow(
-                  decoration: BoxDecoration(color: AppColors.primary),
+                Row(
                   children: [
-                    Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: Text(
-                        'Código',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: Text(
-                        'Asignatura',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: Text(
-                        'Horas',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: Text(
-                        'Requisito',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                    Icon(Icons.school, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    Text(
+                      title,
+                      style: AppTextStyles.heading2Dark(
+                        context,
+                      ).copyWith(color: AppColors.primary),
                     ),
                   ],
                 ),
-                ...courses
-                    .map(
-                      (course) => TableRow(
+                const SizedBox(height: AppSpacing.small),
+                Table(
+                  border: TableBorder.all(color: _getBorderColor(context)),
+                  columnWidths: const {
+                    0: FlexColumnWidth(1.5),
+                    1: FlexColumnWidth(3),
+                    2: FlexColumnWidth(1),
+                    3: FlexColumnWidth(1.5),
+                  },
+                  children: [
+                    TableRow(
+                      decoration: BoxDecoration(color: AppColors.primary),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            'Código',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            'Asignatura',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            'Horas',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            'Requisito',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    ...courses.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final course = entry.value;
+                      return TableRow(
                         decoration: BoxDecoration(
-                          color: courses.indexOf(course).isEven
-                              ? Colors.grey.shade50
-                              : Colors.white,
+                          color: _getRowColor(context, index),
                         ),
                         children: [
                           Padding(
                             padding: const EdgeInsets.all(8.0),
-                            child: Text(course['code'] ?? ''),
+                            child: Text(
+                              course['code'] ?? '',
+                              style: TextStyle(color: _getTextColor(context)),
+                            ),
                           ),
                           Padding(
                             padding: const EdgeInsets.all(8.0),
                             child: Text(
                               course['name'] ?? '',
-                              style: const TextStyle(fontSize: 12),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: _getTextColor(context),
+                              ),
                             ),
                           ),
                           Padding(
                             padding: const EdgeInsets.all(8.0),
-                            child: Text(course['hours'] ?? ''),
+                            child: Text(
+                              course['hours'] ?? '',
+                              style: TextStyle(color: _getTextColor(context)),
+                            ),
                           ),
                           Padding(
                             padding: const EdgeInsets.all(8.0),
-                            child: Text(course['req'] ?? '-'),
+                            child: Text(
+                              course['req'] ?? '-',
+                              style: TextStyle(color: _getTextColor(context)),
+                            ),
                           ),
                         ],
-                      ),
-                    )
-                    .toList(),
+                      );
+                    }).toList(),
+                  ],
+                ),
               ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
   Widget _titleWithIcon(IconData icon, String title) {
-    return Row(
-      children: [
-        Icon(icon, color: AppColors.primary),
-        const SizedBox(width: 8),
-        Text(title, style: AppTextStyles.heading2),
-      ],
+    return Builder(
+      builder: (context) {
+        return Row(
+          children: [
+            Icon(icon, color: AppColors.primary),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: AppTextStyles.heading2Dark(
+                context,
+              ).copyWith(color: _getTextColor(context)),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -144,7 +206,7 @@ class CarreraSecretariado extends StatelessWidget {
           children: [
             InfoRow("Duración:", "3 años"),
             InfoRow("Modalidad:", "Presencial"),
-            InfoRow("Estado:", Estados.activo),
+            InfoRow("Estado:", "Activo"),
             InfoRow("Resolución:", "0210/2023"),
             InfoRow("Fecha de aprobación:", "14/03/2023"),
             InfoRow("Institución:", "INCOS El Alto, Bolivia"),
@@ -156,7 +218,7 @@ class CarreraSecretariado extends StatelessWidget {
         InfoCard(
           titleWidget: _titleWithIcon(Icons.person, "Perfil Profesional"),
           children: [
-            const Text(
+            Text(
               "El profesional Técnico Superior en Secretariado Ejecutivo tiene las competencias, "
               "capacidades y habilidades para brindar apoyo administrativo en las diferentes áreas "
               "de la empresa, recepcionar y organizar la correspondencia y documentación administrativa, "
@@ -165,7 +227,9 @@ class CarreraSecretariado extends StatelessWidget {
               "relacionados con el objeto social de la empresa, con ética, responsabilidad y buen "
               "trato en sus funciones, con especial énfasis en el servicio al cliente.",
               textAlign: TextAlign.justify,
-              style: AppTextStyles.body,
+              style: AppTextStyles.bodyDark(
+                context,
+              ).copyWith(color: _getTextColor(context)),
             ),
           ],
         ),
@@ -177,7 +241,7 @@ class CarreraSecretariado extends StatelessWidget {
             Icons.assignment_turned_in,
             "Requisitos de Ingreso",
           ),
-          children: [
+          children: const [
             InfoRow("•", "Título de Bachiller"),
             InfoRow("•", "Documentos de identificación"),
             InfoRow("•", "Fotocopia de carnet de identidad"),
@@ -191,7 +255,7 @@ class CarreraSecretariado extends StatelessWidget {
 
         InfoCard(
           titleWidget: _titleWithIcon(Icons.star, "Áreas de Interés"),
-          children: [
+          children: const [
             InfoRow("•", "Gestión secretarial y administrativa"),
             InfoRow("•", "Comunicación empresarial y correspondencia"),
             InfoRow("•", "Relaciones públicas y organización de eventos"),
@@ -367,7 +431,7 @@ class CarreraSecretariado extends StatelessWidget {
 
         InfoCard(
           titleWidget: _titleWithIcon(Icons.work, "Campos de Acción"),
-          children: [
+          children: const [
             InfoRow(
               "•",
               "Secretaria/o ejecutivo en empresas públicas y privadas",

@@ -53,6 +53,43 @@ class _DocentesScreenState extends State<DocentesScreen> {
   String _selectedTurno = 'MAÑANA';
   Color _carreraColor = AppColors.primary;
 
+  // Métodos para adaptación al modo oscuro
+  Color _getBackgroundColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade900
+        : Colors.white;
+  }
+
+  Color _getCardColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : Colors.white;
+  }
+
+  Color _getTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+  }
+
+  Color _getSecondaryTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white70
+        : Colors.black87;
+  }
+
+  Color _getBorderColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade600
+        : Colors.grey.shade300;
+  }
+
+  Color _getInputFillColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : AppColors.background;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -159,6 +196,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: _getCardColor(context),
         title: Text(
           'Detalles del Docente',
           style: AppTextStyles.heading2.copyWith(color: _carreraColor),
@@ -168,28 +206,45 @@ class _DocentesScreenState extends State<DocentesScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildDetailRow('CI:', docente['ci'] as String),
+              _buildDetailRow('CI:', docente['ci'] as String, context),
               _buildDetailRow(
                 'Apellido Paterno:',
                 docente['apellidoPaterno'] as String,
+                context,
               ),
               _buildDetailRow(
                 'Apellido Materno:',
                 docente['apellidoMaterno'] as String,
+                context,
               ),
-              _buildDetailRow('Nombres:', docente['nombres'] as String),
-              _buildDetailRow('Carrera:', docente['carrera'] as String),
-              _buildDetailRow('Turno:', docente['turno'] as String),
-              _buildDetailRow('Email:', docente['email'] as String),
-              _buildDetailRow('Teléfono:', docente['telefono'] as String),
-              _buildDetailRow('Estado:', docente['estado'] as String),
+              _buildDetailRow(
+                'Nombres:',
+                docente['nombres'] as String,
+                context,
+              ),
+              _buildDetailRow(
+                'Carrera:',
+                docente['carrera'] as String,
+                context,
+              ),
+              _buildDetailRow('Turno:', docente['turno'] as String, context),
+              _buildDetailRow('Email:', docente['email'] as String, context),
+              _buildDetailRow(
+                'Teléfono:',
+                docente['telefono'] as String,
+                context,
+              ),
+              _buildDetailRow('Estado:', docente['estado'] as String, context),
             ],
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cerrar', style: AppTextStyles.body),
+            child: Text(
+              'Cerrar',
+              style: AppTextStyles.body.copyWith(color: _getTextColor(context)),
+            ),
           ),
         ],
       ),
@@ -199,6 +254,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
   void _showMenuOptions(Map<String, dynamic> docente) {
     showModalBottomSheet(
       context: context,
+      backgroundColor: _getCardColor(context),
       builder: (context) => Container(
         padding: EdgeInsets.all(AppSpacing.medium),
         child: Column(
@@ -206,7 +262,10 @@ class _DocentesScreenState extends State<DocentesScreen> {
           children: [
             ListTile(
               leading: Icon(Icons.visibility, color: _carreraColor),
-              title: Text('Ver Información'),
+              title: Text(
+                'Ver Información',
+                style: TextStyle(color: _getTextColor(context)),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 _showDocenteDetails(docente);
@@ -214,7 +273,10 @@ class _DocentesScreenState extends State<DocentesScreen> {
             ),
             ListTile(
               leading: Icon(Icons.edit, color: _carreraColor),
-              title: Text('Modificar'),
+              title: Text(
+                'Modificar',
+                style: TextStyle(color: _getTextColor(context)),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 _showAddEditDocenteDialog(docente: docente);
@@ -231,7 +293,10 @@ class _DocentesScreenState extends State<DocentesScreen> {
             SizedBox(height: AppSpacing.small),
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Cancelar'),
+              child: Text(
+                'Cancelar',
+                style: TextStyle(color: _getTextColor(context)),
+              ),
             ),
           ],
         ),
@@ -282,6 +347,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: _getCardColor(context),
           title: Text(
             isEditing ? 'Modificar Docente' : 'Agregar Docente',
             style: AppTextStyles.heading2.copyWith(color: _carreraColor),
@@ -295,11 +361,26 @@ class _DocentesScreenState extends State<DocentesScreen> {
                   // CI con validación
                   TextFormField(
                     controller: ciController,
+                    style: TextStyle(color: _getTextColor(context)),
                     decoration: InputDecoration(
                       labelText: 'CI *',
-                      border: OutlineInputBorder(),
+                      labelStyle: TextStyle(color: _getTextColor(context)),
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(color: _getBorderColor(context)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: _getBorderColor(context)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: _carreraColor),
+                      ),
                       hintText: 'Solo números (6-10 dígitos)',
+                      hintStyle: TextStyle(
+                        color: _getSecondaryTextColor(context),
+                      ),
                       errorStyle: TextStyle(color: AppColors.error),
+                      filled: true,
+                      fillColor: _getInputFillColor(context),
                     ),
                     keyboardType: TextInputType.number,
                     validator: Validators.validateCI,
@@ -309,11 +390,26 @@ class _DocentesScreenState extends State<DocentesScreen> {
                   // Apellido Paterno con validación
                   TextFormField(
                     controller: apellidoPaternoController,
+                    style: TextStyle(color: _getTextColor(context)),
                     decoration: InputDecoration(
                       labelText: 'Apellido Paterno *',
-                      border: OutlineInputBorder(),
+                      labelStyle: TextStyle(color: _getTextColor(context)),
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(color: _getBorderColor(context)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: _getBorderColor(context)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: _carreraColor),
+                      ),
                       hintText: 'Solo letras',
+                      hintStyle: TextStyle(
+                        color: _getSecondaryTextColor(context),
+                      ),
                       errorStyle: TextStyle(color: AppColors.error),
+                      filled: true,
+                      fillColor: _getInputFillColor(context),
                     ),
                     textCapitalization: TextCapitalization.words,
                     validator: (value) => Validators.validateName(value),
@@ -332,11 +428,26 @@ class _DocentesScreenState extends State<DocentesScreen> {
                   // Apellido Materno con validación
                   TextFormField(
                     controller: apellidoMaternoController,
+                    style: TextStyle(color: _getTextColor(context)),
                     decoration: InputDecoration(
                       labelText: 'Apellido Materno *',
-                      border: OutlineInputBorder(),
+                      labelStyle: TextStyle(color: _getTextColor(context)),
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(color: _getBorderColor(context)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: _getBorderColor(context)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: _carreraColor),
+                      ),
                       hintText: 'Solo letras',
+                      hintStyle: TextStyle(
+                        color: _getSecondaryTextColor(context),
+                      ),
                       errorStyle: TextStyle(color: AppColors.error),
+                      filled: true,
+                      fillColor: _getInputFillColor(context),
                     ),
                     textCapitalization: TextCapitalization.words,
                     validator: (value) => Validators.validateName(value),
@@ -354,11 +465,26 @@ class _DocentesScreenState extends State<DocentesScreen> {
                   // Nombres con validación
                   TextFormField(
                     controller: nombresController,
+                    style: TextStyle(color: _getTextColor(context)),
                     decoration: InputDecoration(
                       labelText: 'Nombres *',
-                      border: OutlineInputBorder(),
+                      labelStyle: TextStyle(color: _getTextColor(context)),
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(color: _getBorderColor(context)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: _getBorderColor(context)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: _carreraColor),
+                      ),
                       hintText: 'Solo letras',
+                      hintStyle: TextStyle(
+                        color: _getSecondaryTextColor(context),
+                      ),
                       errorStyle: TextStyle(color: AppColors.error),
+                      filled: true,
+                      fillColor: _getInputFillColor(context),
                     ),
                     textCapitalization: TextCapitalization.words,
                     validator: (value) => Validators.validateName(value),
@@ -377,15 +503,31 @@ class _DocentesScreenState extends State<DocentesScreen> {
                   // Selector de Carrera
                   DropdownButtonFormField<String>(
                     value: selectedCarrera,
+                    dropdownColor: _getCardColor(context),
+                    style: TextStyle(color: _getTextColor(context)),
                     decoration: InputDecoration(
                       labelText: 'Carrera *',
-                      border: OutlineInputBorder(),
+                      labelStyle: TextStyle(color: _getTextColor(context)),
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(color: _getBorderColor(context)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: _getBorderColor(context)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: _carreraColor),
+                      ),
                       errorStyle: TextStyle(color: AppColors.error),
+                      filled: true,
+                      fillColor: _getInputFillColor(context),
                     ),
                     items: _carreras.map((carrera) {
                       return DropdownMenuItem(
                         value: carrera,
-                        child: Text(carrera),
+                        child: Text(
+                          carrera,
+                          style: TextStyle(color: _getTextColor(context)),
+                        ),
                       );
                     }).toList(),
                     onChanged: (value) {
@@ -401,13 +543,32 @@ class _DocentesScreenState extends State<DocentesScreen> {
                   // Selector de Turno
                   DropdownButtonFormField<String>(
                     value: selectedTurno,
+                    dropdownColor: _getCardColor(context),
+                    style: TextStyle(color: _getTextColor(context)),
                     decoration: InputDecoration(
                       labelText: 'Turno *',
-                      border: OutlineInputBorder(),
+                      labelStyle: TextStyle(color: _getTextColor(context)),
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(color: _getBorderColor(context)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: _getBorderColor(context)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: _carreraColor),
+                      ),
                       errorStyle: TextStyle(color: AppColors.error),
+                      filled: true,
+                      fillColor: _getInputFillColor(context),
                     ),
                     items: _turnos.map((turno) {
-                      return DropdownMenuItem(value: turno, child: Text(turno));
+                      return DropdownMenuItem(
+                        value: turno,
+                        child: Text(
+                          turno,
+                          style: TextStyle(color: _getTextColor(context)),
+                        ),
+                      );
                     }).toList(),
                     onChanged: (value) {
                       setDialogState(() {
@@ -422,17 +583,32 @@ class _DocentesScreenState extends State<DocentesScreen> {
                   // Email con validación
                   TextFormField(
                     controller: emailController,
+                    style: TextStyle(color: _getTextColor(context)),
                     decoration: InputDecoration(
                       labelText: 'Email *',
-                      border: OutlineInputBorder(),
+                      labelStyle: TextStyle(color: _getTextColor(context)),
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(color: _getBorderColor(context)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: _getBorderColor(context)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: _carreraColor),
+                      ),
                       hintText: 'ejemplo@gmail.com',
+                      hintStyle: TextStyle(
+                        color: _getSecondaryTextColor(context),
+                      ),
                       suffixIcon: IconButton(
-                        icon: Icon(Icons.email),
+                        icon: Icon(Icons.email, color: _carreraColor),
                         onPressed: () {
                           _autoCompletarEmail();
                         },
                       ),
                       errorStyle: TextStyle(color: AppColors.error),
+                      filled: true,
+                      fillColor: _getInputFillColor(context),
                     ),
                     keyboardType: TextInputType.emailAddress,
                     validator: Validators.validateEmail,
@@ -442,12 +618,28 @@ class _DocentesScreenState extends State<DocentesScreen> {
                   // Teléfono con validación
                   TextFormField(
                     controller: telefonoController,
+                    style: TextStyle(color: _getTextColor(context)),
                     decoration: InputDecoration(
                       labelText: 'Teléfono *',
-                      border: OutlineInputBorder(),
+                      labelStyle: TextStyle(color: _getTextColor(context)),
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(color: _getBorderColor(context)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: _getBorderColor(context)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: _carreraColor),
+                      ),
                       hintText: '70012345',
                       prefixText: '+591 ',
+                      prefixStyle: TextStyle(color: _getTextColor(context)),
+                      hintStyle: TextStyle(
+                        color: _getSecondaryTextColor(context),
+                      ),
                       errorStyle: TextStyle(color: AppColors.error),
+                      filled: true,
+                      fillColor: _getInputFillColor(context),
                     ),
                     keyboardType: TextInputType.phone,
                     validator: (value) => Validators.validatePhone(value),
@@ -457,15 +649,31 @@ class _DocentesScreenState extends State<DocentesScreen> {
                   // Estado
                   DropdownButtonFormField<String>(
                     value: selectedEstado,
+                    dropdownColor: _getCardColor(context),
+                    style: TextStyle(color: _getTextColor(context)),
                     decoration: InputDecoration(
                       labelText: 'Estado *',
-                      border: OutlineInputBorder(),
+                      labelStyle: TextStyle(color: _getTextColor(context)),
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(color: _getBorderColor(context)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: _getBorderColor(context)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: _carreraColor),
+                      ),
                       errorStyle: TextStyle(color: AppColors.error),
+                      filled: true,
+                      fillColor: _getInputFillColor(context),
                     ),
                     items: [Estados.activo, Estados.inactivo].map((estado) {
                       return DropdownMenuItem(
                         value: estado,
-                        child: Text(estado),
+                        child: Text(
+                          estado,
+                          style: TextStyle(color: _getTextColor(context)),
+                        ),
                       );
                     }).toList(),
                     onChanged: (value) {
@@ -483,7 +691,12 @@ class _DocentesScreenState extends State<DocentesScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Cancelar', style: AppTextStyles.body),
+              child: Text(
+                'Cancelar',
+                style: AppTextStyles.body.copyWith(
+                  color: _getTextColor(context),
+                ),
+              ),
             ),
             ElevatedButton(
               onPressed: () {
@@ -595,12 +808,22 @@ class _DocentesScreenState extends State<DocentesScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Confirmar Eliminación'),
-        content: Text('¿Está seguro de eliminar este docente?'),
+        backgroundColor: _getCardColor(context),
+        title: Text(
+          'Confirmar Eliminación',
+          style: TextStyle(color: _getTextColor(context)),
+        ),
+        content: Text(
+          '¿Está seguro de eliminar este docente?',
+          style: TextStyle(color: _getTextColor(context)),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: _getTextColor(context)),
+            ),
           ),
           TextButton(
             onPressed: () {
@@ -628,7 +851,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(String label, String value, BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
@@ -638,7 +861,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
             label,
             style: AppTextStyles.body.copyWith(
               fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+              color: _getTextColor(context),
             ),
           ),
           SizedBox(width: 8),
@@ -646,7 +869,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
             child: Text(
               value,
               style: AppTextStyles.body.copyWith(
-                color: AppColors.textSecondary,
+                color: _getSecondaryTextColor(context),
               ),
             ),
           ),
@@ -668,7 +891,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
             'Seleccione un turno:',
             style: AppTextStyles.body.copyWith(
               fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+              color: _getTextColor(context),
             ),
           ),
           SizedBox(height: AppSpacing.small),
@@ -711,7 +934,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
 
     return Expanded(
       child: Card(
-        color: isSelected ? color.withOpacity(0.2) : Colors.white,
+        color: isSelected ? color.withOpacity(0.2) : _getCardColor(context),
         elevation: 2,
         child: InkWell(
           onTap: () {
@@ -724,20 +947,23 @@ class _DocentesScreenState extends State<DocentesScreen> {
             padding: EdgeInsets.all(AppSpacing.medium),
             child: Column(
               children: [
-                Icon(icon, color: isSelected ? color : AppColors.textSecondary),
+                Icon(
+                  icon,
+                  color: isSelected ? color : _getSecondaryTextColor(context),
+                ),
                 SizedBox(height: AppSpacing.small),
                 Text(
                   turno,
                   style: AppTextStyles.body.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: isSelected ? color : AppColors.textPrimary,
+                    color: isSelected ? color : _getTextColor(context),
                   ),
                 ),
                 Text(
                   '$cantidad docentes',
                   style: AppTextStyles.body.copyWith(
                     fontSize: 12,
-                    color: AppColors.textSecondary,
+                    color: _getSecondaryTextColor(context),
                   ),
                 ),
               ],
@@ -753,6 +979,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
     final estadisticas = _getEstadisticasPorTurno();
 
     return Scaffold(
+      backgroundColor: _getBackgroundColor(context),
       appBar: AppBar(
         title: Text(
           'Docentes - $_selectedCarrera',
@@ -773,13 +1000,32 @@ class _DocentesScreenState extends State<DocentesScreen> {
             padding: EdgeInsets.all(AppSpacing.medium),
             child: DropdownButtonFormField<String>(
               value: _selectedCarrera,
+              dropdownColor: _getCardColor(context),
+              style: TextStyle(color: _getTextColor(context)),
               decoration: InputDecoration(
                 labelText: 'Carrera',
-                border: OutlineInputBorder(),
+                labelStyle: TextStyle(color: _getTextColor(context)),
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: _getBorderColor(context)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: _getBorderColor(context)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: _carreraColor),
+                ),
                 prefixIcon: Icon(Icons.school, color: _carreraColor),
+                filled: true,
+                fillColor: _getInputFillColor(context),
               ),
               items: _carreras.map((carrera) {
-                return DropdownMenuItem(value: carrera, child: Text(carrera));
+                return DropdownMenuItem(
+                  value: carrera,
+                  child: Text(
+                    carrera,
+                    style: TextStyle(color: _getTextColor(context)),
+                  ),
+                );
               }).toList(),
               onChanged: (value) {
                 setState(() {
@@ -821,7 +1067,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
                         'Turno: $_selectedTurno',
                         style: AppTextStyles.body.copyWith(
                           fontSize: 12,
-                          color: AppColors.textSecondary,
+                          color: _getSecondaryTextColor(context),
                         ),
                       ),
                     ],
@@ -833,13 +1079,14 @@ class _DocentesScreenState extends State<DocentesScreen> {
                         'Total: ${estadisticas['TOTAL']} docentes',
                         style: AppTextStyles.body.copyWith(
                           fontWeight: FontWeight.bold,
+                          color: _getTextColor(context),
                         ),
                       ),
                       Text(
                         'Mostrando: ${_filteredDocentes.length}',
                         style: AppTextStyles.body.copyWith(
                           fontSize: 12,
-                          color: AppColors.textSecondary,
+                          color: _getSecondaryTextColor(context),
                         ),
                       ),
                     ],
@@ -854,14 +1101,25 @@ class _DocentesScreenState extends State<DocentesScreen> {
             padding: EdgeInsets.symmetric(horizontal: AppSpacing.medium),
             child: TextFormField(
               controller: _searchController,
+              style: TextStyle(color: _getTextColor(context)),
               decoration: InputDecoration(
                 labelText: 'Buscar docente...',
+                labelStyle: TextStyle(color: _getTextColor(context)),
                 prefixIcon: Icon(Icons.search, color: _carreraColor),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadius.small),
+                  borderSide: BorderSide(color: _getBorderColor(context)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.small),
+                  borderSide: BorderSide(color: _getBorderColor(context)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.small),
+                  borderSide: BorderSide(color: _carreraColor),
                 ),
                 filled: true,
-                fillColor: AppColors.background,
+                fillColor: _getInputFillColor(context),
               ),
               onChanged: _filterDocentes,
             ),
@@ -879,20 +1137,20 @@ class _DocentesScreenState extends State<DocentesScreen> {
                         Icon(
                           Icons.people_outline,
                           size: 64,
-                          color: AppColors.textSecondary,
+                          color: _getSecondaryTextColor(context),
                         ),
                         SizedBox(height: AppSpacing.medium),
                         Text(
                           'No hay docentes en $_selectedCarrera',
                           style: AppTextStyles.body.copyWith(
-                            color: AppColors.textSecondary,
+                            color: _getSecondaryTextColor(context),
                           ),
                         ),
                         Text(
                           'Turno: $_selectedTurno',
                           style: AppTextStyles.body.copyWith(
                             fontSize: 12,
-                            color: AppColors.textSecondary,
+                            color: _getSecondaryTextColor(context),
                           ),
                         ),
                         SizedBox(height: AppSpacing.medium),
@@ -914,6 +1172,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
                     itemBuilder: (context, index) {
                       final docente = _filteredDocentes[index];
                       return Card(
+                        color: _getCardColor(context),
                         margin: EdgeInsets.symmetric(
                           horizontal: AppSpacing.medium,
                           vertical: AppSpacing.small,
@@ -933,6 +1192,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
                             '${docente['nombres']}',
                             style: AppTextStyles.body.copyWith(
                               fontWeight: FontWeight.bold,
+                              color: _getTextColor(context),
                             ),
                           ),
                           subtitle: Column(
@@ -940,7 +1200,9 @@ class _DocentesScreenState extends State<DocentesScreen> {
                             children: [
                               Text(
                                 '${docente['apellidoPaterno']} ${docente['apellidoMaterno']}',
-                                style: AppTextStyles.body,
+                                style: AppTextStyles.body.copyWith(
+                                  color: _getTextColor(context),
+                                ),
                               ),
                               SizedBox(height: 4),
                               Row(
@@ -948,13 +1210,14 @@ class _DocentesScreenState extends State<DocentesScreen> {
                                   Icon(
                                     Icons.credit_card,
                                     size: 12,
-                                    color: AppColors.textSecondary,
+                                    color: _getSecondaryTextColor(context),
                                   ),
                                   SizedBox(width: 4),
                                   Text(
                                     'CI: ${docente['ci']}',
                                     style: AppTextStyles.body.copyWith(
                                       fontSize: 12,
+                                      color: _getSecondaryTextColor(context),
                                     ),
                                   ),
                                   SizedBox(width: 12),
@@ -1009,7 +1272,12 @@ class _DocentesScreenState extends State<DocentesScreen> {
                                       color: _carreraColor,
                                     ),
                                     SizedBox(width: 8),
-                                    Text('Ver Información'),
+                                    Text(
+                                      'Ver Información',
+                                      style: TextStyle(
+                                        color: _getTextColor(context),
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -1019,7 +1287,12 @@ class _DocentesScreenState extends State<DocentesScreen> {
                                   children: [
                                     Icon(Icons.edit, color: _carreraColor),
                                     SizedBox(width: 8),
-                                    Text('Modificar'),
+                                    Text(
+                                      'Modificar',
+                                      style: TextStyle(
+                                        color: _getTextColor(context),
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -1029,7 +1302,10 @@ class _DocentesScreenState extends State<DocentesScreen> {
                                   children: [
                                     Icon(Icons.delete, color: AppColors.error),
                                     SizedBox(width: 8),
-                                    Text('Eliminar'),
+                                    Text(
+                                      'Eliminar',
+                                      style: TextStyle(color: AppColors.error),
+                                    ),
                                   ],
                                 ),
                               ),

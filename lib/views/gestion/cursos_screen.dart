@@ -6,11 +6,7 @@ class CursosScreen extends StatefulWidget {
   final Map<String, dynamic> carrera;
   final Map<String, dynamic> turno;
 
-  const CursosScreen({
-    super.key,
-    required this.carrera,
-    required this.turno,
-  });
+  const CursosScreen({super.key, required this.carrera, required this.turno});
 
   @override
   State<CursosScreen> createState() => _CursosScreenState();
@@ -86,10 +82,7 @@ class _CursosScreenState extends State<CursosScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(
-          'Detalles del Curso',
-          style: AppTextStyles.heading2,
-        ),
+        title: Text('Detalles del Curso', style: AppTextStyles.heading2),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -223,16 +216,15 @@ class _CursosScreenState extends State<CursosScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Docente: ${curso['docente']}'),
-                        Text('${curso['estudiantes']} estudiantes • ${curso['carrera']}'),
+                        Text(
+                          '${curso['estudiantes']} estudiantes • ${curso['carrera']}',
+                        ),
                       ],
                     ),
                     trailing: Chip(
                       label: Text(
                         curso['estado'],
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
+                        style: TextStyle(color: Colors.white, fontSize: 12),
                       ),
                       backgroundColor: curso['estado'] == Estados.activo
                           ? AppColors.success

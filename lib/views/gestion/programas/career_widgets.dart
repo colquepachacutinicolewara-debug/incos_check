@@ -19,6 +19,7 @@ class InfoCard extends StatelessWidget {
     return Card(
       elevation: 2,
       margin: const EdgeInsets.only(bottom: AppSpacing.medium),
+      color: Theme.of(context).cardColor,
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.medium),
         child: Column(
@@ -29,9 +30,9 @@ class InfoCard extends StatelessWidget {
             else if (title != null)
               Text(
                 title!,
-                style: AppTextStyles.heading2.copyWith(
-                  color: AppColors.primary,
-                ),
+                style: AppTextStyles.heading2Dark(
+                  context,
+                ).copyWith(color: AppColors.primary),
               ),
             const SizedBox(height: AppSpacing.small),
             ...children,
@@ -49,6 +50,18 @@ class InfoRow extends StatelessWidget {
 
   const InfoRow(this.label, this.value, {super.key});
 
+  Color _getTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+  }
+
+  Color _getSecondaryTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white70
+        : Colors.black87;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -56,9 +69,17 @@ class InfoRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: _getTextColor(context),
+            ),
+          ),
           const SizedBox(width: 8.0),
-          Expanded(child: Text(value)),
+          Expanded(
+            child: Text(value, style: TextStyle(color: _getTextColor(context))),
+          ),
         ],
       ),
     );
@@ -67,173 +88,285 @@ class InfoRow extends StatelessWidget {
 
 // Widget para construir secciones de año
 Widget buildYearSection(String year, List<Map<String, String>> subjects) {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        year,
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: AppColors.primary,
-        ),
-      ),
-      const SizedBox(height: AppSpacing.small),
-      Table(
-        columnWidths: const {
-          0: FlexColumnWidth(1.5),
-          1: FlexColumnWidth(3),
-          2: FlexColumnWidth(0.8),
-          3: FlexColumnWidth(1.5),
-        },
-        border: TableBorder.all(color: Colors.grey.shade300),
+  return Builder(
+    builder: (context) {
+      Color _getTextColor(BuildContext context) {
+        return Theme.of(context).brightness == Brightness.dark
+            ? Colors.white
+            : Colors.black;
+      }
+
+      Color _getBackgroundColor(BuildContext context) {
+        return Theme.of(context).brightness == Brightness.dark
+            ? Colors.grey.shade800
+            : Colors.grey.shade50;
+      }
+
+      Color _getHeaderBackgroundColor(BuildContext context) {
+        return Theme.of(context).brightness == Brightness.dark
+            ? Colors.grey.shade700
+            : Colors.grey.shade300;
+      }
+
+      Color _getBorderColor(BuildContext context) {
+        return Theme.of(context).brightness == Brightness.dark
+            ? Colors.grey.shade600
+            : Colors.grey.shade300;
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const TableRow(
-            decoration: BoxDecoration(color: Colors.grey),
+          Text(
+            year,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.small),
+          Table(
+            columnWidths: const {
+              0: FlexColumnWidth(1.5),
+              1: FlexColumnWidth(3),
+              2: FlexColumnWidth(0.8),
+              3: FlexColumnWidth(1.5),
+            },
+            border: TableBorder.all(color: _getBorderColor(context)),
             children: [
-              Padding(
-                padding: EdgeInsets.all(8.0),
-                child: Text(
-                  "Código",
-                  style: TextStyle(fontWeight: FontWeight.bold),
+              TableRow(
+                decoration: BoxDecoration(
+                  color: _getHeaderBackgroundColor(context),
                 ),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text(
+                      "Código",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: _getTextColor(context),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text(
+                      "Asignatura",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: _getTextColor(context),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text(
+                      "Horas",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: _getTextColor(context),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text(
+                      "Prerequisito",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: _getTextColor(context),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              Padding(
-                padding: EdgeInsets.all(8.0),
-                child: Text(
-                  "Asignatura",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              Padding(
-                padding: EdgeInsets.all(8.0),
-                child: Text(
-                  "Horas",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              Padding(
-                padding: EdgeInsets.all(8.0),
-                child: Text(
-                  "Prerequisito",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
+              ...subjects.map((subject) {
+                return TableRow(
+                  decoration: BoxDecoration(
+                    color: _getBackgroundColor(context),
+                  ),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        subject["code"] ?? "",
+                        style: TextStyle(color: _getTextColor(context)),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        subject["name"] ?? "",
+                        style: TextStyle(color: _getTextColor(context)),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        subject["hours"] ?? "",
+                        style: TextStyle(color: _getTextColor(context)),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        subject["req"] ?? "-",
+                        style: TextStyle(color: _getTextColor(context)),
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
             ],
           ),
-          ...subjects.map((subject) {
-            return TableRow(
-              decoration: BoxDecoration(color: Colors.grey.shade50),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(subject["code"] ?? ""),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(subject["name"] ?? ""),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(subject["hours"] ?? ""),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(subject["req"] ?? "-"),
-                ),
-              ],
-            );
-          }).toList(),
+          const SizedBox(height: AppSpacing.medium),
         ],
-      ),
-      const SizedBox(height: AppSpacing.medium),
-    ],
+      );
+    },
   );
 }
 
 // Widget para construir secciones de módulo
 Widget buildModuleSection(String module, List<Map<String, String>> subjects) {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        module,
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: AppColors.secondary,
-        ),
-      ),
-      const SizedBox(height: AppSpacing.small),
-      Table(
-        columnWidths: const {
-          0: FlexColumnWidth(1.5),
-          1: FlexColumnWidth(3),
-          2: FlexColumnWidth(1.2),
-          3: FlexColumnWidth(1.5),
-        },
-        border: TableBorder.all(color: Colors.grey.shade300),
+  return Builder(
+    builder: (context) {
+      Color _getTextColor(BuildContext context) {
+        return Theme.of(context).brightness == Brightness.dark
+            ? Colors.white
+            : Colors.black;
+      }
+
+      Color _getBackgroundColor(BuildContext context) {
+        return Theme.of(context).brightness == Brightness.dark
+            ? Colors.grey.shade800
+            : Colors.grey.shade50;
+      }
+
+      Color _getHeaderBackgroundColor(BuildContext context) {
+        return Theme.of(context).brightness == Brightness.dark
+            ? Colors.grey.shade700
+            : Colors.grey.shade300;
+      }
+
+      Color _getBorderColor(BuildContext context) {
+        return Theme.of(context).brightness == Brightness.dark
+            ? Colors.grey.shade600
+            : Colors.grey.shade300;
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const TableRow(
-            decoration: BoxDecoration(color: Colors.grey),
+          Text(
+            module,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.secondary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.small),
+          Table(
+            columnWidths: const {
+              0: FlexColumnWidth(1.5),
+              1: FlexColumnWidth(3),
+              2: FlexColumnWidth(1.2),
+              3: FlexColumnWidth(1.5),
+            },
+            border: TableBorder.all(color: _getBorderColor(context)),
             children: [
-              Padding(
-                padding: EdgeInsets.all(8.0),
-                child: Text(
-                  "Código",
-                  style: TextStyle(fontWeight: FontWeight.bold),
+              TableRow(
+                decoration: BoxDecoration(
+                  color: _getHeaderBackgroundColor(context),
                 ),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text(
+                      "Código",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: _getTextColor(context),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text(
+                      "Asignatura",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: _getTextColor(context),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text(
+                      "Horas/Sem.",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: _getTextColor(context),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text(
+                      "Requisito",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: _getTextColor(context),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              Padding(
-                padding: EdgeInsets.all(8.0),
-                child: Text(
-                  "Asignatura",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              Padding(
-                padding: EdgeInsets.all(8.0),
-                child: Text(
-                  "Horas/Sem.",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              Padding(
-                padding: EdgeInsets.all(8.0),
-                child: Text(
-                  "Requisito",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
+              ...subjects.map((subject) {
+                return TableRow(
+                  decoration: BoxDecoration(
+                    color: _getBackgroundColor(context),
+                  ),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        subject["code"] ?? "",
+                        style: TextStyle(color: _getTextColor(context)),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        subject["name"] ?? "",
+                        style: TextStyle(color: _getTextColor(context)),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        subject["hours"] ?? "",
+                        style: TextStyle(color: _getTextColor(context)),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Text(
+                        subject["req"] ?? "-",
+                        style: TextStyle(color: _getTextColor(context)),
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
             ],
           ),
-          ...subjects.map((subject) {
-            return TableRow(
-              decoration: BoxDecoration(color: Colors.grey.shade50),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(subject["code"] ?? ""),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(subject["name"] ?? ""),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(subject["hours"] ?? ""),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(subject["req"] ?? "-"),
-                ),
-              ],
-            );
-          }).toList(),
+          const SizedBox(height: AppSpacing.medium),
         ],
-      ),
-      const SizedBox(height: AppSpacing.medium),
-    ],
+      );
+    },
   );
 }
 

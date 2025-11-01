@@ -5,117 +5,176 @@ import 'package:incos_check/utils/constants.dart';
 class CarreraIngles extends StatelessWidget {
   const CarreraIngles({super.key});
 
+  Color _getTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+  }
+
+  Color _getSecondaryTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white70
+        : Colors.black87;
+  }
+
+  Color _getBackgroundColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : Colors.grey.shade50;
+  }
+
+  Color _getHeaderBackgroundColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade700
+        : Colors.grey.shade300;
+  }
+
+  Color _getBorderColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade600
+        : Colors.grey.shade300;
+  }
+
+  Color _getRowColor(BuildContext context, int index) {
+    if (Theme.of(context).brightness == Brightness.dark) {
+      return index.isEven ? Colors.grey.shade800 : Colors.grey.shade900;
+    } else {
+      return index.isEven ? Colors.grey.shade50 : Colors.white;
+    }
+  }
+
   Widget _buildModuleSection(String title, List<Map<String, String>> courses) {
-    return Card(
-      margin: const EdgeInsets.all(AppSpacing.small),
-      elevation: 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.medium),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.medium),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return Builder(
+      builder: (context) {
+        return Card(
+          margin: const EdgeInsets.all(AppSpacing.small),
+          elevation: 3,
+          color: Theme.of(context).cardColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.medium),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.medium),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.school, color: AppColors.primary),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: AppTextStyles.heading2.copyWith(
-                    color: AppColors.primary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.small),
-            Table(
-              border: TableBorder.all(color: Colors.grey.shade300),
-              columnWidths: const {
-                0: FlexColumnWidth(1.5),
-                1: FlexColumnWidth(3),
-                2: FlexColumnWidth(1),
-              },
-              children: [
-                const TableRow(
-                  decoration: BoxDecoration(color: AppColors.primary),
+                Row(
                   children: [
-                    Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: Text(
-                        'Código',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: Text(
-                        'Asignatura',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: Text(
-                        'Horas',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                    Icon(Icons.school, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    Text(
+                      title,
+                      style: AppTextStyles.heading2Dark(
+                        context,
+                      ).copyWith(color: AppColors.primary),
                     ),
                   ],
                 ),
-                ...courses
-                    .map(
-                      (course) => TableRow(
+                const SizedBox(height: AppSpacing.small),
+                Table(
+                  border: TableBorder.all(color: _getBorderColor(context)),
+                  columnWidths: const {
+                    0: FlexColumnWidth(1.5),
+                    1: FlexColumnWidth(3),
+                    2: FlexColumnWidth(1),
+                  },
+                  children: [
+                    TableRow(
+                      decoration: BoxDecoration(color: AppColors.primary),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            'Código',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            'Asignatura',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            'Horas',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    ...courses.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final course = entry.value;
+                      return TableRow(
                         decoration: BoxDecoration(
-                          color: courses.indexOf(course).isEven
-                              ? Colors.grey.shade50
-                              : Colors.white,
+                          color: _getRowColor(context, index),
                         ),
                         children: [
                           Padding(
                             padding: const EdgeInsets.all(8.0),
-                            child: Text(course['code'] ?? ''),
+                            child: Text(
+                              course['code'] ?? '',
+                              style: TextStyle(color: _getTextColor(context)),
+                            ),
                           ),
                           Padding(
                             padding: const EdgeInsets.all(8.0),
                             child: Text(
                               course['name'] ?? '',
-                              style: const TextStyle(fontSize: 12),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: _getTextColor(context),
+                              ),
                             ),
                           ),
                           Padding(
                             padding: const EdgeInsets.all(8.0),
-                            child: Text(course['hours'] ?? ''),
+                            child: Text(
+                              course['hours'] ?? '',
+                              style: TextStyle(color: _getTextColor(context)),
+                            ),
                           ),
                         ],
-                      ),
-                    )
-                    .toList(),
+                      );
+                    }).toList(),
+                  ],
+                ),
               ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
   Widget _titleWithIcon(IconData icon, String title) {
-    return Row(
-      children: [
-        Icon(icon, color: AppColors.primary),
-        const SizedBox(width: 8),
-        Text(title, style: AppTextStyles.heading2),
-      ],
+    return Builder(
+      builder: (context) {
+        return Row(
+          children: [
+            Icon(icon, color: AppColors.primary),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: AppTextStyles.heading2Dark(
+                context,
+              ).copyWith(color: _getTextColor(context)),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -129,7 +188,7 @@ class CarreraIngles extends StatelessWidget {
           children: [
             InfoRow("Duración:", "3 años (6 módulos semestrales)"),
             InfoRow("Modalidad:", "Presencial - Modular"),
-            InfoRow("Estado:", Estados.activo),
+            InfoRow("Estado:", "Activo"),
             InfoRow("Resolución:", "0210/2023"),
             InfoRow("Fecha de aprobación:", "14/03/2023"),
             InfoRow("Institución:", "INCOS El Alto, Bolivia"),
@@ -142,14 +201,16 @@ class CarreraIngles extends StatelessWidget {
         InfoCard(
           titleWidget: _titleWithIcon(Icons.person, "Perfil Profesional"),
           children: [
-            const Text(
+            Text(
               "El Técnico Superior en Idioma Inglés en modalidad modular está capacitado para "
               "dominar el idioma inglés mediante un sistema de aprendizaje por módulos semestrales. "
               "Desarrolla competencias lingüísticas integrales que le permiten desempeñarse como "
               "docente de inglés en niveles básicos, asistente bilingüe, traductor de documentos, "
               "guía turístico y profesional en entornos que requieran el dominio del idioma inglés.",
               textAlign: TextAlign.justify,
-              style: AppTextStyles.body,
+              style: AppTextStyles.bodyDark(
+                context,
+              ).copyWith(color: _getTextColor(context)),
             ),
           ],
         ),
@@ -161,7 +222,7 @@ class CarreraIngles extends StatelessWidget {
             Icons.assignment_turned_in,
             "Requisitos de Ingreso",
           ),
-          children: [
+          children: const [
             InfoRow("•", "Título de Bachiller"),
             InfoRow("•", "Documentos de identificación personal"),
             InfoRow("•", "Fotocopia de carnet de identidad"),
@@ -176,7 +237,7 @@ class CarreraIngles extends StatelessWidget {
 
         InfoCard(
           titleWidget: _titleWithIcon(Icons.star, "Áreas de Interés"),
-          children: [
+          children: const [
             InfoRow("•", "Enseñanza del idioma inglés en educación regular"),
             InfoRow("•", "Centros de idiomas e institutos especializados"),
             InfoRow("•", "Traducción e interpretación básica"),
@@ -346,7 +407,7 @@ class CarreraIngles extends StatelessWidget {
 
         InfoCard(
           titleWidget: _titleWithIcon(Icons.language, "Niveles de Dominio"),
-          children: [
+          children: const [
             InfoRow("•", "Módulo 1-2: Nivel Básico (A1-A2 MCER)"),
             InfoRow("•", "Módulo 3-4: Nivel Intermedio (B1-B2 MCER)"),
             InfoRow("•", "Módulo 5-6: Nivel Avanzado (C1 MCER)"),
@@ -358,7 +419,7 @@ class CarreraIngles extends StatelessWidget {
 
         InfoCard(
           titleWidget: _titleWithIcon(Icons.work, "Campos de Acción"),
-          children: [
+          children: const [
             InfoRow("•", "Docente de inglés en unidades educativas"),
             InfoRow("•", "Instructor en centros de idiomas"),
             InfoRow("•", "Asistente bilingüe en empresas e instituciones"),

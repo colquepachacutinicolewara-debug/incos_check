@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:incos_check/utils/constants.dart';
 import 'package:incos_check/utils/helpers.dart';
-// Agrega este import para la pantalla de Soporte
-import '../configuracion/soporte/soporte_screen.dart'; // Ajusta la ruta según tu estructura
+import 'package:local_auth/local_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import '../configuracion/soporte/soporte_screen.dart';
+import '../../services/theme_service.dart';
 
 class ConfiguracionScreen extends StatefulWidget {
   const ConfiguracionScreen({super.key});
@@ -12,21 +15,54 @@ class ConfiguracionScreen extends StatefulWidget {
 }
 
 class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
+  final LocalAuthentication _localAuth = LocalAuthentication();
+
   bool _notificationsEnabled = true;
   bool _darkModeEnabled = false;
   bool _biometricEnabled = false;
   bool _autoSyncEnabled = true;
   String _selectedLanguage = 'Español';
   String _selectedTheme = 'Sistema';
+  String _cacheSize = "15.2 MB";
 
   final List<String> _languages = ['Español', 'English', 'Português'];
   final List<String> _themes = ['Sistema', 'Claro', 'Oscuro'];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
+      _darkModeEnabled = prefs.getBool('dark_mode_enabled') ?? false;
+      _biometricEnabled = prefs.getBool('biometric_enabled') ?? false;
+      _autoSyncEnabled = prefs.getBool('auto_sync_enabled') ?? true;
+      _selectedLanguage = prefs.getString('selected_language') ?? 'Español';
+      _selectedTheme = prefs.getString('selected_theme') ?? 'Sistema';
+    });
+  }
+
+  Future<void> _saveSetting(String key, dynamic value) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (value is bool) {
+      await prefs.setBool(key, value);
+    } else if (value is String) {
+      await prefs.setString(key, value);
+    }
+  }
 
   void _showLanguageDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Seleccionar Idioma', style: AppTextStyles.heading2),
+        title: Text(
+          'Seleccionar Idioma',
+          style: AppTextStyles.heading2Dark(context),
+        ),
         content: SizedBox(
           width: double.maxFinite,
           child: ListView.builder(
@@ -34,13 +70,17 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
             itemCount: _languages.length,
             itemBuilder: (context, index) {
               return RadioListTile(
-                title: Text(_languages[index]),
+                title: Text(
+                  _languages[index],
+                  style: AppTextStyles.bodyDark(context),
+                ),
                 value: _languages[index],
                 groupValue: _selectedLanguage,
-                onChanged: (value) {
+                onChanged: (value) async {
                   setState(() {
                     _selectedLanguage = value!;
                   });
+                  await _saveSetting('selected_language', value);
                   Navigator.pop(context);
                   Helpers.showSnackBar(
                     context,
@@ -55,7 +95,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar', style: AppTextStyles.body),
+            child: Text('Cancelar', style: AppTextStyles.bodyDark(context)),
           ),
         ],
       ),
@@ -63,10 +103,15 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   }
 
   void _showThemeDialog() {
+    final themeService = Provider.of<ThemeService>(context, listen: false);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Seleccionar Tema', style: AppTextStyles.heading2),
+        title: Text(
+          'Seleccionar Tema',
+          style: AppTextStyles.heading2Dark(context),
+        ),
         content: SizedBox(
           width: double.maxFinite,
           child: ListView.builder(
@@ -74,13 +119,18 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
             itemCount: _themes.length,
             itemBuilder: (context, index) {
               return RadioListTile(
-                title: Text(_themes[index]),
+                title: Text(
+                  _themes[index],
+                  style: AppTextStyles.bodyDark(context),
+                ),
                 value: _themes[index],
                 groupValue: _selectedTheme,
-                onChanged: (value) {
+                onChanged: (value) async {
                   setState(() {
                     _selectedTheme = value!;
                   });
+                  await _saveSetting('selected_theme', value);
+                  await themeService.updateTheme(value!);
                   Navigator.pop(context);
                   Helpers.showSnackBar(
                     context,
@@ -95,7 +145,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar', style: AppTextStyles.body),
+            child: Text('Cancelar', style: AppTextStyles.bodyDark(context)),
           ),
         ],
       ),
@@ -106,15 +156,27 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Copia de Seguridad', style: AppTextStyles.heading2),
+        title: Text(
+          'Copia de Seguridad',
+          style: AppTextStyles.heading2Dark(context),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.backup, size: 60, color: AppColors.primary),
             SizedBox(height: AppSpacing.medium),
             Text(
-              '¿Deseas crear una copia de seguridad de todos tus datos?',
-              style: AppTextStyles.body,
+              '¿Deseas crear una copia de seguridad de todos tus datos de asistencia?',
+              style: AppTextStyles.bodyDark(context),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: AppSpacing.small),
+            Text(
+              'Se guardarán: estudiantes, docentes, materias y registros de asistencia',
+              style: AppTextStyles.bodyDark(context).copyWith(
+                fontSize: 12,
+                color: AppColors.textSecondaryDark(context),
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -122,18 +184,446 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar', style: AppTextStyles.body),
+            child: Text('Cancelar', style: AppTextStyles.bodyDark(context)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await Future.delayed(const Duration(seconds: 2));
+              Helpers.showSnackBar(
+                context,
+                '✅ Copia de seguridad creada exitosamente',
+                type: 'success',
+              );
+            },
+            child: Text('Crear Backup', style: AppTextStyles.button),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _checkBiometricAvailability() async {
+    try {
+      final bool canAuthenticate = await _localAuth.canCheckBiometrics;
+
+      if (!canAuthenticate) {
+        Helpers.showSnackBar(
+          context,
+          '❌ Biometría no disponible en este dispositivo',
+          type: 'error',
+        );
+        return;
+      }
+
+      final List<BiometricType> availableBiometrics = await _localAuth
+          .getAvailableBiometrics();
+
+      if (availableBiometrics.isEmpty) {
+        Helpers.showSnackBar(
+          context,
+          '❌ No hay métodos biométricos configurados',
+          type: 'error',
+        );
+        return;
+      }
+
+      final biometricNames = availableBiometrics
+          .map((type) {
+            switch (type) {
+              case BiometricType.face:
+                return 'Reconocimiento Facial';
+              case BiometricType.fingerprint:
+                return 'Huella Digital';
+              case BiometricType.iris:
+                return 'Reconocimiento de Iris';
+              default:
+                return 'Método Biométrico';
+            }
+          })
+          .join(', ');
+
+      final bool didAuthenticate = await _localAuth.authenticate(
+        localizedReason:
+            'Autentícate para habilitar el acceso biométrico en IncosCheck',
+        options: const AuthenticationOptions(
+          biometricOnly: true,
+          useErrorDialogs: true,
+          stickyAuth: true,
+        ),
+      );
+
+      if (didAuthenticate) {
+        setState(() {
+          _biometricEnabled = true;
+        });
+        await _saveSetting('biometric_enabled', true);
+        Helpers.showSnackBar(
+          context,
+          '✅ Autenticación biométrica activada ($biometricNames)',
+          type: 'success',
+        );
+      } else {
+        Helpers.showSnackBar(
+          context,
+          '❌ Autenticación cancelada o fallida',
+          type: 'error',
+        );
+      }
+    } catch (e) {
+      Helpers.showSnackBar(
+        context,
+        '❌ Error al configurar biometría: ${e.toString()}',
+        type: 'error',
+      );
+    }
+  }
+
+  void _showChangePasswordDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Cambiar Contraseña',
+          style: AppTextStyles.heading2Dark(context),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                decoration: InputDecoration(
+                  labelText: 'Contraseña actual',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(
+                    Icons.lock_outline,
+                    color: AppColors.primary,
+                  ),
+                  labelStyle: AppTextStyles.bodyDark(context),
+                ),
+                obscureText: true,
+                style: AppTextStyles.bodyDark(context),
+              ),
+              SizedBox(height: AppSpacing.medium),
+              TextField(
+                decoration: InputDecoration(
+                  labelText: 'Nueva contraseña',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.lock_reset, color: AppColors.primary),
+                  hintText:
+                      'Mín. 5 chars, mayúscula, minúscula, carácter especial',
+                  labelStyle: AppTextStyles.bodyDark(context),
+                  hintStyle: AppTextStyles.bodyDark(
+                    context,
+                  ).copyWith(color: AppColors.textSecondaryDark(context)),
+                ),
+                obscureText: true,
+                style: AppTextStyles.bodyDark(context),
+              ),
+              SizedBox(height: AppSpacing.medium),
+              TextField(
+                decoration: InputDecoration(
+                  labelText: 'Confirmar nueva contraseña',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(
+                    Icons.verified_user,
+                    color: AppColors.primary,
+                  ),
+                  labelStyle: AppTextStyles.bodyDark(context),
+                ),
+                obscureText: true,
+                style: AppTextStyles.bodyDark(context),
+              ),
+              SizedBox(height: AppSpacing.small),
+              Container(
+                padding: EdgeInsets.all(AppSpacing.small),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(AppRadius.small),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Requisitos de contraseña:',
+                      style: AppTextStyles.bodyDark(context).copyWith(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    _buildSimpleRequirement('Mínimo 5 caracteres'),
+                    _buildSimpleRequirement('Una letra mayúscula (A-Z)'),
+                    _buildSimpleRequirement('Una letra minúscula (a-z)'),
+                    _buildSimpleRequirement(
+                      'Un carácter especial (!@#\$% etc.)',
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar', style: AppTextStyles.bodyDark(context)),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               Helpers.showSnackBar(
                 context,
-                'Copia de seguridad creada exitosamente',
+                '✅ Contraseña cambiada exitosamente',
                 type: 'success',
               );
             },
-            child: Text('Crear Backup', style: AppTextStyles.button),
+            child: Text('Cambiar Contraseña', style: AppTextStyles.button),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSimpleRequirement(String text) {
+    return Row(
+      children: [
+        Icon(Icons.check_circle_outline, size: 14, color: AppColors.primary),
+        SizedBox(width: 4),
+        Text(
+          text,
+          style: AppTextStyles.bodyDark(
+            context,
+          ).copyWith(fontSize: 11, color: AppColors.textSecondaryDark(context)),
+        ),
+      ],
+    );
+  }
+
+  void _showClearCacheDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Limpiar Caché',
+          style: AppTextStyles.heading2Dark(context),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.cleaning_services, size: 50, color: AppColors.primary),
+            SizedBox(height: AppSpacing.medium),
+            Text(
+              '¿Estás seguro de que deseas limpiar el caché?',
+              style: AppTextStyles.bodyDark(context),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: AppSpacing.small),
+            Text(
+              'Se liberarán $_cacheSize de espacio de almacenamiento',
+              style: AppTextStyles.bodyDark(
+                context,
+              ).copyWith(color: AppColors.primary, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar', style: AppTextStyles.bodyDark(context)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() {
+                _cacheSize = "0 MB";
+              });
+              Helpers.showSnackBar(
+                context,
+                '✅ Caché limpiado exitosamente',
+                type: 'success',
+              );
+            },
+            child: Text('Limpiar', style: AppTextStyles.button),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAboutDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.info, color: AppColors.primary),
+            SizedBox(width: 8),
+            Text(
+              'Acerca de IncosCheck',
+              style: AppTextStyles.heading2Dark(context),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(
+                child: Icon(Icons.school, size: 60, color: AppColors.primary),
+              ),
+              SizedBox(height: AppSpacing.medium),
+              Text(
+                'IncosCheck v1.0.0',
+                style: AppTextStyles.heading1Dark(
+                  context,
+                ).copyWith(fontSize: 18, color: AppColors.primary),
+              ),
+              SizedBox(height: AppSpacing.small),
+              Text(
+                'Sistema de Gestión de Asistencias',
+                style: AppTextStyles.bodyDark(
+                  context,
+                ).copyWith(fontWeight: FontWeight.w500),
+              ),
+              SizedBox(height: AppSpacing.medium),
+              _buildInfoItem(
+                'Desarrollado para:',
+                'Instituto Técnico Comercial INCOS - El Alto',
+              ),
+              _buildInfoItem(
+                'Desarrolladora:',
+                'Est. Nicole Wara Colque Pachacuti\n(Sistemas Informáticos - Proyecto de Grado)',
+              ),
+              _buildInfoItem('Contacto:', '+591 75205630\nincos@gmail.com'),
+              SizedBox(height: AppSpacing.medium),
+              Text(
+                '© 2025 Todos los derechos reservados',
+                style: AppTextStyles.bodyDark(context).copyWith(
+                  fontSize: 12,
+                  color: AppColors.textSecondaryDark(context),
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cerrar', style: AppTextStyles.bodyDark(context)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoItem(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.small),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.bodyDark(context).copyWith(
+              fontSize: 12,
+              color: AppColors.textSecondaryDark(context),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            value,
+            style: AppTextStyles.bodyDark(context).copyWith(fontSize: 14),
+          ),
+          SizedBox(height: 4),
+        ],
+      ),
+    );
+  }
+
+  void _showPrivacyPolicy() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.privacy_tip, color: AppColors.primary),
+            SizedBox(width: 8),
+            Text(
+              'Política de Privacidad',
+              style: AppTextStyles.heading2Dark(context),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'IncosCheck - Protección de Datos',
+                style: AppTextStyles.bodyDark(
+                  context,
+                ).copyWith(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: AppSpacing.medium),
+              _buildPrivacyItem(
+                '📊 Datos Recopilados:',
+                '• Registros de asistencia\n• Información de estudiantes\n• Datos de docentes\n• Materias, carreras y horarios\n• Turnos y paralelos',
+              ),
+              _buildPrivacyItem(
+                '🛡️ Protección:',
+                '• Autenticación biométrica\n• Almacenamiento seguro en Firebase\n• Acceso restringido al personal autorizado',
+              ),
+              _buildPrivacyItem(
+                '🚫 Uso de Datos:',
+                '• Exclusivamente para control de asistencia interna\n• No se comparte con terceros\n• Uso educativo institucional',
+              ),
+              _buildPrivacyItem(
+                '📝 Responsabilidad:',
+                '• Instituto Técnico Comercial INCOS - El Alto\n• Cumplimiento de normativas educativas',
+              ),
+              SizedBox(height: AppSpacing.medium),
+              Text(
+                'Esta aplicación garantiza la confidencialidad y seguridad de los datos académicos.',
+                style: AppTextStyles.bodyDark(context).copyWith(
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                  color: AppColors.textSecondaryDark(context),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Entendido', style: AppTextStyles.bodyDark(context)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPrivacyItem(String title, String content) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.medium),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: AppTextStyles.bodyDark(
+              context,
+            ).copyWith(fontWeight: FontWeight.bold, color: AppColors.primary),
+          ),
+          SizedBox(height: 4),
+          Text(
+            content,
+            style: AppTextStyles.bodyDark(context).copyWith(fontSize: 14),
           ),
         ],
       ),
@@ -146,9 +636,11 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
       appBar: AppBar(
         title: Text(
           'Configuración',
-          style: AppTextStyles.heading2.copyWith(color: Colors.white),
+          style: AppTextStyles.heading2Dark(
+            context,
+          ).copyWith(color: Colors.white),
         ),
-        backgroundColor: AppColors.secondary, // CAMBIADO A CELESTE
+        backgroundColor: AppColors.secondary,
         centerTitle: true,
       ),
       body: LayoutBuilder(
@@ -161,9 +653,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
             ),
             child: Column(
               children: [
-                // Tarjeta de información del usuario
                 _buildUserCard(isTablet),
-
                 SizedBox(height: AppSpacing.large),
 
                 // Configuración de notificaciones
@@ -172,10 +662,11 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                     'Notificaciones Push',
                     'Recibir notificaciones importantes',
                     _notificationsEnabled,
-                    (value) {
+                    (value) async {
                       setState(() {
                         _notificationsEnabled = value;
                       });
+                      await _saveSetting('notifications_enabled', value);
                       Helpers.showSnackBar(
                         context,
                         'Notificaciones ${value ? 'activadas' : 'desactivadas'}',
@@ -187,10 +678,11 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                     'Sincronización Automática',
                     'Sincronizar datos automáticamente',
                     _autoSyncEnabled,
-                    (value) {
+                    (value) async {
                       setState(() {
                         _autoSyncEnabled = value;
                       });
+                      await _saveSetting('auto_sync_enabled', value);
                       Helpers.showSnackBar(
                         context,
                         'Sincronización automática ${value ? 'activada' : 'desactivada'}',
@@ -208,28 +700,27 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                     'Autenticación Biométrica',
                     'Usar huella digital o reconocimiento facial',
                     _biometricEnabled,
-                    (value) {
-                      setState(() {
-                        _biometricEnabled = value;
-                      });
-                      Helpers.showSnackBar(
-                        context,
-                        'Autenticación biométrica ${value ? 'activada' : 'desactivada'}',
-                        type: 'success',
-                      );
+                    (value) async {
+                      if (value) {
+                        await _checkBiometricAvailability();
+                      } else {
+                        setState(() {
+                          _biometricEnabled = false;
+                        });
+                        await _saveSetting('biometric_enabled', false);
+                        Helpers.showSnackBar(
+                          context,
+                          'Autenticación biométrica desactivada',
+                          type: 'success',
+                        );
+                      }
                     },
                   ),
                   _buildActionSetting(
                     'Cambiar Contraseña',
                     Icons.lock,
                     'Actualizar contraseña de acceso',
-                    () {
-                      Helpers.showSnackBar(
-                        context,
-                        'Redirigiendo a cambio de contraseña',
-                        type: 'success',
-                      );
-                    },
+                    _showChangePasswordDialog,
                   ),
                 ]),
 
@@ -264,47 +755,26 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                   _buildActionSetting(
                     'Limpiar Caché',
                     Icons.cleaning_services,
-                    'Liberar espacio de almacenamiento',
-                    () {
-                      Helpers.showConfirmationDialog(
-                        context,
-                        title: 'Limpiar Caché',
-                        content: '¿Estás seguro de limpiar el caché?',
-                      ).then((confirmed) {
-                        if (confirmed) {
-                          Helpers.showSnackBar(
-                            context,
-                            'Caché limpiado exitosamente',
-                            type: 'success',
-                          );
-                        }
-                      });
-                    },
+                    'Tamaño actual: $_cacheSize',
+                    _showClearCacheDialog,
                   ),
                 ]),
 
                 SizedBox(height: AppSpacing.large),
 
-                // Información y soporte - MODIFICADO
+                // Información y soporte
                 _buildSettingsSection('Información', Icons.info, [
                   _buildActionSetting(
-                    'Acerca de ${AppStrings.appName}',
+                    'Acerca de IncosCheck',
                     Icons.business,
                     'Información de la aplicación',
-                    () {
-                      Helpers.showSnackBar(
-                        context,
-                        'Mostrando información de la aplicación',
-                        type: 'success',
-                      );
-                    },
+                    _showAboutDialog,
                   ),
                   _buildActionSetting(
                     'Ayuda y Soporte',
                     Icons.help,
                     'Centro de ayuda y contacto',
                     () {
-                      // Navegación directa a SoporteScreen
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -317,13 +787,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                     'Política de Privacidad',
                     Icons.privacy_tip,
                     'Términos y condiciones de uso',
-                    () {
-                      Helpers.showSnackBar(
-                        context,
-                        'Mostrando política de privacidad',
-                        type: 'success',
-                      );
-                    },
+                    _showPrivacyPolicy,
                   ),
                 ]),
 
@@ -337,7 +801,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                       Helpers.showConfirmationDialog(
                         context,
                         title: 'Cerrar Sesión',
-                        content: Messages.confirmacion,
+                        content: '¿Estás seguro de que deseas cerrar sesión?',
                       ).then((confirmed) {
                         if (confirmed) {
                           Helpers.showSnackBar(
@@ -349,7 +813,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                       });
                     },
                     icon: Icon(Icons.exit_to_app, color: Colors.white),
-                    label: Text(AppStrings.logout, style: AppTextStyles.button),
+                    label: Text('Cerrar Sesión', style: AppTextStyles.button),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.error,
                       foregroundColor: Colors.white,
@@ -365,12 +829,10 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                 ),
 
                 SizedBox(height: AppSpacing.large),
-
-                // Información de versión
                 Text(
                   'Versión 1.0.0',
-                  style: AppTextStyles.body.copyWith(
-                    color: AppColors.textSecondary,
+                  style: AppTextStyles.bodyDark(context).copyWith(
+                    color: AppColors.textSecondaryDark(context),
                     fontSize: 14,
                   ),
                 ),
@@ -405,21 +867,21 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                 children: [
                   Text(
                     'Usuario Demo',
-                    style: AppTextStyles.heading2.copyWith(
-                      fontSize: isTablet ? 20 : 18,
-                    ),
+                    style: AppTextStyles.heading2Dark(
+                      context,
+                    ).copyWith(fontSize: isTablet ? 20 : 18),
                   ),
                   SizedBox(height: AppSpacing.small),
                   Text(
                     'administrador@incos.edu.bo',
-                    style: AppTextStyles.body.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                    style: AppTextStyles.bodyDark(
+                      context,
+                    ).copyWith(color: AppColors.textSecondaryDark(context)),
                   ),
                   SizedBox(height: AppSpacing.small),
                   Chip(
                     label: Text(
-                      UserRoles.administrador,
+                      'Administrador',
                       style: TextStyle(color: Colors.white, fontSize: 12),
                     ),
                     backgroundColor: AppColors.primary,
@@ -461,9 +923,9 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                 SizedBox(width: AppSpacing.small),
                 Text(
                   title,
-                  style: AppTextStyles.heading2.copyWith(
-                    color: AppColors.primary,
-                  ),
+                  style: AppTextStyles.heading2Dark(
+                    context,
+                  ).copyWith(color: AppColors.primary),
                 ),
               ],
             ),
@@ -484,11 +946,11 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     return Column(
       children: [
         SwitchListTile(
-          title: Text(title, style: AppTextStyles.body),
+          title: Text(title, style: AppTextStyles.bodyDark(context)),
           subtitle: Text(
             subtitle,
-            style: AppTextStyles.body.copyWith(
-              color: AppColors.textSecondary,
+            style: AppTextStyles.bodyDark(context).copyWith(
+              color: AppColors.textSecondaryDark(context),
               fontSize: 14,
             ),
           ),
@@ -511,18 +973,18 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
       children: [
         ListTile(
           leading: Icon(icon, color: AppColors.primary),
-          title: Text(title, style: AppTextStyles.body),
+          title: Text(title, style: AppTextStyles.bodyDark(context)),
           subtitle: Text(
             subtitle,
-            style: AppTextStyles.body.copyWith(
-              color: AppColors.textSecondary,
+            style: AppTextStyles.bodyDark(context).copyWith(
+              color: AppColors.textSecondaryDark(context),
               fontSize: 14,
             ),
           ),
           trailing: Icon(
             Icons.arrow_forward_ios,
             size: 16,
-            color: AppColors.textSecondary,
+            color: AppColors.textSecondaryDark(context),
           ),
           onTap: onTap,
         ),
@@ -541,18 +1003,17 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
       children: [
         ListTile(
           leading: Icon(icon, color: AppColors.primary),
-          title: Text(title, style: AppTextStyles.body),
+          title: Text(title, style: AppTextStyles.bodyDark(context)),
           subtitle: Text(
             value,
-            style: AppTextStyles.body.copyWith(
-              color: AppColors.primary,
-              fontSize: 14,
-            ),
+            style: AppTextStyles.bodyDark(
+              context,
+            ).copyWith(color: AppColors.primary, fontSize: 14),
           ),
           trailing: Icon(
             Icons.arrow_forward_ios,
             size: 16,
-            color: AppColors.textSecondary,
+            color: AppColors.textSecondaryDark(context),
           ),
           onTap: onTap,
         ),

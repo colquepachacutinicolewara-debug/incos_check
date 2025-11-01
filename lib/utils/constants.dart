@@ -14,8 +14,20 @@ class AppColors {
   static const error = Color(0xFFDC3545);
   static const warning = Color(0xFFFFC107);
 
+  // COLORES ORIGINALES (se mantienen para compatibilidad)
   static const textPrimary = Colors.black87;
   static const textSecondary = Colors.black54;
+
+  // NUEVOS COLORES PARA TEMA OSCURO
+  static Color textPrimaryDark(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+      ? Colors.white
+      : Colors.black87;
+
+  static Color textSecondaryDark(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+      ? Colors.white70
+      : Colors.black54;
 
   static const Color border = Color(0xFFE0E0E0); // ejemplo de gris
 }
@@ -65,6 +77,33 @@ class AppTextStyles {
     fontSize: 16,
     color: AppColors.textPrimary,
   );
+
+  // NUEVOS ESTILOS PARA TEMA OSCURO (usa estos en lugar de los originales)
+  static TextStyle heading1Dark(BuildContext context) => TextStyle(
+    fontSize: 24,
+    fontWeight: FontWeight.bold,
+    color: Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : AppColors.primary,
+  );
+
+  static TextStyle heading2Dark(BuildContext context) => TextStyle(
+    fontSize: 20,
+    fontWeight: FontWeight.w600,
+    color: AppColors.textPrimaryDark(context),
+  );
+
+  static TextStyle heading3Dark(BuildContext context) => TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w500,
+    color: AppColors.textPrimaryDark(context),
+  );
+
+  static TextStyle bodyDark(BuildContext context) =>
+      TextStyle(fontSize: 16, color: AppColors.textSecondaryDark(context));
+
+  static TextStyle drawerItemDark(BuildContext context) =>
+      TextStyle(fontSize: 16, color: AppColors.textPrimaryDark(context));
 }
 
 /// ===========================
