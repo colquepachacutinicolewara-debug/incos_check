@@ -1,8 +1,8 @@
-// gestion_screen.dart
 import 'package:flutter/material.dart';
 import 'package:incos_check/utils/constants.dart';
 import 'package:incos_check/utils/helpers.dart';
 import 'carreras_screen.dart';
+import '../../views/gestion/programas/programas_screen.dart';
 
 class GestionScreen extends StatelessWidget {
   const GestionScreen({super.key});
@@ -41,7 +41,7 @@ class GestionScreen extends StatelessWidget {
             'Carreras',
             Icons.school,
             AppColors.warning,
-            () => _navigateToCarreras(context, 'Carreras'),
+            () => _navigateToProgramas(context), // Cambiado aquí
           ),
           _buildMenuCard(
             context,
@@ -56,7 +56,12 @@ class GestionScreen extends StatelessWidget {
   }
 
   Widget _buildMenuCard(
-      BuildContext context, String title, IconData icon, Color color, VoidCallback onTap) {
+    BuildContext context,
+    String title,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return Card(
       elevation: 4,
       margin: EdgeInsets.all(AppSpacing.small),
@@ -88,9 +93,15 @@ class GestionScreen extends StatelessWidget {
   void _navigateToCarreras(BuildContext context, String tipo) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => CarrerasScreen(tipo: tipo),
-      ),
+      MaterialPageRoute(builder: (context) => CarrerasScreen(tipo: tipo)),
+    );
+  }
+
+  // NUEVO MÉTODO PARA NAVEGAR A PROGRAMAS_SCREEN
+  void _navigateToProgramas(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => ProgramasScreen()),
     );
   }
 }

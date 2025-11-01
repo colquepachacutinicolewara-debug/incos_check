@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../../viewmodels/dashboard_viewmodel.dart';
 import '../../utils/constants.dart';
 import '../../views/gestion/gestion_screen.dart';
-import '../../views/asistencia/registrar_asistencia_screen.dart';
+import '../../views/asistencia/asistencia_screen.dart';
 import '../../views/inicio/inicio_screen.dart';
 import '../../views/reportes/reportes_screen.dart';
 import '../../views/configuracion/configuracion_screen.dart';
@@ -30,10 +30,10 @@ class DashboardScreen extends StatelessWidget {
 
   Widget _buildBody(BuildContext context) {
     final dashboardVM = Provider.of<DashboardViewModel>(context);
-    
+
     final List<Widget> pages = [
       GestionScreen(), // 0 - Gestión
-      RegistrarAsistenciaScreen(), // 1 - Asistencia
+      AsistenciaScreen(), // 1 - Asistencia
       InicioScreen(), // 2 - Inicio (botón central)
       ReportesScreen(), // 3 - Reportes
       ConfiguracionScreen(), // 4 - Configuración/Perfil (CORREGIDO)
@@ -45,7 +45,7 @@ class DashboardScreen extends StatelessWidget {
 
   Drawer _buildDrawer(BuildContext context) {
     final dashboardVM = Provider.of<DashboardViewModel>(context);
-    
+
     return Drawer(
       child: Column(
         children: [
@@ -72,9 +72,27 @@ class DashboardScreen extends StatelessWidget {
             ),
           ),
           _buildDrawerItem(context, Icons.home, "Inicio", 2, dashboardVM),
-          _buildDrawerItem(context, Icons.person_add, "Registro de Estudiante", 0, dashboardVM),
-          _buildDrawerItem(context, Icons.event_note, "Registro de Asistencia", 1, dashboardVM),
-          _buildDrawerItem(context, Icons.assignment, "Reportes", 3, dashboardVM),
+          _buildDrawerItem(
+            context,
+            Icons.person_add,
+            "Registro de Estudiante",
+            0,
+            dashboardVM,
+          ),
+          _buildDrawerItem(
+            context,
+            Icons.event_note,
+            "Registro de Asistencia",
+            1,
+            dashboardVM,
+          ),
+          _buildDrawerItem(
+            context,
+            Icons.assignment,
+            "Reportes",
+            3,
+            dashboardVM,
+          ),
           _buildDrawerItem(context, Icons.settings, "Perfil", 4, dashboardVM),
           _buildDrawerItem(context, Icons.help, "Soporte", 5, dashboardVM),
           const Spacer(),
@@ -95,16 +113,21 @@ class DashboardScreen extends StatelessWidget {
   }
 
   ListTile _buildDrawerItem(
-      BuildContext context, IconData icon, String label, int index, DashboardViewModel dashboardVM) {
+    BuildContext context,
+    IconData icon,
+    String label,
+    int index,
+    DashboardViewModel dashboardVM,
+  ) {
     final bool isSelected = dashboardVM.selectedIndex == index;
-    
+
     return ListTile(
       leading: Icon(
-        icon, 
+        icon,
         color: isSelected ? AppColors.primary : AppColors.textSecondary,
       ),
       title: Text(
-        label, 
+        label,
         style: AppTextStyles.body.copyWith(
           color: isSelected ? AppColors.primary : AppColors.textPrimary,
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -384,8 +407,8 @@ class DashboardScreen extends StatelessWidget {
 
     return Padding(
       padding: EdgeInsets.symmetric(
-        horizontal: deviceType == DeviceType.mobile 
-            ? AppSpacing.medium 
+        horizontal: deviceType == DeviceType.mobile
+            ? AppSpacing.medium
             : AppSpacing.large,
       ),
       child: GestureDetector(
@@ -454,7 +477,7 @@ class _DeviceSizes {
   final int maxLines;
   final double homeButtonSize;
   final double homeIconSize;
-  
+
   _DeviceSizes({
     required this.minWidth,
     required this.iconSize,

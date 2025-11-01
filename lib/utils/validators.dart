@@ -1,6 +1,5 @@
 // utils/validators.dart
 class Validators {
-
   /// Validar email
   static String? validateEmail(String? value) {
     if (value == null || value.isEmpty) return 'Correo obligatorio';
@@ -12,7 +11,8 @@ class Validators {
   /// Validar contraseña
   static String? validatePassword(String? value) {
     if (value == null || value.isEmpty) return 'Contraseña obligatoria';
-    if (value.length < 6) return 'La contraseña debe tener al menos 6 caracteres';
+    if (value.length < 6)
+      return 'La contraseña debe tener al menos 6 caracteres';
     return null;
   }
 
@@ -27,7 +27,8 @@ class Validators {
     if (value == null || value.isEmpty) return 'Nombre obligatorio';
     if (value.length < 2) return 'Nombre demasiado corto';
     final regex = RegExp(r'^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$');
-    if (!regex.hasMatch(value)) return 'El nombre solo puede contener letras y espacios';
+    if (!regex.hasMatch(value))
+      return 'El nombre solo puede contener letras y espacios';
     return null;
   }
 
@@ -39,7 +40,8 @@ class Validators {
     if (value == null || value.isEmpty) return 'CI obligatorio';
     final regex = RegExp(r'^\d+$');
     if (!regex.hasMatch(value)) return 'CI inválido, solo números';
-    if (value.length < 6 || value.length > 10) return 'CI debe tener entre 6 y 10 dígitos';
+    if (value.length < 6 || value.length > 10)
+      return 'CI debe tener entre 6 y 10 dígitos';
     return null;
   }
 
@@ -49,7 +51,7 @@ class Validators {
   /// Validar teléfono Bolivia (+591) con 8 dígitos y departamento opcional
   static String? validatePhone(String? value, {String? departamento}) {
     if (value == null || value.isEmpty) return 'Teléfono obligatorio';
-    
+
     // Si no empieza con +591, agregarlo automáticamente
     String phoneValue = value;
     if (!value.startsWith('+591')) {
@@ -63,11 +65,23 @@ class Validators {
 
     String numberPart = phoneValue.replaceFirst('+591', '');
     final regex = RegExp(r'^\d+$');
-    if (!regex.hasMatch(numberPart)) return 'Teléfono inválido, solo números después de +591';
-    if (numberPart.length != 8) return 'El teléfono debe tener 8 dígitos después de +591';
+    if (!regex.hasMatch(numberPart))
+      return 'Teléfono inválido, solo números después de +591';
+    if (numberPart.length != 8)
+      return 'El teléfono debe tener 8 dígitos después de +591';
 
     if (departamento != null) {
-      final validDepartments = ['LP','SCZ','CBBA','OR','PT','CH','TJA','BE','PD'];
+      final validDepartments = [
+        'LP',
+        'SCZ',
+        'CBBA',
+        'OR',
+        'PT',
+        'CH',
+        'TJA',
+        'BE',
+        'PD',
+      ];
       if (!validDepartments.contains(departamento.toUpperCase())) {
         return 'Departamento inválido';
       }

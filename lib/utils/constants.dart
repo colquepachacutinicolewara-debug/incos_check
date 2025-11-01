@@ -16,17 +16,16 @@ class AppColors {
 
   static const textPrimary = Colors.black87;
   static const textSecondary = Colors.black54;
-  
+
   static const Color border = Color(0xFFE0E0E0); // ejemplo de gris
-  
 }
 
 /// 🧍 Colores personalizados por tipo de usuario
 class UserThemeColors {
   static const administrador = Color(0xFF1565C0); // Azul fuerte
-  static const docente = Color(0xFF42A5F5);      // Celeste
-  static const estudiante = Color(0xFF29B6F6);   // Azul intermedio
-  static const jefeCarrera = Color(0xFF64B5F6);  // Azul claro
+  static const docente = Color(0xFF42A5F5); // Celeste
+  static const estudiante = Color(0xFF29B6F6); // Azul intermedio
+  static const jefeCarrera = Color(0xFF64B5F6); // Azul claro
   static const directorAcademico = Color(0xFF1976D2); // Azul intenso
 }
 
@@ -46,24 +45,21 @@ class AppTextStyles {
     color: AppColors.textPrimary,
   );
 
-    /// 🆕 NUEVO ESTILO HEADING3 - SIGUIENDO EL PATRÓN EXISTENTE
+  /// 🆕 NUEVO ESTILO HEADING3 - SIGUIENDO EL PATRÓN EXISTENTE
   static const heading3 = TextStyle(
     fontSize: 16,
     fontWeight: FontWeight.w500,
     color: AppColors.textPrimary,
   );
 
-  static const body = TextStyle(
-    fontSize: 16,
-    color: AppColors.textSecondary,
-  );
+  static const body = TextStyle(fontSize: 16, color: AppColors.textSecondary);
 
   static const button = TextStyle(
     fontSize: 16,
     fontWeight: FontWeight.bold,
     color: Colors.white,
   );
-  
+
   // Añadido para el drawer
   static const drawerItem = TextStyle(
     fontSize: 16,
@@ -137,7 +133,6 @@ class Estados {
   static const String suspendido = 'Suspendido';
 }
 
-
 /// ===========================
 /// 💬 MENSAJES COMUNES
 /// ===========================
@@ -151,6 +146,7 @@ class Messages {
   static const errorGeneral = 'Ocurrió un error inesperado';
   static const confirmacion = '¿Estás segura/o de continuar?';
 }
+
 /// ===========================
 /// ⏱ DURACIONES DE ANIMACIÓN
 /// ===========================

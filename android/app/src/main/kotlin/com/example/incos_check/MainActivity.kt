@@ -1,5 +1,7 @@
 package com.example.incos_check
 
-import io.flutter.embedding.android.FlutterActivity
+// 1. Cambia la importación
+import io.flutter.embedding.android.FlutterFragmentActivity 
 
-class MainActivity : FlutterActivity()
+// 2. Extiende de FlutterFragmentActivity
+class MainActivity : FlutterFragmentActivity()

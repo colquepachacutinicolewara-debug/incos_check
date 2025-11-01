@@ -2,189 +2,126 @@
 import 'package:flutter/material.dart';
 
 class GestionViewModel extends ChangeNotifier {
-  // Listas principales
-  final List<Map<String, dynamic>> _carreras = [];
-  final List<Map<String, dynamic>> _niveles = [];
-  final List<Map<String, dynamic>> _paralelos = [];
-  final List<Map<String, dynamic>> _estudiantes = [];
-  final List<Map<String, dynamic>> _docentes = [];
-  final List<Map<String, dynamic>> _turnos = [];
+  // Listas vacías
+  final List<Map<String, String>> _cursosMaterias = [];
+  final List<Map<String, String>> _estudiantes = [];
 
-  // Controladores
+  // Controladores para búsqueda
   final TextEditingController _searchController = TextEditingController();
   
-  // Controladores para Carreras
-  final TextEditingController _nombreCarreraController = TextEditingController();
-  final TextEditingController _colorCarreraController = TextEditingController();
-  
-  // Controladores para Niveles
-  final TextEditingController _nombreNivelController = TextEditingController();
-  
-  // Controladores para Paralelos
-  final TextEditingController _nombreParaleloController = TextEditingController();
-  
-  // Controladores para Estudiantes
-  final TextEditingController _nombreEstudianteController = TextEditingController();
-  final TextEditingController _apellidoPaternoController = TextEditingController();
-  final TextEditingController _apellidoMaternoController = TextEditingController();
-  final TextEditingController _ciController = TextEditingController();
+  // Controladores para CURSOS
+  final TextEditingController _cursoController = TextEditingController();
+  final TextEditingController _materiaController = TextEditingController();
+  final TextEditingController _carreraController = TextEditingController();
+  final TextEditingController _nivelController = TextEditingController();
+  final TextEditingController _turnoController = TextEditingController();
 
-  // Navegación
-  String _currentScreen = 'carreras';
-  Map<String, dynamic>? _selectedCarrera;
-  Map<String, dynamic>? _selectedNivel;
-  Map<String, dynamic>? _selectedParalelo;
+  // Controladores para ESTUDIANTES
+  final TextEditingController _nombreController = TextEditingController();
+  final TextEditingController _paternoController = TextEditingController();
+  final TextEditingController _maternoController = TextEditingController();
+  final TextEditingController _cursoEstudianteController = TextEditingController();
+  final TextEditingController _materiaEstudianteController = TextEditingController();
+  final TextEditingController _carreraEstudianteController = TextEditingController();
+  final TextEditingController _nivelEstudianteController = TextEditingController();
+  final TextEditingController _turnoEstudianteController = TextEditingController();
 
-  // Getters
-  List<Map<String, dynamic>> get carreras => _carreras;
-  List<Map<String, dynamic>> get niveles => _niveles;
-  List<Map<String, dynamic>> get paralelos => _paralelos;
-  List<Map<String, dynamic>> get estudiantes => _estudiantes;
-  List<Map<String, dynamic>> get docentes => _docentes;
-  List<Map<String, dynamic>> get turnos => _turnos;
+  // Índice expandido
+  int _expandedIndex = -1;
+
+  // GETTERS públicos para los controladores
+  // Cursos
+  TextEditingController get cursoController => _cursoController;
+  TextEditingController get materiaController => _materiaController;
+  TextEditingController get carreraController => _carreraController;
+  TextEditingController get nivelController => _nivelController;
+  TextEditingController get turnoController => _turnoController;
   
+  // Estudiantes
+  TextEditingController get nombreController => _nombreController;
+  TextEditingController get paternoController => _paternoController;
+  TextEditingController get maternoController => _maternoController;
+  TextEditingController get cursoEstudianteController => _cursoEstudianteController;
+  TextEditingController get materiaEstudianteController => _materiaEstudianteController;
+  TextEditingController get carreraEstudianteController => _carreraEstudianteController;
+  TextEditingController get nivelEstudianteController => _nivelEstudianteController;
+  TextEditingController get turnoEstudianteController => _turnoEstudianteController;
+
+  // Getters existentes
+  List<Map<String, String>> get cursosMaterias => _cursosMaterias;
+  List<Map<String, String>> get estudiantes => _estudiantes;
   TextEditingController get searchController => _searchController;
-  String get currentScreen => _currentScreen;
-  Map<String, dynamic>? get selectedCarrera => _selectedCarrera;
-  Map<String, dynamic>? get selectedNivel => _selectedNivel;
-  Map<String, dynamic>? get selectedParalelo => _selectedParalelo;
+  int get expandedIndex => _expandedIndex;
 
-  // Getters para controladores
-  TextEditingController get nombreCarreraController => _nombreCarreraController;
-  TextEditingController get colorCarreraController => _colorCarreraController;
-  TextEditingController get nombreNivelController => _nombreNivelController;
-  TextEditingController get nombreParaleloController => _nombreParaleloController;
-  TextEditingController get nombreEstudianteController => _nombreEstudianteController;
-  TextEditingController get apellidoPaternoController => _apellidoPaternoController;
-  TextEditingController get apellidoMaternoController => _apellidoMaternoController;
-  TextEditingController get ciController => _ciController;
-
-  // ========== NAVEGACIÓN ==========
-  void goToCarreras() {
-    _currentScreen = 'carreras';
-    _selectedCarrera = null;
-    _selectedNivel = null;
-    _selectedParalelo = null;
-    notifyListeners();
+  // Lista filtrada de estudiantes
+  List<Map<String, String>> get filteredEstudiantes {
+    if (_searchController.text.isEmpty) {
+      return _estudiantes;
+    }
+    return _estudiantes.where((estudiante) {
+      return estudiante['nombre']!.toLowerCase().contains(
+            _searchController.text.toLowerCase(),
+          ) ||
+          estudiante['paterno']!.toLowerCase().contains(
+            _searchController.text.toLowerCase(),
+          ) ||
+          estudiante['curso']!.toLowerCase().contains(
+            _searchController.text.toLowerCase(),
+          );
+    }).toList();
   }
 
-  void goToNiveles(Map<String, dynamic> carrera) {
-    _currentScreen = 'niveles';
-    _selectedCarrera = carrera;
-    notifyListeners();
-  }
-
-  void goToParalelos(Map<String, dynamic> nivel) {
-    _currentScreen = 'paralelos';
-    _selectedNivel = nivel;
-    notifyListeners();
-  }
-
-  void goToEstudiantes(Map<String, dynamic> paralelo) {
-    _currentScreen = 'estudiantes';
-    _selectedParalelo = paralelo;
-    notifyListeners();
-  }
-
-  // ========== CRUD CARRERAS ==========
-  void agregarCarrera() {
-    if (_nombreCarreraController.text.isNotEmpty) {
-      _carreras.add({
-        'id': DateTime.now().millisecondsSinceEpoch,
-        'nombre': _nombreCarreraController.text,
-        'color': _colorCarreraController.text.isNotEmpty 
-            ? _colorCarreraController.text 
-            : '#1565C0', // Azul por defecto
-        'fechaCreacion': DateTime.now(),
+  // Función para agregar curso y materia
+  void agregarCursoMateria() {
+    if (_cursoController.text.isNotEmpty && 
+        _materiaController.text.isNotEmpty && 
+        _carreraController.text.isNotEmpty) {
+      _cursosMaterias.add({
+        'curso': _cursoController.text,
+        'materia': _materiaController.text,
+        'carrera': _carreraController.text,
+        'nivel': _nivelController.text,
+        'turno': _turnoController.text,
       });
-      _nombreCarreraController.clear();
-      _colorCarreraController.clear();
+      // Limpiar todos los campos de curso
+      _cursoController.clear();
+      _materiaController.clear();
+      _carreraController.clear();
+      _nivelController.clear();
+      _turnoController.clear();
       notifyListeners();
     }
   }
 
-  void eliminarCarrera(int index) {
-    if (index >= 0 && index < _carreras.length) {
-      _carreras.removeAt(index);
-      notifyListeners();
-    }
-  }
-
-  // ========== CRUD NIVELES ==========
-  void agregarNivel() {
-    if (_nombreNivelController.text.isNotEmpty && _selectedCarrera != null) {
-      _niveles.add({
-        'id': DateTime.now().millisecondsSinceEpoch,
-        'nombre': _nombreNivelController.text,
-        'carreraId': _selectedCarrera!['id'],
-        'carreraNombre': _selectedCarrera!['nombre'],
-        'fechaCreacion': DateTime.now(),
-      });
-      _nombreNivelController.clear();
-      notifyListeners();
-    }
-  }
-
-  void eliminarNivel(int index) {
-    if (index >= 0 && index < _niveles.length) {
-      _niveles.removeAt(index);
-      notifyListeners();
-    }
-  }
-
-  // ========== CRUD PARALELOS ==========
-  void agregarParalelo() {
-    if (_nombreParaleloController.text.isNotEmpty && _selectedNivel != null) {
-      _paralelos.add({
-        'id': DateTime.now().millisecondsSinceEpoch,
-        'nombre': _nombreParaleloController.text,
-        'nivelId': _selectedNivel!['id'],
-        'nivelNombre': _selectedNivel!['nombre'],
-        'carreraNombre': _selectedCarrera!['nombre'],
-        'fechaCreacion': DateTime.now(),
-      });
-      _nombreParaleloController.clear();
-      notifyListeners();
-    }
-  }
-
-  void eliminarParalelo(int index) {
-    if (index >= 0 && index < _paralelos.length) {
-      _paralelos.removeAt(index);
-      notifyListeners();
-    }
-  }
-
-  // ========== CRUD ESTUDIANTES ==========
-  void agregarEstudiante() {
-    if (_nombreEstudianteController.text.isNotEmpty &&
-        _apellidoPaternoController.text.isNotEmpty &&
-        _apellidoMaternoController.text.isNotEmpty &&
-        _ciController.text.isNotEmpty &&
-        _selectedParalelo != null) {
-      
+  // Función para registrar estudiante
+  void registrarEstudiante() {
+    if (_nombreController.text.isNotEmpty && 
+        _paternoController.text.isNotEmpty &&
+        _cursoEstudianteController.text.isNotEmpty) {
       _estudiantes.add({
-        'id': DateTime.now().millisecondsSinceEpoch,
-        'nombre': _nombreEstudianteController.text,
-        'apellidoPaterno': _apellidoPaternoController.text,
-        'apellidoMaterno': _apellidoMaternoController.text,
-        'ci': _ciController.text,
-        'paraleloId': _selectedParalelo!['id'],
-        'paraleloNombre': _selectedParalelo!['nombre'],
-        'nivelNombre': _selectedNivel!['nombre'],
-        'carreraNombre': _selectedCarrera!['nombre'],
-        'fechaRegistro': DateTime.now(),
+        'nombre': _nombreController.text,
+        'paterno': _paternoController.text,
+        'materno': _maternoController.text,
+        'curso': _cursoEstudianteController.text,
+        'materia': _materiaEstudianteController.text,
+        'carrera': _carreraEstudianteController.text,
+        'nivel': _nivelEstudianteController.text,
+        'turno': _turnoEstudianteController.text,
       });
-      
-      // Limpiar formulario
-      _nombreEstudianteController.clear();
-      _apellidoPaternoController.clear();
-      _apellidoMaternoController.clear();
-      _ciController.clear();
+      // Limpiar todos los campos de estudiante
+      _nombreController.clear();
+      _paternoController.clear();
+      _maternoController.clear();
+      _cursoEstudianteController.clear();
+      _materiaEstudianteController.clear();
+      _carreraEstudianteController.clear();
+      _nivelEstudianteController.clear();
+      _turnoEstudianteController.clear();
       notifyListeners();
     }
   }
 
+  // Función para eliminar estudiante
   void eliminarEstudiante(int index) {
     if (index >= 0 && index < _estudiantes.length) {
       _estudiantes.removeAt(index);
@@ -192,30 +129,60 @@ class GestionViewModel extends ChangeNotifier {
     }
   }
 
-  // ========== FILTROS ==========
-  List<Map<String, dynamic>> getNivelesPorCarrera(int carreraId) {
-    return _niveles.where((nivel) => nivel['carreraId'] == carreraId).toList();
+  // Función para eliminar curso
+  void eliminarCurso(int index) {
+    if (index >= 0 && index < _cursosMaterias.length) {
+      _cursosMaterias.removeAt(index);
+      notifyListeners();
+    }
   }
 
-  List<Map<String, dynamic>> getParalelosPorNivel(int nivelId) {
-    return _paralelos.where((paralelo) => paralelo['nivelId'] == nivelId).toList();
+  // Función para expandir/contraer secciones
+  void toggleExpand(int index) {
+    if (_expandedIndex == index) {
+      _expandedIndex = -1;
+    } else {
+      _expandedIndex = index;
+    }
+    notifyListeners();
   }
 
-  List<Map<String, dynamic>> getEstudiantesPorParalelo(int paraleloId) {
-    return _estudiantes.where((estudiante) => estudiante['paraleloId'] == paraleloId).toList();
+  // Obtener ícono según la sección
+  IconData getIconFromIndex(int index) {
+    switch (index) {
+      case 0:
+        return Icons.school;
+      case 1:
+        return Icons.people;
+      case 2:
+        return Icons.app_registration;
+      default:
+        return Icons.category;
+    }
   }
 
   @override
   void dispose() {
+    // Dispose de todos los controladores
     _searchController.dispose();
-    _nombreCarreraController.dispose();
-    _colorCarreraController.dispose();
-    _nombreNivelController.dispose();
-    _nombreParaleloController.dispose();
-    _nombreEstudianteController.dispose();
-    _apellidoPaternoController.dispose();
-    _apellidoMaternoController.dispose();
-    _ciController.dispose();
+    
+    // Cursos
+    _cursoController.dispose();
+    _materiaController.dispose();
+    _carreraController.dispose();
+    _nivelController.dispose();
+    _turnoController.dispose();
+    
+    // Estudiantes
+    _nombreController.dispose();
+    _paternoController.dispose();
+    _maternoController.dispose();
+    _cursoEstudianteController.dispose();
+    _materiaEstudianteController.dispose();
+    _carreraEstudianteController.dispose();
+    _nivelEstudianteController.dispose();
+    _turnoEstudianteController.dispose();
+    
     super.dispose();
   }
 }
