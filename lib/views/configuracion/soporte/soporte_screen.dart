@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../utils/constants.dart';
-import '../../viewmodels/soporte_viewmodel.dart';
-import '../../models/soporte_model.dart';
+import '../../../utils/constants.dart';
+import '../../../viewmodels/soporte_viewmodel.dart';
+import '../../../models/soporte_model.dart';
 import 'soporte_preguntas_sreen.dart';
 
 class SoporteScreen extends StatelessWidget {
@@ -9,9 +9,14 @@ class SoporteScreen extends StatelessWidget {
 
   final SoporteViewModel viewModel = SoporteViewModel(
     model: SoporteModel(
-      whatsappNumber: "59160696135",
+      whatsappNumber: "59175205630",
       email: "incos@gmail.com",
-      phoneNumber: "+59160696135",
+      phoneNumber: "+59175205630",
+      whatsappMessage:
+          "Hola, necesito soporte con la aplicación IncosCheck - Gestión de Asistencias",
+      emailSubject: "Soporte - IncosCheck App",
+      emailBody:
+          "Hola equipo de soporte,\n\nNecesito ayuda con la aplicación IncosCheck:\n\n[Describe tu problema o consulta aquí]\n\n• Tipo de usuario: \n• Dispositivo: \n• Versión de la app: \n\nGracias.",
     ),
   );
 
@@ -19,10 +24,10 @@ class SoporteScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Soporte"),
+        title: const Text("Soporte - IncosCheck"),
         centerTitle: true,
         elevation: 4,
-        backgroundColor: AppColors.secondary, // CAMBIADO A CELESTE
+        backgroundColor: AppColors.secondary,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.large),
@@ -39,18 +44,20 @@ class SoporteScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(AppSpacing.large),
                 child: Column(
                   children: [
-                    const Icon(Icons.support_agent,
-                        size: 80, color: AppColors.primary),
+                    const Icon(
+                      Icons.support_agent,
+                      size: 80,
+                      color: AppColors.primary,
+                    ),
                     const SizedBox(height: AppSpacing.medium),
                     Text(
-                      "Centro de Soporte",
+                      "Soporte IncosCheck",
                       style: AppTextStyles.heading1,
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: AppSpacing.small),
                     Text(
-                      "Aquí puedes encontrar ayuda, resolver dudas o "
-                      "contactar con nuestro equipo de soporte.",
+                      "Soporte especializado para la gestión y reporte de asistencias académicas",
                       style: AppTextStyles.body,
                       textAlign: TextAlign.center,
                     ),
@@ -64,7 +71,9 @@ class SoporteScreen extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.help_outline, color: AppColors.primary),
               title: const Text("Preguntas Frecuentes"),
-              subtitle: const Text("Consulta respuestas rápidas a dudas comunes"),
+              subtitle: const Text(
+                "Soluciones rápidas para gestión de asistencias",
+              ),
               trailing: const Icon(Icons.arrow_forward_ios, size: 18),
               onTap: () {
                 Navigator.push(
@@ -79,8 +88,8 @@ class SoporteScreen extends StatelessWidget {
 
             ListTile(
               leading: const Icon(Icons.chat, color: AppColors.primary),
-              title: const Text("Chat en Línea"),
-              subtitle: const Text("Habla con un asesor en tiempo real"),
+              title: const Text("WhatsApp de Soporte"),
+              subtitle: const Text("Soporte técnico por WhatsApp"),
               trailing: const Icon(Icons.arrow_forward_ios, size: 18),
               onTap: viewModel.openWhatsApp,
             ),
@@ -89,7 +98,7 @@ class SoporteScreen extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.email, color: AppColors.primary),
               title: const Text("Correo de Soporte"),
-              subtitle: const Text("Envía un mensaje a nuestro equipo"),
+              subtitle: const Text("Reporta problemas técnicos por email"),
               trailing: const Icon(Icons.arrow_forward_ios, size: 18),
               onTap: viewModel.openGmail,
             ),
@@ -97,8 +106,8 @@ class SoporteScreen extends StatelessWidget {
 
             ListTile(
               leading: const Icon(Icons.phone, color: AppColors.primary),
-              title: const Text("Línea Telefónica"),
-              subtitle: const Text("Contáctanos directamente por llamada"),
+              title: const Text("Línea de Soporte"),
+              subtitle: const Text("+591 75205630 - Asistencia telefónica"),
               trailing: const Icon(Icons.arrow_forward_ios, size: 18),
               onTap: viewModel.openPhone,
             ),

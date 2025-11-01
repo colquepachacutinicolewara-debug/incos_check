@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 
 class Materia {
@@ -5,6 +6,7 @@ class Materia {
   final String codigo;
   final String nombre;
   final String carrera;
+  final int anio; // Cambié "año" por "anio" (sin ñ)
   final Color color;
   final bool activo;
 
@@ -13,11 +15,13 @@ class Materia {
     required this.codigo,
     required this.nombre,
     required this.carrera,
+    required this.anio,
     required this.color,
     this.activo = true,
   });
 
   String get nombreCompleto => '$codigo - $nombre';
+  String get anioDisplay => '$anio° Año'; // Aquí puedes usar °
 
   Map<String, dynamic> toMap() {
     return {
@@ -25,6 +29,7 @@ class Materia {
       'codigo': codigo,
       'nombre': nombre,
       'carrera': carrera,
+      'anio': anio,
       'color': color.value,
       'activo': activo,
     };
@@ -36,6 +41,7 @@ class Materia {
       codigo: map['codigo'],
       nombre: map['nombre'],
       carrera: map['carrera'],
+      anio: map['anio'],
       color: Color(map['color']),
       activo: map['activo'] ?? true,
     );

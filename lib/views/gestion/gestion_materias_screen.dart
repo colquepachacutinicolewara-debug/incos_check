@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import '../../../utils/constants.dart';
 import '../../../models/materia_model.dart';
 
-class MateriasScreen extends StatefulWidget {
-  const MateriasScreen({super.key});
+class GestionMateriasScreen extends StatefulWidget {
+  const GestionMateriasScreen({super.key});
 
   @override
-  State<MateriasScreen> createState() => _MateriasScreenState();
+  State<GestionMateriasScreen> createState() => _GestionMateriasScreenState();
 }
 
-class _MateriasScreenState extends State<MateriasScreen> {
+class _GestionMateriasScreenState extends State<GestionMateriasScreen> {
   final List<Materia> _materias = [];
   final _formKey = GlobalKey<FormState>();
   final _codigoController = TextEditingController();
@@ -224,6 +224,224 @@ class _MateriasScreenState extends State<MateriasScreen> {
     ]);
   }
 
+  void _mostrarDialogoMateria([Materia? materia]) {
+    _materiaEditando = materia;
+
+    if (materia != null) {
+      _codigoController.text = materia.codigo;
+      _nombreController.text = materia.nombre;
+      _colorSeleccionado = materia.color;
+      _anioSeleccionado = materia.anio;
+      _carreraSeleccionada = materia.carrera;
+    } else {
+      _codigoController.clear();
+      _nombreController.clear();
+      _colorSeleccionado = MateriaColors.matematica;
+      _anioSeleccionado = 1;
+      _carreraSeleccionada = 'Sistemas Informaticos';
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(materia == null ? 'Nueva Materia' : 'Editar Materia'),
+          content: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: _codigoController,
+                    decoration: const InputDecoration(
+                      labelText: 'Codigo de Materia',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) =>
+                        value!.isEmpty ? 'Ingrese el codigo' : null,
+                  ),
+                  const SizedBox(height: AppSpacing.medium),
+                  TextFormField(
+                    controller: _nombreController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre de Materia',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) =>
+                        value!.isEmpty ? 'Ingrese el nombre' : null,
+                  ),
+                  const SizedBox(height: AppSpacing.medium),
+                  DropdownButtonFormField<String>(
+                    value: _carreraSeleccionada,
+                    decoration: const InputDecoration(
+                      labelText: 'Carrera',
+                      border: OutlineInputBorder(),
+                    ),
+                    items:
+                        [
+                          'Sistemas Informaticos',
+                          'Redes y Telecomunicaciones',
+                        ].map((carrera) {
+                          return DropdownMenuItem(
+                            value: carrera,
+                            child: Text(carrera),
+                          );
+                        }).toList(),
+                    onChanged: (value) =>
+                        setState(() => _carreraSeleccionada = value!),
+                  ),
+                  const SizedBox(height: AppSpacing.medium),
+                  DropdownButtonFormField<int>(
+                    value: _anioSeleccionado,
+                    decoration: const InputDecoration(
+                      labelText: 'Anio',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: [1, 2, 3].map((anio) {
+                      return DropdownMenuItem(
+                        value: anio,
+                        child: Text('$anio° Anio'),
+                      );
+                    }).toList(),
+                    onChanged: (value) =>
+                        setState(() => _anioSeleccionado = value!),
+                  ),
+                  const SizedBox(height: AppSpacing.medium),
+                  const Text('Color identificador:'),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: MateriaColors.colors.map((color) {
+                      return _buildCirculoColor(color, setState);
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: _guardarMateria,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+              ),
+              child: const Text('Guardar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCirculoColor(Color color, StateSetter setState) {
+    return GestureDetector(
+      onTap: () => setState(() => _colorSeleccionado = color),
+      child: Container(
+        width: 30,
+        height: 30,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: _colorSeleccionado == color
+              ? Border.all(color: Colors.black, width: 2)
+              : null,
+        ),
+      ),
+    );
+  }
+
+  void _guardarMateria() {
+    if (_formKey.currentState!.validate()) {
+      final nuevaMateria = Materia(
+        id:
+            _materiaEditando?.id ??
+            DateTime.now().millisecondsSinceEpoch.toString(),
+        codigo: _codigoController.text,
+        nombre: _nombreController.text,
+        carrera: _carreraSeleccionada,
+        anio: _anioSeleccionado,
+        color: _colorSeleccionado,
+      );
+
+      setState(() {
+        if (_materiaEditando != null) {
+          final index = _materias.indexWhere(
+            (m) => m.id == _materiaEditando!.id,
+          );
+          if (index != -1) {
+            _materias[index] = nuevaMateria;
+          }
+        } else {
+          _materias.add(nuevaMateria);
+        }
+      });
+
+      Navigator.pop(context);
+      _limpiarFormulario();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _materiaEditando != null
+                ? '✅ Materia actualizada'
+                : '✅ Materia creada',
+          ),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    }
+  }
+
+  void _eliminarMateria(Materia materia) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar Materia'),
+        content: Text(
+          '¿Estas seguro de eliminar la materia "${materia.nombreCompleto}"?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _materias.removeWhere((m) => m.id == materia.id);
+              });
+              Navigator.pop(context);
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('✅ Materia "${materia.codigo}" eliminada'),
+                  backgroundColor: AppColors.success,
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _limpiarFormulario() {
+    _codigoController.clear();
+    _nombreController.clear();
+    _materiaEditando = null;
+    _colorSeleccionado = MateriaColors.matematica;
+    _anioSeleccionado = 1;
+    _carreraSeleccionada = 'Sistemas Informaticos';
+  }
+
   // Filtros
   int _anioFiltro = 0; // 0 = Todos
   String _carreraFiltro = 'Todas';
@@ -254,9 +472,16 @@ class _MateriasScreenState extends State<MateriasScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Todas las Materias'),
+        title: const Text('Gestion de Materias'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () => _mostrarDialogoMateria(),
+            tooltip: 'Nueva Materia',
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -380,6 +605,23 @@ class _MateriasScreenState extends State<MateriasScreen> {
                                     ),
                                   ),
                                 ],
+                              ),
+                            ],
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit, size: 20),
+                                onPressed: () =>
+                                    _mostrarDialogoMateria(materia),
+                                tooltip: 'Editar materia',
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete, size: 20),
+                                onPressed: () => _eliminarMateria(materia),
+                                tooltip: 'Eliminar materia',
+                                color: AppColors.error,
                               ),
                             ],
                           ),

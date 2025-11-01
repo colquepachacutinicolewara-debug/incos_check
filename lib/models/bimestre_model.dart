@@ -1,17 +1,15 @@
-import 'package:flutter/widgets.dart';
-
-import '../../utils/constants.dart';
+import 'package:flutter/material.dart';
 
 class PeriodoAcademico {
   final String id;
   final String nombre;
-  final String tipo; // 'Bimestral', 'Semestral', 'Trimestral'
+  final String tipo;
   final int numero;
   final DateTime fechaInicio;
   final DateTime fechaFin;
-  final String estado; // 'Planificado', 'En Curso', 'Finalizado', 'Cancelado'
+  final String estado;
   final List<String> fechasClases;
-  final String? descripcion;
+  final String descripcion; // Cambié a required (no nullable)
   final DateTime fechaCreacion;
 
   PeriodoAcademico({
@@ -23,7 +21,7 @@ class PeriodoAcademico {
     required this.fechaFin,
     required this.estado,
     required this.fechasClases,
-    this.descripcion,
+    required this.descripcion, // Ahora es required
     required this.fechaCreacion,
   });
 
@@ -37,7 +35,20 @@ class PeriodoAcademico {
   bool get estaActivo => estado == 'En Curso';
   bool get puedeEditar => estado == 'Planificado' || estado == 'En Curso';
 
-  Color get colorEstado => PeriodoColors.getColorPorEstado(estado);
+  Color get colorEstado {
+    switch (estado) {
+      case 'Planificado':
+        return Colors.blue;
+      case 'En Curso':
+        return Colors.green;
+      case 'Finalizado':
+        return Colors.grey;
+      case 'Cancelado':
+        return Colors.red;
+      default:
+        return Colors.blue;
+    }
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -64,7 +75,7 @@ class PeriodoAcademico {
       fechaFin: DateTime.fromMillisecondsSinceEpoch(map['fechaFin']),
       estado: map['estado'],
       fechasClases: List<String>.from(map['fechasClases']),
-      descripcion: map['descripcion'],
+      descripcion: map['descripcion'] ?? '', // Valor por defecto
       fechaCreacion: DateTime.fromMillisecondsSinceEpoch(map['fechaCreacion']),
     );
   }

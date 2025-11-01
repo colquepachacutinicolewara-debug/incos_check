@@ -7,7 +7,6 @@ import '../../views/asistencia/asistencia_screen.dart';
 import '../../views/inicio/inicio_screen.dart';
 import '../../views/reportes/reportes_screen.dart';
 import '../../views/configuracion/configuracion_screen.dart';
-import '../../views/soporte/soporte_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -36,8 +35,7 @@ class DashboardScreen extends StatelessWidget {
       AsistenciaScreen(), // 1 - Asistencia
       InicioScreen(), // 2 - Inicio (botón central)
       ReportesScreen(), // 3 - Reportes
-      ConfiguracionScreen(), // 4 - Configuración/Perfil (CORREGIDO)
-      SoporteScreen(), // 5 - Soporte
+      ConfiguracionScreen(), // 4 - Configuración/Perfil
     ];
 
     return pages[dashboardVM.selectedIndex];
@@ -93,8 +91,13 @@ class DashboardScreen extends StatelessWidget {
             3,
             dashboardVM,
           ),
-          _buildDrawerItem(context, Icons.settings, "Perfil", 4, dashboardVM),
-          _buildDrawerItem(context, Icons.help, "Soporte", 5, dashboardVM),
+          _buildDrawerItem(
+            context,
+            Icons.settings,
+            "Configuración",
+            4,
+            dashboardVM,
+          ),
           const Spacer(),
           const Divider(height: 1, color: AppColors.textSecondary),
           ListTile(
@@ -201,7 +204,7 @@ class DashboardScreen extends StatelessWidget {
               ),
               _buildNavItem(
                 Icons.settings,
-                "PERFIL",
+                "CONFIG",
                 4,
                 dashboardVM,
                 deviceType: DeviceType.mobile,
@@ -270,7 +273,7 @@ class DashboardScreen extends StatelessWidget {
                     ),
                     _buildNavItem(
                       Icons.settings,
-                      "Perfil",
+                      "Configuración",
                       4,
                       dashboardVM,
                       deviceType: DeviceType.tablet,
@@ -342,7 +345,7 @@ class DashboardScreen extends StatelessWidget {
                     ),
                     _buildNavItem(
                       Icons.settings,
-                      "Perfil",
+                      "Configuración",
                       4,
                       dashboardVM,
                       deviceType: DeviceType.desktop,
