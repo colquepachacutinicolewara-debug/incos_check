@@ -173,6 +173,61 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
   int? _estudianteSeleccionado;
   bool _mostrarEditorFechas = false;
 
+  // Funciones para obtener colores según el tema
+  Color _getBackgroundColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade900
+        : AppColors.background;
+  }
+
+  Color _getCardColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : Colors.white;
+  }
+
+  Color _getTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+  }
+
+  Color _getSecondaryTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white70
+        : Colors.black87;
+  }
+
+  Color _getBorderColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade600
+        : Colors.grey.shade300;
+  }
+
+  Color _getHeaderBackgroundColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade700
+        : Colors.teal.shade50;
+  }
+
+  Color _getSearchBackgroundColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : Colors.grey.shade50;
+  }
+
+  Color _getTealAccentColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.teal.shade700
+        : Colors.teal;
+  }
+
+  Color _getTealLightColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.teal.shade900.withOpacity(0.3)
+        : Colors.teal.shade50;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -231,23 +286,45 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Editar Fechas del Bimestre'),
+        backgroundColor: _getCardColor(context),
+        title: Text(
+          'Editar Fechas del Bimestre',
+          style: TextStyle(color: _getTextColor(context)),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextFormField(
               controller: _fechaInicioController,
-              decoration: const InputDecoration(
+              style: TextStyle(color: _getTextColor(context)),
+              decoration: InputDecoration(
                 labelText: 'Fecha de inicio (DD/MM/AAAA)',
-                border: OutlineInputBorder(),
+                labelStyle: TextStyle(color: _getSecondaryTextColor(context)),
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: _getBorderColor(context)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: _getBorderColor(context)),
+                ),
+                filled: true,
+                fillColor: _getSearchBackgroundColor(context),
               ),
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _fechaFinController,
-              decoration: const InputDecoration(
+              style: TextStyle(color: _getTextColor(context)),
+              decoration: InputDecoration(
                 labelText: 'Fecha de fin (DD/MM/AAAA)',
-                border: OutlineInputBorder(),
+                labelStyle: TextStyle(color: _getSecondaryTextColor(context)),
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: _getBorderColor(context)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: _getBorderColor(context)),
+                ),
+                filled: true,
+                fillColor: _getSearchBackgroundColor(context),
               ),
             ),
           ],
@@ -255,7 +332,10 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: _getSecondaryTextColor(context)),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -273,7 +353,10 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                 ),
               );
             },
-            child: const Text('Guardar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _getTealAccentColor(context),
+            ),
+            child: const Text('Guardar', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -345,16 +428,26 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Editar asistencia - $fecha'),
+        backgroundColor: _getCardColor(context),
+        title: Text(
+          'Editar asistencia - $fecha',
+          style: TextStyle(color: _getTextColor(context)),
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Estudiante: ${estudiante.nombre}'),
+              Text(
+                'Estudiante: ${estudiante.nombre}',
+                style: TextStyle(color: _getTextColor(context)),
+              ),
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'Seleccione el estado:',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: _getTextColor(context),
+                ),
               ),
               const SizedBox(height: 16),
               Wrap(
@@ -368,6 +461,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                     Colors.green,
                     estudiante,
                     fecha,
+                    context,
                   ),
                   _buildBotonAsistencia(
                     'F',
@@ -375,6 +469,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                     Colors.red,
                     estudiante,
                     fecha,
+                    context,
                   ),
                   _buildBotonAsistencia(
                     'J',
@@ -382,6 +477,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                     Colors.orange,
                     estudiante,
                     fecha,
+                    context,
                   ),
                 ],
               ),
@@ -392,8 +488,8 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                   Navigator.pop(context);
                 },
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.grey,
-                  side: const BorderSide(color: Colors.grey),
+                  foregroundColor: _getSecondaryTextColor(context),
+                  side: BorderSide(color: _getBorderColor(context)),
                 ),
                 child: const Text('Limpiar'),
               ),
@@ -403,7 +499,10 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
+            child: Text(
+              'Cerrar',
+              style: TextStyle(color: _getTealAccentColor(context)),
+            ),
           ),
         ],
       ),
@@ -416,6 +515,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
     Color color,
     AsistenciaEstudiante estudiante,
     String fecha,
+    BuildContext context,
   ) {
     return GestureDetector(
       onTap: () {
@@ -453,7 +553,11 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
           const SizedBox(height: 8),
           Text(
             label,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: _getTextColor(context),
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -526,7 +630,9 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
       case 'J':
         return Colors.orange;
       default:
-        return Colors.grey.shade200;
+        return Theme.of(context).brightness == Brightness.dark
+            ? Colors.grey.shade700
+            : Colors.grey.shade200;
     }
   }
 
@@ -550,7 +656,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
     return Colors.red;
   }
 
-  Widget _buildItemLeyenda(Color color, String texto) {
+  Widget _buildItemLeyenda(Color color, String texto, BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -560,7 +666,10 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 6),
-        Text(texto, style: const TextStyle(fontSize: 12)),
+        Text(
+          texto,
+          style: TextStyle(fontSize: 12, color: _getTextColor(context)),
+        ),
       ],
     );
   }
@@ -569,6 +678,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
     String valor,
     AsistenciaEstudiante estudiante,
     String fecha,
+    BuildContext context,
   ) {
     return Tooltip(
       message: '${_getTooltipAsistencia(valor)} - $fecha\nClic para editar',
@@ -581,7 +691,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
           decoration: BoxDecoration(
             color: _getColorAsistencia(valor),
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.grey.shade400, width: 1),
+            border: Border.all(color: _getBorderColor(context), width: 1),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.1),
@@ -594,7 +704,9 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
             child: Text(
               valor.isEmpty ? '' : valor,
               style: TextStyle(
-                color: valor.isEmpty ? Colors.grey.shade600 : Colors.white,
+                color: valor.isEmpty
+                    ? _getSecondaryTextColor(context)
+                    : Colors.white,
                 fontWeight: FontWeight.bold,
                 fontSize: 12,
               ),
@@ -605,9 +717,11 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
     );
   }
 
-  Color _getColorFila(int item) {
+  Color _getColorFila(int item, BuildContext context) {
     if (_estudianteSeleccionado == item) {
-      return Colors.yellow.withOpacity(0.3);
+      return Theme.of(context).brightness == Brightness.dark
+          ? Colors.yellow.withOpacity(0.2)
+          : Colors.yellow.withOpacity(0.3);
     }
     return Colors.transparent;
   }
@@ -615,10 +729,15 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _getBackgroundColor(context),
       appBar: AppBar(
-        title: const Text('Cuarto Bimestre'),
-        backgroundColor: Colors.teal,
+        title: const Text(
+          'Cuarto Bimestre',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: _getTealAccentColor(context),
         foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
             icon: const Icon(Icons.calendar_today),
@@ -637,7 +756,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
           // Información del bimestre
           Container(
             padding: const EdgeInsets.all(16),
-            color: Colors.teal.shade50,
+            color: _getTealLightColor(context),
             child: Row(
               children: [
                 Container(width: 4, height: 40, color: _bimestre.colorEstado),
@@ -646,8 +765,18 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(_bimestre.nombre, style: AppTextStyles.heading2),
-                      Text(_bimestre.rangoFechas),
+                      Text(
+                        _bimestre.nombre,
+                        style: AppTextStyles.heading2.copyWith(
+                          color: _getTextColor(context),
+                        ),
+                      ),
+                      Text(
+                        _bimestre.rangoFechas,
+                        style: TextStyle(
+                          color: _getSecondaryTextColor(context),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -683,14 +812,38 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                     Expanded(
                       child: TextFormField(
                         controller: _searchController,
+                        style: TextStyle(color: _getTextColor(context)),
                         decoration: InputDecoration(
                           labelText: 'Buscar por número exacto o nombre',
+                          labelStyle: TextStyle(
+                            color: _getSecondaryTextColor(context),
+                          ),
                           hintText: 'Ej: 05 o "Estudiante 05"',
-                          prefixIcon: const Icon(Icons.search),
-                          border: const OutlineInputBorder(),
+                          hintStyle: TextStyle(
+                            color: _getSecondaryTextColor(context),
+                          ),
+                          prefixIcon: Icon(
+                            Icons.search,
+                            color: _getSecondaryTextColor(context),
+                          ),
+                          border: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: _getBorderColor(context),
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: _getBorderColor(context),
+                            ),
+                          ),
+                          filled: true,
+                          fillColor: _getSearchBackgroundColor(context),
                           suffixIcon: _searchController.text.isNotEmpty
                               ? IconButton(
-                                  icon: const Icon(Icons.clear),
+                                  icon: Icon(
+                                    Icons.clear,
+                                    color: _getSecondaryTextColor(context),
+                                  ),
                                   onPressed: () => _searchController.clear(),
                                 )
                               : null,
@@ -704,16 +857,18 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.teal.shade50,
+                        color: _getTealLightColor(context),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.teal.shade200),
+                        border: Border.all(
+                          color: _getTealAccentColor(context).withOpacity(0.3),
+                        ),
                       ),
                       child: Text(
                         'Total: ${_filteredEstudiantes.length}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
-                          color: Colors.teal,
+                          color: _getTealAccentColor(context),
                         ),
                       ),
                     ),
@@ -725,13 +880,17 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildItemLeyenda(Colors.green, 'Presente (P)'),
+                      _buildItemLeyenda(Colors.green, 'Presente (P)', context),
                       const SizedBox(width: 16),
-                      _buildItemLeyenda(Colors.red, 'Falta (F)'),
+                      _buildItemLeyenda(Colors.red, 'Falta (F)', context),
                       const SizedBox(width: 16),
-                      _buildItemLeyenda(Colors.orange, 'Justificado (J)'),
+                      _buildItemLeyenda(
+                        Colors.orange,
+                        'Justificado (J)',
+                        context,
+                      ),
                       const SizedBox(width: 16),
-                      _buildItemLeyenda(Colors.yellow, 'Seleccionado'),
+                      _buildItemLeyenda(Colors.yellow, 'Seleccionado', context),
                     ],
                   ),
                 ),
@@ -739,9 +898,9 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                 if (_estudianteSeleccionado != null)
                   Text(
                     'Estudiante seleccionado: ${_estudianteSeleccionado}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: Colors.teal,
+                      color: _getTealAccentColor(context),
                     ),
                   ),
               ],
@@ -751,15 +910,22 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
           // Tabla de asistencias
           Expanded(
             child: _filteredEstudiantes.isEmpty
-                ? const Center(
+                ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.search_off, size: 64, color: Colors.grey),
-                        SizedBox(height: 16),
+                        Icon(
+                          Icons.search_off,
+                          size: 64,
+                          color: _getSecondaryTextColor(context),
+                        ),
+                        const SizedBox(height: 16),
                         Text(
                           'No se encontraron estudiantes',
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: _getSecondaryTextColor(context),
+                          ),
                         ),
                       ],
                     ),
@@ -770,7 +936,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                       scrollDirection: Axis.vertical,
                       child: DataTable(
                         headingRowColor: MaterialStateProperty.resolveWith(
-                          (states) => Colors.teal.shade50,
+                          (states) => _getHeaderBackgroundColor(context),
                         ),
                         columnSpacing: 8,
                         dataRowMinHeight: 55,
@@ -778,16 +944,22 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                         horizontalMargin: 8,
                         columns: [
                           DataColumn(
-                            label: const Text(
+                            label: Text(
                               'ÍTEM',
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: _getTextColor(context),
+                              ),
                             ),
                             numeric: true,
                           ),
-                          const DataColumn(
+                          DataColumn(
                             label: Text(
                               'ESTUDIANTE',
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: _getTextColor(context),
+                              ),
                             ),
                           ),
                           ...fechas
@@ -797,9 +969,10 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                                     width: 48,
                                     child: Text(
                                       fecha,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 10,
+                                        color: _getTextColor(context),
                                       ),
                                       textAlign: TextAlign.center,
                                       maxLines: 2,
@@ -809,9 +982,12 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                               )
                               .toList(),
                           DataColumn(
-                            label: const Text(
+                            label: Text(
                               'TOTAL',
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: _getTextColor(context),
+                              ),
                             ),
                             numeric: true,
                           ),
@@ -824,7 +1000,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                             color: MaterialStateProperty.resolveWith<Color?>((
                               Set<MaterialState> states,
                             ) {
-                              return _getColorFila(estudiante.item);
+                              return _getColorFila(estudiante.item, context);
                             }),
                             cells: [
                               DataCell(
@@ -836,7 +1012,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                                       padding: const EdgeInsets.all(8),
                                       decoration: BoxDecoration(
                                         color: estaSeleccionado
-                                            ? Colors.teal
+                                            ? _getTealAccentColor(context)
                                             : null,
                                         shape: BoxShape.circle,
                                       ),
@@ -849,7 +1025,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                                           fontWeight: FontWeight.bold,
                                           color: estaSeleccionado
                                               ? Colors.white
-                                              : Colors.black,
+                                              : _getTextColor(context),
                                         ),
                                       ),
                                     ),
@@ -866,8 +1042,9 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                                       estudiante.nombre,
                                       style: TextStyle(
                                         fontWeight: FontWeight.w500,
+                                        color: _getTextColor(context),
                                         backgroundColor: estaSeleccionado
-                                            ? Colors.yellow
+                                            ? Colors.yellow.withOpacity(0.3)
                                             : Colors.transparent,
                                       ),
                                       overflow: TextOverflow.ellipsis,
@@ -881,6 +1058,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                                   estudiante.octL,
                                   estudiante,
                                   'OCT-L',
+                                  context,
                                 ),
                               ),
                               DataCell(
@@ -888,6 +1066,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                                   estudiante.octM,
                                   estudiante,
                                   'OCT-M',
+                                  context,
                                 ),
                               ),
                               DataCell(
@@ -895,6 +1074,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                                   estudiante.octMi,
                                   estudiante,
                                   'OCT-MI',
+                                  context,
                                 ),
                               ),
                               DataCell(
@@ -902,6 +1082,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                                   estudiante.octJ,
                                   estudiante,
                                   'OCT-J',
+                                  context,
                                 ),
                               ),
                               DataCell(
@@ -909,6 +1090,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                                   estudiante.octV,
                                   estudiante,
                                   'OCT-V',
+                                  context,
                                 ),
                               ),
                               // Noviembre
@@ -917,6 +1099,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                                   estudiante.novL,
                                   estudiante,
                                   'NOV-L',
+                                  context,
                                 ),
                               ),
                               DataCell(
@@ -924,6 +1107,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                                   estudiante.novM,
                                   estudiante,
                                   'NOV-M',
+                                  context,
                                 ),
                               ),
                               DataCell(
@@ -931,6 +1115,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                                   estudiante.novMi,
                                   estudiante,
                                   'NOV-MI',
+                                  context,
                                 ),
                               ),
                               DataCell(
@@ -938,6 +1123,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                                   estudiante.novJ,
                                   estudiante,
                                   'NOV-J',
+                                  context,
                                 ),
                               ),
                               DataCell(
@@ -945,6 +1131,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                                   estudiante.novV,
                                   estudiante,
                                   'NOV-V',
+                                  context,
                                 ),
                               ),
                               // Diciembre
@@ -953,6 +1140,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                                   estudiante.dicL,
                                   estudiante,
                                   'DIC-L',
+                                  context,
                                 ),
                               ),
                               DataCell(
@@ -960,6 +1148,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                                   estudiante.dicM,
                                   estudiante,
                                   'DIC-M',
+                                  context,
                                 ),
                               ),
                               DataCell(
@@ -967,6 +1156,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                                   estudiante.dicMi,
                                   estudiante,
                                   'DIC-MI',
+                                  context,
                                 ),
                               ),
                               DataCell(
@@ -974,6 +1164,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                                   estudiante.dicJ,
                                   estudiante,
                                   'DIC-J',
+                                  context,
                                 ),
                               ),
                               DataCell(
@@ -981,6 +1172,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                                   estudiante.dicV,
                                   estudiante,
                                   'DIC-V',
+                                  context,
                                 ),
                               ),
                               // Total
@@ -1001,7 +1193,9 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                                         borderRadius: BorderRadius.circular(12),
                                         border: estaSeleccionado
                                             ? Border.all(
-                                                color: Colors.teal,
+                                                color: _getTealAccentColor(
+                                                  context,
+                                                ),
                                                 width: 2,
                                               )
                                             : null,

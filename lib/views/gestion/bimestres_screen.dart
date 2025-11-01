@@ -18,6 +18,31 @@ class BimestresScreen extends StatefulWidget {
 class _BimestresScreenState extends State<BimestresScreen> {
   final List<PeriodoAcademico> _periodos = [];
 
+  // Funciones para obtener colores según el tema
+  Color _getBackgroundColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade900
+        : AppColors.background;
+  }
+
+  Color _getCardColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : Colors.white;
+  }
+
+  Color _getTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+  }
+
+  Color _getSecondaryTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white70
+        : Colors.black87;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -111,29 +136,31 @@ class _BimestresScreenState extends State<BimestresScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _getBackgroundColor(context),
       appBar: AppBar(
         title: Text(
           'Bimestres - ${widget.materiaSeleccionada}',
           style: AppTextStyles.heading2.copyWith(color: Colors.white),
         ),
         backgroundColor: AppColors.primary,
+        iconTheme: IconThemeData(color: Colors.white),
       ),
       body: GridView.count(
         crossAxisCount: 2,
         padding: EdgeInsets.all(AppSpacing.medium),
-        childAspectRatio:
-            1.0, // Cambiado de 1.2 a 1.0 para más espacio vertical
+        childAspectRatio: 1.0,
         children: _periodos.map((bimestre) {
-          return _buildBimestreCard(bimestre);
+          return _buildBimestreCard(bimestre, context);
         }).toList(),
       ),
     );
   }
 
-  Widget _buildBimestreCard(PeriodoAcademico bimestre) {
+  Widget _buildBimestreCard(PeriodoAcademico bimestre, BuildContext context) {
     return Card(
       elevation: 4,
       margin: EdgeInsets.all(AppSpacing.small),
+      color: _getCardColor(context),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.medium),
       ),
@@ -141,55 +168,55 @@ class _BimestresScreenState extends State<BimestresScreen> {
         onTap: () => _navigateToBimestreDetalle(bimestre),
         borderRadius: BorderRadius.circular(AppRadius.medium),
         child: Padding(
-          padding: EdgeInsets.all(AppSpacing.small), // Padding interno añadido
+          padding: EdgeInsets.all(AppSpacing.small),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Icono más pequeño
+              // Icono
               Icon(
                 Icons.calendar_month,
-                size: 40, // Reducido de 50 a 40
+                size: 40,
                 color: _getColorPorNumero(bimestre.numero),
               ),
               SizedBox(height: AppSpacing.small),
+              // Nombre del bimestre
               Text(
                 bimestre.nombre,
                 style: AppTextStyles.body.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                  fontSize: 14, // Texto más pequeño
+                  color: _getTextColor(context),
+                  fontSize: 14,
                 ),
                 textAlign: TextAlign.center,
-                maxLines: 2, // Limitar a 2 líneas
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              SizedBox(height: 4), // Espacio reducido
+              SizedBox(height: 4),
+              // Rango de fechas
               Text(
                 bimestre.rangoFechas,
                 style: AppTextStyles.body.copyWith(
-                  fontSize: 10, // Texto más pequeño
-                  color: AppColors.textSecondary,
+                  fontSize: 10,
+                  color: _getSecondaryTextColor(context),
                 ),
                 textAlign: TextAlign.center,
-                maxLines: 2, // Limitar a 2 líneas
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              SizedBox(height: 4), // Espacio reducido
+              SizedBox(height: 4),
+              // Estado del bimestre
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 6,
-                  vertical: 2,
-                ), // Padding reducido
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: bimestre.colorEstado.withOpacity(0.1),
+                  color: _getEstadoColor(bimestre.estado).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: bimestre.colorEstado),
+                  border: Border.all(color: _getEstadoColor(bimestre.estado)),
                 ),
                 child: Text(
                   bimestre.estado,
                   style: TextStyle(
-                    color: bimestre.colorEstado,
-                    fontSize: 9, // Texto más pequeño
+                    color: _getEstadoColor(bimestre.estado),
+                    fontSize: 9,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -213,6 +240,19 @@ class _BimestresScreenState extends State<BimestresScreen> {
         return Colors.purple;
       default:
         return AppColors.primary;
+    }
+  }
+
+  Color _getEstadoColor(String estado) {
+    switch (estado.toLowerCase()) {
+      case 'finalizado':
+        return Colors.green;
+      case 'en curso':
+        return Colors.blue;
+      case 'planificado':
+        return Colors.orange;
+      default:
+        return Colors.grey;
     }
   }
 }

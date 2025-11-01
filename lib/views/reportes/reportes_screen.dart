@@ -707,14 +707,15 @@ class _ReportesScreenState extends State<ReportesScreen> {
       child: Padding(
         padding: EdgeInsets.all(AppSpacing.medium),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 40, color: color),
+            Icon(icon, size: 32, color: color), // Reducido de 40 a 32
             SizedBox(height: AppSpacing.small),
             Text(
               valor,
               style: AppTextStyles.heading1.copyWith(
                 color: color,
-                fontSize: 24,
+                fontSize: 20, // Reducido de 24 a 20
               ),
             ),
             SizedBox(height: AppSpacing.small),
@@ -723,8 +724,11 @@ class _ReportesScreenState extends State<ReportesScreen> {
               style: AppTextStyles.bodyDark(context).copyWith(
                 color: _getSecondaryTextColor(context),
                 fontWeight: FontWeight.bold,
+                fontSize: 12, // Texto más pequeño
               ),
               textAlign: TextAlign.center,
+              maxLines: 2, // Máximo 2 líneas
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -743,12 +747,13 @@ class _ReportesScreenState extends State<ReportesScreen> {
           children: [
             Text(
               titulo,
-              style: AppTextStyles.heading2Dark(
-                context,
-              ).copyWith(color: _getTextColor(context)),
+              style: AppTextStyles.heading2Dark(context).copyWith(
+                color: _getTextColor(context),
+                fontSize: 16, // Texto un poco más pequeño
+              ),
             ),
-            SizedBox(height: AppSpacing.medium),
-            SizedBox(height: 200, child: chart),
+            SizedBox(height: AppSpacing.small), // Reducido de medium a small
+            SizedBox(height: 180, child: chart), // Reducido de 200 a 180
           ],
         ),
       ),
@@ -773,26 +778,30 @@ class _ReportesScreenState extends State<ReportesScreen> {
           children: [
             Row(
               children: [
-                Icon(icon, color: color),
+                Icon(icon, color: color, size: 20), // Icono más pequeño
                 SizedBox(width: AppSpacing.small),
                 Expanded(
                   child: Text(
                     titulo,
-                    style: AppTextStyles.heading2Dark(
-                      context,
-                    ).copyWith(color: _getTextColor(context)),
+                    style: AppTextStyles.heading2Dark(context).copyWith(
+                      color: _getTextColor(context),
+                      fontSize: 16, // Texto más pequeño
+                    ),
                   ),
                 ),
               ],
             ),
-            SizedBox(height: AppSpacing.small),
+            SizedBox(height: AppSpacing.small), // Reducido de small a xsmall
             Text(
               descripcion,
-              style: AppTextStyles.bodyDark(
-                context,
-              ).copyWith(color: _getSecondaryTextColor(context)),
+              style: AppTextStyles.bodyDark(context).copyWith(
+                color: _getSecondaryTextColor(context),
+                fontSize: 12, // Texto más pequeño
+              ),
+              maxLines: 2, // Máximo 2 líneas
+              overflow: TextOverflow.ellipsis,
             ),
-            SizedBox(height: AppSpacing.medium),
+            SizedBox(height: AppSpacing.small), // Reducido de medium a small
             Row(children: acciones),
           ],
         ),
@@ -802,38 +811,37 @@ class _ReportesScreenState extends State<ReportesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Scaffold(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          appBar: AppBar(
-            title: Text(
-              'Reportes Académicos',
-              style: AppTextStyles.heading2.copyWith(color: Colors.white),
-            ),
-            backgroundColor: AppColors.secondary,
-            centerTitle: true,
-            actions: [
-              IconButton(
-                icon: Icon(Icons.download, color: Colors.white),
-                onPressed: _generando
-                    ? null
-                    : () => _exportarExcel('asistencia'),
-                tooltip: 'Exportar reporte',
-              ),
-            ],
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: Text(
+          'Reportes Académicos',
+          style: AppTextStyles.heading2.copyWith(color: Colors.white),
+        ),
+        backgroundColor: AppColors.secondary,
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.download, color: Colors.white),
+            onPressed: _generando ? null : () => _exportarExcel('asistencia'),
+            tooltip: 'Exportar reporte',
           ),
-          body: _generando
+        ],
+      ),
+      body: Stack(
+        children: [
+          _generando
               ? Center(child: CircularProgressIndicator())
               : SingleChildScrollView(
                   padding: EdgeInsets.all(AppSpacing.medium),
                   child: Column(
                     children: [
-                      // Estadísticas rápidas
+                      // Estadísticas rápidas - MEJORADO
                       Text(
                         'Resumen General',
                         style: AppTextStyles.heading1.copyWith(
                           color: _getTextColor(context),
+                          fontSize: 20, // Reducido de tamaño por defecto
                         ),
                       ),
                       SizedBox(height: AppSpacing.medium),
@@ -841,9 +849,9 @@ class _ReportesScreenState extends State<ReportesScreen> {
                         shrinkWrap: true,
                         physics: NeverScrollableScrollPhysics(),
                         crossAxisCount: 2,
-                        crossAxisSpacing: AppSpacing.medium,
-                        mainAxisSpacing: AppSpacing.medium,
-                        childAspectRatio: 1.0,
+                        crossAxisSpacing: AppSpacing.small, // Reducido
+                        mainAxisSpacing: AppSpacing.small, // Reducido
+                        childAspectRatio: 0.9, // Más compacto (era 1.0)
                         children: [
                           _buildMetricCard(
                             'Total Estudiantes',
@@ -877,11 +885,12 @@ class _ReportesScreenState extends State<ReportesScreen> {
                       ),
                       SizedBox(height: AppSpacing.large),
 
-                      // Gráficos
+                      // Gráficos - MEJORADO
                       Text(
                         'Gráficos de Rendimiento',
                         style: AppTextStyles.heading1.copyWith(
                           color: _getTextColor(context),
+                          fontSize: 20, // Reducido
                         ),
                       ),
                       SizedBox(height: AppSpacing.medium),
@@ -891,11 +900,13 @@ class _ReportesScreenState extends State<ReportesScreen> {
                           primaryXAxis: CategoryAxis(
                             labelStyle: TextStyle(
                               color: _getTextColor(context),
+                              fontSize: 10, // Texto más pequeño en ejes
                             ),
                           ),
                           primaryYAxis: NumericAxis(
                             labelStyle: TextStyle(
                               color: _getTextColor(context),
+                              fontSize: 10, // Texto más pequeño en ejes
                             ),
                           ),
                           series: <CartesianSeries<ChartData, String>>[
@@ -916,11 +927,13 @@ class _ReportesScreenState extends State<ReportesScreen> {
                           primaryXAxis: CategoryAxis(
                             labelStyle: TextStyle(
                               color: _getTextColor(context),
+                              fontSize: 10,
                             ),
                           ),
                           primaryYAxis: NumericAxis(
                             labelStyle: TextStyle(
                               color: _getTextColor(context),
+                              fontSize: 10,
                             ),
                           ),
                           series: <CartesianSeries<ChartData, String>>[
@@ -947,6 +960,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                                 isVisible: true,
                                 textStyle: TextStyle(
                                   color: _getTextColor(context),
+                                  fontSize: 10, // Texto más pequeño
                                 ),
                               ),
                             ),
@@ -956,11 +970,12 @@ class _ReportesScreenState extends State<ReportesScreen> {
                       ),
                       SizedBox(height: AppSpacing.large),
 
-                      // Reportes descargables
+                      // Reportes descargables - MEJORADO
                       Text(
                         'Reportes Descargables',
                         style: AppTextStyles.heading1.copyWith(
                           color: _getTextColor(context),
+                          fontSize: 20, // Reducido
                         ),
                       ),
                       SizedBox(height: AppSpacing.medium),
@@ -975,11 +990,22 @@ class _ReportesScreenState extends State<ReportesScreen> {
                               onPressed: _generando
                                   ? null
                                   : () => _generarReportePDF('asistencia'),
-                              icon: Icon(Icons.picture_as_pdf, size: 16),
-                              label: Text('PDF'),
+                              icon: Icon(
+                                Icons.picture_as_pdf,
+                                size: 14,
+                              ), // Más pequeño
+                              label: Text(
+                                'PDF',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                ), // Texto más pequeño
+                              ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.red,
                                 foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ), // Menos padding
                               ),
                             ),
                           ),
@@ -989,11 +1015,22 @@ class _ReportesScreenState extends State<ReportesScreen> {
                               onPressed: _generando
                                   ? null
                                   : () => _exportarExcel('asistencia'),
-                              icon: Icon(Icons.table_chart, size: 16),
-                              label: Text('Excel'),
+                              icon: Icon(
+                                Icons.table_chart,
+                                size: 14,
+                              ), // Más pequeño
+                              label: Text(
+                                'Excel',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                ), // Texto más pequeño
+                              ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.green,
                                 foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ), // Menos padding
                               ),
                             ),
                           ),
@@ -1012,11 +1049,15 @@ class _ReportesScreenState extends State<ReportesScreen> {
                               onPressed: _generando
                                   ? null
                                   : () => _generarReportePDF('calificaciones'),
-                              icon: Icon(Icons.picture_as_pdf, size: 16),
-                              label: Text('PDF'),
+                              icon: Icon(Icons.picture_as_pdf, size: 14),
+                              label: Text(
+                                'PDF',
+                                style: TextStyle(fontSize: 12),
+                              ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.red,
                                 foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(vertical: 8),
                               ),
                             ),
                           ),
@@ -1026,11 +1067,15 @@ class _ReportesScreenState extends State<ReportesScreen> {
                               onPressed: _generando
                                   ? null
                                   : () => _exportarExcel('calificaciones'),
-                              icon: Icon(Icons.table_chart, size: 16),
-                              label: Text('Excel'),
+                              icon: Icon(Icons.table_chart, size: 14),
+                              label: Text(
+                                'Excel',
+                                style: TextStyle(fontSize: 12),
+                              ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.green,
                                 foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(vertical: 8),
                               ),
                             ),
                           ),
@@ -1049,11 +1094,15 @@ class _ReportesScreenState extends State<ReportesScreen> {
                               onPressed: _generando
                                   ? null
                                   : () => _generarReportePDF('financiero'),
-                              icon: Icon(Icons.picture_as_pdf, size: 16),
-                              label: Text('PDF'),
+                              icon: Icon(Icons.picture_as_pdf, size: 14),
+                              label: Text(
+                                'PDF',
+                                style: TextStyle(fontSize: 12),
+                              ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.red,
                                 foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(vertical: 8),
                               ),
                             ),
                           ),
@@ -1063,11 +1112,15 @@ class _ReportesScreenState extends State<ReportesScreen> {
                               onPressed: _generando
                                   ? null
                                   : () => _exportarExcel('financiero'),
-                              icon: Icon(Icons.table_chart, size: 16),
-                              label: Text('Excel'),
+                              icon: Icon(Icons.table_chart, size: 14),
+                              label: Text(
+                                'Excel',
+                                style: TextStyle(fontSize: 12),
+                              ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.green,
                                 foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(vertical: 8),
                               ),
                             ),
                           ),
@@ -1078,25 +1131,25 @@ class _ReportesScreenState extends State<ReportesScreen> {
                     ],
                   ),
                 ),
-        ),
-        if (_generando)
-          Container(
-            color: Colors.black54,
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 20),
-                  Text(
-                    'Generando reporte...',
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-                ],
+          if (_generando)
+            Container(
+              color: Colors.black54,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 20),
+                    Text(
+                      'Generando reporte...',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }

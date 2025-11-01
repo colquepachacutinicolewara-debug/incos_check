@@ -16,13 +16,56 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
   final List<Materia> _materias = [];
   final List<Materia> _materiasFiltradas = [];
   final TextEditingController _searchController = TextEditingController();
+  int _anioSeleccionado = 3; // Por defecto TERCER AÑO
+
+  // Funciones para obtener colores según el tema
+  Color _getBackgroundColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade900
+        : AppColors.background;
+  }
+
+  Color _getCardColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : Colors.white;
+  }
+
+  Color _getTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+  }
+
+  Color _getSecondaryTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white70
+        : Colors.black87;
+  }
+
+  Color _getSearchBackgroundColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : Colors.grey.shade50;
+  }
+
+  Color _getBorderColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade600
+        : Colors.grey.shade300;
+  }
+
+  Color _getDropdownBackgroundColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : Colors.grey.shade50;
+  }
 
   @override
   void initState() {
     super.initState();
     _cargarMateriasSistemas();
-    _materiasFiltradas.addAll(_materias);
-
+    _filtrarMateriasPorAnio();
     _searchController.addListener(_filtrarMaterias);
   }
 
@@ -31,14 +74,39 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
     setState(() {
       _materiasFiltradas.clear();
       if (query.isEmpty) {
-        _materiasFiltradas.addAll(_materias);
+        _materiasFiltradas.addAll(
+          _materias.where((materia) => materia.anio == _anioSeleccionado),
+        );
       } else {
         _materiasFiltradas.addAll(
           _materias.where(
             (materia) =>
-                materia.nombre.toLowerCase().contains(query) ||
-                materia.codigo.toLowerCase().contains(query) ||
-                materia.carrera.toLowerCase().contains(query),
+                materia.anio == _anioSeleccionado &&
+                (materia.nombre.toLowerCase().contains(query) ||
+                    materia.codigo.toLowerCase().contains(query) ||
+                    materia.carrera.toLowerCase().contains(query)),
+          ),
+        );
+      }
+    });
+  }
+
+  void _filtrarMateriasPorAnio() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      _materiasFiltradas.clear();
+      if (query.isEmpty) {
+        _materiasFiltradas.addAll(
+          _materias.where((materia) => materia.anio == _anioSeleccionado),
+        );
+      } else {
+        _materiasFiltradas.addAll(
+          _materias.where(
+            (materia) =>
+                materia.anio == _anioSeleccionado &&
+                (materia.nombre.toLowerCase().contains(query) ||
+                    materia.codigo.toLowerCase().contains(query) ||
+                    materia.carrera.toLowerCase().contains(query)),
           ),
         );
       }
@@ -246,31 +314,140 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _getBackgroundColor(context),
       appBar: AppBar(
         title: Text(
           'Historial de Asistencia',
           style: AppTextStyles.heading2.copyWith(color: Colors.white),
         ),
         backgroundColor: AppColors.primary,
+        iconTheme: IconThemeData(color: Colors.white),
       ),
       body: Column(
         children: [
-          // Buscador
+          // Selector de Año
           Padding(
             padding: EdgeInsets.all(AppSpacing.medium),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Buscar materia...',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.medium),
-                ),
-                filled: true,
-                fillColor: Colors.grey.shade50,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: AppSpacing.medium),
+              decoration: BoxDecoration(
+                color: _getDropdownBackgroundColor(context),
+                borderRadius: BorderRadius.circular(AppRadius.medium),
+                border: Border.all(color: _getBorderColor(context)),
+              ),
+              child: DropdownButton<int>(
+                value: _anioSeleccionado,
+                isExpanded: true,
+                underline: SizedBox(),
+                dropdownColor: _getDropdownBackgroundColor(context),
+                items: [
+                  DropdownMenuItem(
+                    value: 1,
+                    child: Row(
+                      children: [
+                        Icon(Icons.circle, color: Colors.yellow, size: 16),
+                        SizedBox(width: 8),
+                        Text(
+                          '🟡 PRIMER AÑO',
+                          style: TextStyle(color: _getTextColor(context)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: 2,
+                    child: Row(
+                      children: [
+                        Icon(Icons.circle, color: Colors.green, size: 16),
+                        SizedBox(width: 8),
+                        Text(
+                          '🟢 SEGUNDO AÑO',
+                          style: TextStyle(color: _getTextColor(context)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: 3,
+                    child: Row(
+                      children: [
+                        Icon(Icons.circle, color: Colors.blue, size: 16),
+                        SizedBox(width: 8),
+                        Text(
+                          '🔵 TERCER AÑO',
+                          style: TextStyle(color: _getTextColor(context)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _anioSeleccionado = value!;
+                    _filtrarMateriasPorAnio();
+                  });
+                },
               ),
             ),
           ),
+
+          // Buscador
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: AppSpacing.medium),
+            child: TextField(
+              controller: _searchController,
+              style: TextStyle(color: _getTextColor(context)),
+              decoration: InputDecoration(
+                hintText: 'Buscar materia...',
+                hintStyle: TextStyle(color: _getSecondaryTextColor(context)),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: _getSecondaryTextColor(context),
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.medium),
+                  borderSide: BorderSide(color: _getBorderColor(context)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.medium),
+                  borderSide: BorderSide(color: _getBorderColor(context)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.medium),
+                  borderSide: BorderSide(color: AppColors.primary),
+                ),
+                filled: true,
+                fillColor: _getSearchBackgroundColor(context),
+              ),
+            ),
+          ),
+
+          SizedBox(height: AppSpacing.medium),
+
+          // Título del año seleccionado
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: AppSpacing.medium),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                _anioSeleccionado == 1
+                    ? '🟡 PRIMER AÑO'
+                    : _anioSeleccionado == 2
+                    ? '🟢 SEGUNDO AÑO'
+                    : '🔵 TERCER AÑO',
+                style: AppTextStyles.heading3.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: _anioSeleccionado == 1
+                      ? Colors.orange
+                      : _anioSeleccionado == 2
+                      ? Colors.green
+                      : Colors.blue,
+                ),
+              ),
+            ),
+          ),
+
+          SizedBox(height: AppSpacing.small),
 
           Expanded(
             child:
@@ -282,12 +459,14 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
                         Icon(
                           Icons.search_off,
                           size: 64,
-                          color: AppColors.textSecondary,
+                          color: _getSecondaryTextColor(context),
                         ),
                         SizedBox(height: AppSpacing.medium),
                         Text(
                           'No se encontraron materias',
-                          style: TextStyle(color: AppColors.textSecondary),
+                          style: TextStyle(
+                            color: _getSecondaryTextColor(context),
+                          ),
                         ),
                       ],
                     ),
@@ -297,14 +476,13 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
                     padding: EdgeInsets.all(AppSpacing.medium),
                     childAspectRatio: 1.0,
                     children: [
-                      // Mostrar todas las materias filtradas dinámicamente
+                      // Mostrar materias filtradas por año
                       ..._materiasFiltradas
                           .map(
                             (materia) => _buildMenuCard(
                               context,
                               materia.nombre,
-                              Icons
-                                  .school, // Mismo icono para todas las materias
+                              Icons.school,
                               materia.color,
                               () =>
                                   _navigateToBimestres(context, materia.nombre),
@@ -313,13 +491,11 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
                           .toList(),
 
                       // Card especial para "Todas las Materias" (gestión)
-                      if (_searchController
-                          .text
-                          .isEmpty) // Solo mostrar cuando no hay búsqueda
+                      if (_searchController.text.isEmpty)
                         _buildMenuCard(
                           context,
                           'Todas las Materias',
-                          Icons.list_alt, // Icono diferente para gestión
+                          Icons.list_alt,
                           AppColors.primary,
                           () => _navigateToMaterias(context),
                         ),
@@ -341,31 +517,35 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
     return Card(
       elevation: 4,
       margin: EdgeInsets.all(AppSpacing.small),
+      color: _getCardColor(context),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.medium),
       ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.medium),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 50, color: color),
-            SizedBox(height: AppSpacing.small),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: AppSpacing.small),
-              child: Text(
-                title,
-                style: AppTextStyles.body.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+        child: Container(
+          padding: EdgeInsets.all(AppSpacing.small),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 50, color: color),
+              SizedBox(height: AppSpacing.small),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: AppSpacing.small),
+                child: Text(
+                  title,
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: _getTextColor(context),
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

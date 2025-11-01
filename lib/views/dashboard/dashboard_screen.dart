@@ -43,78 +43,204 @@ class DashboardScreen extends StatelessWidget {
 
   Drawer _buildDrawer(BuildContext context) {
     final dashboardVM = Provider.of<DashboardViewModel>(context);
+    final theme = Theme.of(context);
 
     return Drawer(
-      child: Column(
-        children: [
-          UserAccountsDrawerHeader(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppColors.primary, AppColors.secondary],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+      backgroundColor:
+          theme.drawerTheme.backgroundColor ?? _getDrawerColor(context),
+      child: SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              UserAccountsDrawerHeader(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.primary, AppColors.secondary],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                accountName: Text(
+                  "Usuario Ejemplo",
+                  style: AppTextStyles.body.copyWith(color: Colors.white),
+                ),
+                accountEmail: Text(
+                  "usuario@correo.com",
+                  style: AppTextStyles.body.copyWith(color: Colors.white70),
+                ),
+                currentAccountPicture: CircleAvatar(
+                  radius: 28,
+                  backgroundColor: AppColors.accent,
+                  child: Icon(Icons.person, size: 40, color: AppColors.primary),
+                ),
               ),
-            ),
-            accountName: Text(
-              "Usuario Ejemplo",
-              style: AppTextStyles.body.copyWith(color: Colors.white),
-            ),
-            accountEmail: Text(
-              "usuario@correo.com",
-              style: AppTextStyles.body.copyWith(color: Colors.white70),
-            ),
-            currentAccountPicture: CircleAvatar(
-              radius: 28,
-              backgroundColor: AppColors.accent,
-              child: Icon(Icons.person, size: 40, color: AppColors.primary),
-            ),
+              _buildDrawerItem(context, Icons.home, "Inicio", 2, dashboardVM),
+
+              // Gestión Académica como expansible
+              _buildExpansionDrawerItem(
+                context,
+                Icons.school,
+                "Gestión Académica",
+                dashboardVM,
+                children: [
+                  _buildSubDrawerItem(
+                    context,
+                    Icons.people,
+                    "Estudiantes",
+                    () => _navigateToGestionSubScreen(context, 'Estudiantes'),
+                  ),
+                  _buildSubDrawerItem(
+                    context,
+                    Icons.book,
+                    "Cursos",
+                    () => _navigateToGestionSubScreen(context, 'Cursos'),
+                  ),
+                  _buildSubDrawerItem(
+                    context,
+                    Icons.school,
+                    "Carreras",
+                    () => _navigateToGestionSubScreen(context, 'Carreras'),
+                  ),
+                  _buildSubDrawerItem(
+                    context,
+                    Icons.person,
+                    "Docentes",
+                    () => _navigateToGestionSubScreen(context, 'Docentes'),
+                  ),
+                ],
+              ),
+
+              // Asistencia como expansible
+              _buildExpansionDrawerItem(
+                context,
+                Icons.event_note,
+                "Registro de Asistencia",
+                dashboardVM,
+                children: [
+                  _buildSubDrawerItem(
+                    context,
+                    Icons.fingerprint,
+                    "Registrar Asistencia",
+                    () => _navigateToAsistenciaSubScreen(context, 'Registrar'),
+                  ),
+                  _buildSubDrawerItem(
+                    context,
+                    Icons.history,
+                    "Historial de Asistencia",
+                    () => _navigateToAsistenciaSubScreen(context, 'Historial'),
+                  ),
+                ],
+              ),
+
+              _buildDrawerItem(
+                context,
+                Icons.assignment,
+                "Reporte General",
+                3,
+                dashboardVM,
+              ),
+              _buildDrawerItem(
+                context,
+                Icons.settings,
+                "Configuración y Soporte",
+                4,
+                dashboardVM,
+              ),
+              const SizedBox(height: AppSpacing.large),
+              Divider(height: 1, color: _getDividerColor(context)),
+              ListTile(
+                leading: Icon(Icons.logout, color: _getErrorColor(context)),
+                title: Text(
+                  AppStrings.logout,
+                  style: AppTextStyles.body.copyWith(
+                    color: _getErrorColor(context),
+                  ),
+                ),
+                onTap: () {
+                  // TODO: Implementar logout
+                },
+              ),
+              const SizedBox(height: AppSpacing.medium),
+            ],
           ),
-          _buildDrawerItem(context, Icons.home, "Inicio", 2, dashboardVM),
-          _buildDrawerItem(
-            context,
-            Icons.person_add,
-            "Registro de Estudiante",
-            0,
-            dashboardVM,
-          ),
-          _buildDrawerItem(
-            context,
-            Icons.event_note,
-            "Registro de Asistencia",
-            1,
-            dashboardVM,
-          ),
-          _buildDrawerItem(
-            context,
-            Icons.assignment,
-            "Reportes",
-            3,
-            dashboardVM,
-          ),
-          _buildDrawerItem(
-            context,
-            Icons.settings,
-            "Configuración",
-            4,
-            dashboardVM,
-          ),
-          const Spacer(),
-          const Divider(height: 1, color: AppColors.textSecondary),
-          ListTile(
-            leading: Icon(Icons.logout, color: AppColors.error),
-            title: Text(
-              AppStrings.logout,
-              style: AppTextStyles.body.copyWith(color: AppColors.error),
-            ),
-            onTap: () {
-              // TODO: Implementar logout
-            },
-          ),
-        ],
+        ),
       ),
     );
   }
 
+  // MÉTODO PARA CREAR ITEMS EXPANSIBLES
+  Widget _buildExpansionDrawerItem(
+    BuildContext context,
+    IconData icon,
+    String label,
+    DashboardViewModel dashboardVM, {
+    required List<Widget> children,
+  }) {
+    return ExpansionTile(
+      leading: Icon(icon, color: _getSecondaryTextColor(context)),
+      title: Text(
+        label,
+        style: AppTextStyles.body.copyWith(
+          color: _getTextColor(context),
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      collapsedIconColor: _getSecondaryTextColor(context),
+      iconColor: _getSecondaryTextColor(context),
+      children: children,
+    );
+  }
+
+  // MÉTODO PARA ITEMS HIJOS DEL EXPANSIBLE
+  Widget _buildSubDrawerItem(
+    BuildContext context,
+    IconData icon,
+    String label,
+    VoidCallback onTap,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 32.0),
+      child: ListTile(
+        leading: Icon(icon, size: 20, color: _getSecondaryTextColor(context)),
+        title: Text(
+          label,
+          style: AppTextStyles.body.copyWith(
+            color: _getTextColor(context),
+            fontSize: 14,
+          ),
+        ),
+        minLeadingWidth: 0,
+        onTap: () {
+          onTap();
+          Navigator.pop(context);
+        },
+      ),
+    );
+  }
+
+  // MÉTODO PARA NAVEGAR A LAS SUB-PANTALLAS DE GESTIÓN
+  void _navigateToGestionSubScreen(BuildContext context, String tipo) {
+    final dashboardVM = Provider.of<DashboardViewModel>(context, listen: false);
+
+    // Cambiar al índice de Gestión (0) y navegar
+    dashboardVM.changeIndex(0);
+
+    // Aquí puedes agregar lógica adicional si necesitas pasar el tipo a GestionScreen
+    // Por ahora solo navega a GestionScreen y muestra la pantalla principal de gestión
+  }
+
+  // NUEVO MÉTODO: PARA NAVEGAR A LAS SUB-PANTALLAS DE ASISTENCIA
+  void _navigateToAsistenciaSubScreen(BuildContext context, String tipo) {
+    final dashboardVM = Provider.of<DashboardViewModel>(context, listen: false);
+
+    // Cambiar al índice de Asistencia (1) y navegar
+    dashboardVM.changeIndex(1);
+
+    // Aquí puedes agregar lógica adicional si necesitas pasar el tipo a AsistenciaScreen
+    // Por ejemplo, podrías usar un Provider o Navigator para indicar qué sub-pantalla mostrar
+  }
+
+  // MÉTODO ORIGINAL (sin cambios)
   ListTile _buildDrawerItem(
     BuildContext context,
     IconData icon,
@@ -127,12 +253,12 @@ class DashboardScreen extends StatelessWidget {
     return ListTile(
       leading: Icon(
         icon,
-        color: isSelected ? AppColors.primary : AppColors.textSecondary,
+        color: isSelected ? AppColors.primary : _getSecondaryTextColor(context),
       ),
       title: Text(
         label,
         style: AppTextStyles.body.copyWith(
-          color: isSelected ? AppColors.primary : AppColors.textPrimary,
+          color: isSelected ? AppColors.primary : _getTextColor(context),
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         ),
       ),
@@ -145,11 +271,11 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
+  // EL RESTO DEL CÓDIGO PERMANECE EXACTAMENTE IGUAL
   Widget _buildResponsiveBottomNavigationBar(BuildContext context) {
     final dashboardVM = Provider.of<DashboardViewModel>(context);
     final screenWidth = MediaQuery.of(context).size.width;
 
-    // Definir breakpoints para diferentes tamaños de pantalla
     if (screenWidth < 600) {
       return _buildMobileBottomNavigationBar(dashboardVM, context);
     } else if (screenWidth < 1200) {
@@ -165,10 +291,10 @@ class DashboardScreen extends StatelessWidget {
   ) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _getBottomNavColor(context),
         boxShadow: [
           BoxShadow(
-            color: Colors.black12,
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),
@@ -181,6 +307,7 @@ class DashboardScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _buildNavItem(
+                context,
                 Icons.person_add,
                 "ESTUDIANTES",
                 0,
@@ -188,14 +315,20 @@ class DashboardScreen extends StatelessWidget {
                 deviceType: DeviceType.mobile,
               ),
               _buildNavItem(
+                context,
                 Icons.event_note,
                 "ASISTENCIAS",
                 1,
                 dashboardVM,
                 deviceType: DeviceType.mobile,
               ),
-              _buildNavItemInicio(dashboardVM, deviceType: DeviceType.mobile),
+              _buildNavItemInicio(
+                context,
+                dashboardVM,
+                deviceType: DeviceType.mobile,
+              ),
               _buildNavItem(
+                context,
                 Icons.assignment,
                 "REPORTES",
                 3,
@@ -203,6 +336,7 @@ class DashboardScreen extends StatelessWidget {
                 deviceType: DeviceType.mobile,
               ),
               _buildNavItem(
+                context,
                 Icons.settings,
                 "CONFIG",
                 4,
@@ -222,10 +356,10 @@ class DashboardScreen extends StatelessWidget {
   ) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _getBottomNavColor(context),
         boxShadow: [
           BoxShadow(
-            color: Colors.black12,
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),
@@ -243,6 +377,7 @@ class DashboardScreen extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _buildNavItem(
+                      context,
                       Icons.person_add,
                       "Registro de\nEstudiantes",
                       0,
@@ -250,6 +385,7 @@ class DashboardScreen extends StatelessWidget {
                       deviceType: DeviceType.tablet,
                     ),
                     _buildNavItem(
+                      context,
                       Icons.event_note,
                       "Registro de\nAsistencia",
                       1,
@@ -259,12 +395,17 @@ class DashboardScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              _buildNavItemInicio(dashboardVM, deviceType: DeviceType.tablet),
+              _buildNavItemInicio(
+                context,
+                dashboardVM,
+                deviceType: DeviceType.tablet,
+              ),
               Expanded(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _buildNavItem(
+                      context,
                       Icons.assignment,
                       "Reportes",
                       3,
@@ -272,6 +413,7 @@ class DashboardScreen extends StatelessWidget {
                       deviceType: DeviceType.tablet,
                     ),
                     _buildNavItem(
+                      context,
                       Icons.settings,
                       "Configuración",
                       4,
@@ -294,10 +436,10 @@ class DashboardScreen extends StatelessWidget {
   ) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _getBottomNavColor(context),
         boxShadow: [
           BoxShadow(
-            color: Colors.black12,
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),
@@ -315,6 +457,7 @@ class DashboardScreen extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     _buildNavItem(
+                      context,
                       Icons.person_add,
                       "Estudiantes",
                       0,
@@ -322,6 +465,7 @@ class DashboardScreen extends StatelessWidget {
                       deviceType: DeviceType.desktop,
                     ),
                     _buildNavItem(
+                      context,
                       Icons.event_note,
                       "Asistencia",
                       1,
@@ -331,12 +475,17 @@ class DashboardScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              _buildNavItemInicio(dashboardVM, deviceType: DeviceType.desktop),
+              _buildNavItemInicio(
+                context,
+                dashboardVM,
+                deviceType: DeviceType.desktop,
+              ),
               Expanded(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     _buildNavItem(
+                      context,
                       Icons.assignment,
                       "Reportes",
                       3,
@@ -344,6 +493,7 @@ class DashboardScreen extends StatelessWidget {
                       deviceType: DeviceType.desktop,
                     ),
                     _buildNavItem(
+                      context,
                       Icons.settings,
                       "Configuración",
                       4,
@@ -361,6 +511,7 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildNavItem(
+    BuildContext context,
     IconData icon,
     String label,
     int index,
@@ -379,7 +530,9 @@ class DashboardScreen extends StatelessWidget {
         children: [
           Icon(
             icon,
-            color: isSelected ? AppColors.primary : AppColors.textSecondary,
+            color: isSelected
+                ? AppColors.primary
+                : _getSecondaryTextColor(context),
             size: sizes.iconSize,
           ),
           const SizedBox(height: 4),
@@ -387,7 +540,9 @@ class DashboardScreen extends StatelessWidget {
             child: Text(
               label,
               style: AppTextStyles.body.copyWith(
-                color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                color: isSelected
+                    ? AppColors.primary
+                    : _getSecondaryTextColor(context),
                 fontSize: sizes.fontSize,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
               ),
@@ -402,6 +557,7 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildNavItemInicio(
+    BuildContext context,
     DashboardViewModel dashboardVM, {
     required DeviceType deviceType,
   }) {
@@ -422,7 +578,7 @@ class DashboardScreen extends StatelessWidget {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: Colors.black26,
+                color: Colors.black.withOpacity(0.2),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -470,6 +626,43 @@ class DashboardScreen extends StatelessWidget {
           homeIconSize: 32,
         );
     }
+  }
+
+  // Funciones para obtener colores según el tema
+  Color _getBottomNavColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : Colors.white;
+  }
+
+  Color _getDrawerColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade900
+        : Colors.white;
+  }
+
+  Color _getTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+  }
+
+  Color _getSecondaryTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white70
+        : Colors.black87;
+  }
+
+  Color _getDividerColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade700
+        : AppColors.textSecondary;
+  }
+
+  Color _getErrorColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.red.shade400
+        : AppColors.error;
   }
 }
 

@@ -70,6 +70,61 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
     },
   ];
 
+  // Funciones para obtener colores según el tema
+  Color _getBackgroundColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade900
+        : AppColors.background;
+  }
+
+  Color _getCardColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : Colors.white;
+  }
+
+  Color _getTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+  }
+
+  Color _getSecondaryTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white70
+        : Colors.black87;
+  }
+
+  Color _getBorderColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade600
+        : AppColors.border;
+  }
+
+  Color _getSuccessColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.green.shade700
+        : AppColors.success;
+  }
+
+  Color _getWarningColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.orange.shade700
+        : AppColors.warning;
+  }
+
+  Color _getErrorColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.red.shade700
+        : AppColors.error;
+  }
+
+  Color _getAccentColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.blue.shade700
+        : AppColors.accent;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -107,8 +162,9 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
           SnackBar(
             content: Text(
               "${estudiantes[index]['nombre']} no tiene huella registrada en el sistema",
+              style: TextStyle(color: Colors.white),
             ),
-            backgroundColor: AppColors.warning,
+            backgroundColor: _getWarningColor(context),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -121,8 +177,9 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
           SnackBar(
             content: const Text(
               "El dispositivo no soporta autenticación biométrica",
+              style: TextStyle(color: Colors.white),
             ),
-            backgroundColor: AppColors.error,
+            backgroundColor: _getErrorColor(context),
           ),
         );
         return;
@@ -151,8 +208,9 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
           SnackBar(
             content: Text(
               "✅ Asistencia confirmada - ${estudiantes[index]['nombre']}",
+              style: TextStyle(color: Colors.white),
             ),
-            backgroundColor: AppColors.success,
+            backgroundColor: _getSuccessColor(context),
             duration: const Duration(seconds: 3),
           ),
         );
@@ -161,8 +219,9 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
           SnackBar(
             content: Text(
               "❌ Huella no coincide con ${estudiantes[index]['nombre']}",
+              style: TextStyle(color: Colors.white),
             ),
-            backgroundColor: AppColors.error,
+            backgroundColor: _getErrorColor(context),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -170,8 +229,11 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Error de autenticación: ${e.toString()}"),
-          backgroundColor: AppColors.error,
+          content: Text(
+            "Error de autenticación: ${e.toString()}",
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: _getErrorColor(context),
         ),
       );
     } finally {
@@ -191,8 +253,11 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text("✅ Asistencia manual - ${estudiantes[index]['nombre']}"),
-        backgroundColor: AppColors.success,
+        content: Text(
+          "✅ Asistencia manual - ${estudiantes[index]['nombre']}",
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: _getSuccessColor(context),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -201,7 +266,10 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
   void _escanearQR() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text("Función de escaneo QR próximamente..."),
+        content: const Text(
+          "Función de escaneo QR próximamente...",
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: AppColors.primary,
       ),
     );
@@ -211,17 +279,25 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Información de Huellas"),
-        content: const Text(
+        backgroundColor: _getCardColor(context),
+        title: Text(
+          "Información de Huellas",
+          style: TextStyle(color: _getTextColor(context)),
+        ),
+        content: Text(
           "El sistema autentica con cualquier huella registrada en el dispositivo. "
           "En una implementación real, se conectaría con una base de datos que asocie "
           "cada huella a un estudiante específico.\n\n"
           "Estudiantes con ⚠️ no tienen huella asignada en el sistema.",
+          style: TextStyle(color: _getSecondaryTextColor(context)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Entendido"),
+            child: Text(
+              "Entendido",
+              style: TextStyle(color: AppColors.primary),
+            ),
           ),
         ],
       ),
@@ -232,9 +308,10 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 360;
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: _getBackgroundColor(context),
       appBar: AppBar(
         title: Text(
           'Registrar Asistencia',
@@ -248,7 +325,7 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline),
+            icon: const Icon(Icons.info_outline, color: Colors.white),
             onPressed: _mostrarInfoHuella,
             tooltip: 'Información sobre huellas',
           ),
@@ -261,6 +338,7 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
             // Card de escaneo QR
             Card(
               elevation: 4,
+              color: _getCardColor(context),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppRadius.medium),
               ),
@@ -278,17 +356,22 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
                       'Escanear Código QR',
                       style: AppTextStyles.heading2.copyWith(
                         fontSize: isSmallScreen ? 16 : 18,
+                        color: _getTextColor(context),
                       ),
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: isSmallScreen ? 12 : 16),
                     ElevatedButton.icon(
                       onPressed: _isLoading ? null : _escanearQR,
-                      icon: const Icon(Icons.camera_alt),
-                      label: Text('Escanear QR', style: AppTextStyles.button),
+                      icon: const Icon(Icons.camera_alt, color: Colors.white),
+                      label: Text(
+                        'Escanear QR',
+                        style: AppTextStyles.button.copyWith(
+                          color: Colors.white,
+                        ),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
                         padding: EdgeInsets.symmetric(
                           horizontal: isSmallScreen ? 16 : 24,
                           vertical: 12,
@@ -308,19 +391,23 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
                 padding: const EdgeInsets.all(12),
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
-                  color: AppColors.warning.withOpacity(0.1),
+                  color: _getWarningColor(context).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(AppRadius.small),
-                  border: Border.all(color: AppColors.warning),
+                  border: Border.all(color: _getWarningColor(context)),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.warning, color: AppColors.warning, size: 20),
+                    Icon(
+                      Icons.warning,
+                      color: _getWarningColor(context),
+                      size: 20,
+                    ),
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         "Sensor biométrico no disponible",
                         style: AppTextStyles.body.copyWith(
-                          color: AppColors.warning,
+                          color: _getWarningColor(context),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -332,17 +419,22 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
             // Separador
             Row(
               children: [
-                Expanded(child: Divider(color: AppColors.border, thickness: 1)),
+                Expanded(
+                  child: Divider(color: _getBorderColor(context), thickness: 1),
+                ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Text(
                     'Registro por huella',
                     style: AppTextStyles.body.copyWith(
                       fontSize: isSmallScreen ? 14 : 16,
+                      color: _getTextColor(context),
                     ),
                   ),
                 ),
-                Expanded(child: Divider(color: AppColors.border, thickness: 1)),
+                Expanded(
+                  child: Divider(color: _getBorderColor(context), thickness: 1),
+                ),
               ],
             ),
             SizedBox(height: isSmallScreen ? 12 : 16),
@@ -352,9 +444,9 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.accent.withOpacity(0.1),
+                color: _getAccentColor(context).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(AppRadius.small),
-                border: Border.all(color: AppColors.accent),
+                border: Border.all(color: _getAccentColor(context)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -363,6 +455,7 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
                     'Asistencias registradas:',
                     style: AppTextStyles.body.copyWith(
                       fontWeight: FontWeight.w600,
+                      color: _getTextColor(context),
                     ),
                   ),
                   Text(
@@ -390,15 +483,16 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
                       vertical: isSmallScreen ? 2 : 4,
                     ),
                     elevation: 2,
+                    color: _getCardColor(context),
                     child: ListTile(
                       leading: CircleAvatar(
                         backgroundColor: asistencia[index]
-                            ? AppColors.success.withOpacity(0.1)
+                            ? _getSuccessColor(context).withOpacity(0.1)
                             : AppColors.primary.withOpacity(0.1),
                         child: Icon(
                           asistencia[index] ? Icons.check_circle : Icons.person,
                           color: asistencia[index]
-                              ? AppColors.success
+                              ? _getSuccessColor(context)
                               : AppColors.primary,
                         ),
                       ),
@@ -407,7 +501,9 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
                           Expanded(
                             child: Text(
                               estudiante['nombre']!,
-                              style: AppTextStyles.heading3,
+                              style: AppTextStyles.heading3.copyWith(
+                                color: _getTextColor(context),
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -415,7 +511,7 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
                           if (!tieneHuella)
                             Icon(
                               Icons.warning,
-                              color: AppColors.warning,
+                              color: _getWarningColor(context),
                               size: 16,
                             ),
                         ],
@@ -423,12 +519,17 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(estudiante['curso']!, style: AppTextStyles.body),
+                          Text(
+                            estudiante['curso']!,
+                            style: AppTextStyles.body.copyWith(
+                              color: _getSecondaryTextColor(context),
+                            ),
+                          ),
                           if (!tieneHuella)
                             Text(
                               'Sin huella asignada',
                               style: AppTextStyles.body.copyWith(
-                                color: AppColors.warning,
+                                color: _getWarningColor(context),
                                 fontSize: 12,
                               ),
                             ),
@@ -447,7 +548,7 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: tieneHuella
                                       ? AppColors.primary
-                                      : AppColors.warning,
+                                      : _getWarningColor(context),
                                   foregroundColor: Colors.white,
                                   padding: EdgeInsets.symmetric(
                                     horizontal: isSmallScreen ? 8 : 12,
@@ -480,23 +581,27 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.success.withOpacity(0.1),
+                                  color: _getSuccessColor(
+                                    context,
+                                  ).withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: AppColors.success),
+                                  border: Border.all(
+                                    color: _getSuccessColor(context),
+                                  ),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
                                       Icons.check,
-                                      color: AppColors.success,
+                                      color: _getSuccessColor(context),
                                       size: 14,
                                     ),
                                     SizedBox(width: 4),
                                     Text(
                                       'Registrado',
                                       style: TextStyle(
-                                        color: AppColors.success,
+                                        color: _getSuccessColor(context),
                                         fontSize: isSmallScreen ? 10 : 12,
                                         fontWeight: FontWeight.bold,
                                       ),
