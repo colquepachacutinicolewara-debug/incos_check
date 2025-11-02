@@ -5,8 +5,15 @@ import 'turnos_screen.dart';
 
 class CarrerasScreen extends StatefulWidget {
   final String tipo;
+  final String carreraSeleccionada;
+  final Function(List<String>)? onCarrerasActualizadas;
 
-  const CarrerasScreen({super.key, required this.tipo});
+  const CarrerasScreen({
+    super.key,
+    required this.tipo,
+    required this.carreraSeleccionada,
+    this.onCarrerasActualizadas,
+  });
 
   @override
   State<CarrerasScreen> createState() => _CarrerasScreenState();
@@ -22,6 +29,23 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
       'activa': true,
     },
   ];
+
+  // Método para notificar cambios
+  void _notificarCambiosCarreras() {
+    if (widget.onCarrerasActualizadas != null) {
+      List<String> nombresCarreras = _carreras
+          .where((carrera) => carrera['activa'] == true)
+          .map((carrera) => carrera['nombre'] as String)
+          .toList();
+      widget.onCarrerasActualizadas!(nombresCarreras);
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _notificarCambiosCarreras(); // Notificar al iniciar
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -219,6 +243,8 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
       carrera['activa'] = !(carrera['activa'] ?? false);
     });
 
+    _notificarCambiosCarreras(); // ← NOTIFICAR CAMBIO
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -247,6 +273,8 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
               'activa': true,
             });
           });
+
+          _notificarCambiosCarreras(); // ← NOTIFICAR CAMBIO
 
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -279,6 +307,8 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
             carrera['color'] = color;
             carrera['icon'] = icono;
           });
+
+          _notificarCambiosCarreras(); // ← NOTIFICAR CAMBIO
 
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -330,6 +360,9 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
               setState(() {
                 _carreras.removeWhere((c) => c['id'] == carrera['id']);
               });
+
+              _notificarCambiosCarreras(); // ← NOTIFICAR CAMBIO
+
               Navigator.pop(context);
 
               ScaffoldMessenger.of(context).showSnackBar(

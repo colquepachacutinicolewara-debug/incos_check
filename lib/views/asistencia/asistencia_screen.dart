@@ -25,6 +25,37 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
 
   bool _asistenciaRegistradaHoy = false;
 
+  // Funciones para obtener colores según el tema
+  Color _getBackgroundColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade900
+        : AppColors.background;
+  }
+
+  Color _getCardColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : Colors.white;
+  }
+
+  Color _getTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+  }
+
+  Color _getAppBarColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : Colors.white;
+  }
+
+  Color _getChartTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white70
+        : Colors.black87;
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -32,17 +63,19 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     final isVerySmallScreen = screenWidth < 320;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: _getBackgroundColor(context),
       appBar: AppBar(
         title: Text(
           AppStrings.asistencia,
           style: AppTextStyles.heading1.copyWith(
             fontSize: isVerySmallScreen ? 18 : (isSmallScreen ? 20 : 24),
+            color: _getTextColor(context),
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: _getAppBarColor(context),
         elevation: 0,
         centerTitle: true,
+        iconTheme: IconThemeData(color: _getTextColor(context)),
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(
@@ -54,7 +87,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Alerta de asistencia del día
-            _buildAlertaAsistencia(isSmallScreen, isVerySmallScreen),
+            _buildAlertaAsistencia(isSmallScreen, isVerySmallScreen, context),
             SizedBox(
               height: isVerySmallScreen
                   ? 8
@@ -62,7 +95,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
             ),
 
             // Cards principales - Responsive
-            _buildCardsResponsive(isSmallScreen, isVerySmallScreen),
+            _buildCardsResponsive(isSmallScreen, isVerySmallScreen, context),
             SizedBox(
               height: isVerySmallScreen
                   ? 8
@@ -70,14 +103,18 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
             ),
 
             // Gráfico de asistencias
-            _buildGraficoAsistencias(isSmallScreen, isVerySmallScreen),
+            _buildGraficoAsistencias(isSmallScreen, isVerySmallScreen, context),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildAlertaAsistencia(bool isSmallScreen, bool isVerySmallScreen) {
+  Widget _buildAlertaAsistencia(
+    bool isSmallScreen,
+    bool isVerySmallScreen,
+    BuildContext context,
+  ) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(
@@ -90,7 +127,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
         borderRadius: BorderRadius.circular(AppRadius.medium),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.2),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -163,7 +200,11 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     );
   }
 
-  Widget _buildCardsResponsive(bool isSmallScreen, bool isVerySmallScreen) {
+  Widget _buildCardsResponsive(
+    bool isSmallScreen,
+    bool isVerySmallScreen,
+    BuildContext context,
+  ) {
     if (isVerySmallScreen) {
       // Para pantallas muy pequeñas, mostrar en columna con textos más cortos
       return Column(
@@ -177,6 +218,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
             },
             isSmallScreen: isSmallScreen,
             isVerySmallScreen: isVerySmallScreen,
+            context: context,
           ),
           SizedBox(height: 8),
           _buildCard(
@@ -188,6 +230,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
             },
             isSmallScreen: isSmallScreen,
             isVerySmallScreen: isVerySmallScreen,
+            context: context,
           ),
         ],
       );
@@ -204,6 +247,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
             },
             isSmallScreen: isSmallScreen,
             isVerySmallScreen: isVerySmallScreen,
+            context: context,
           ),
           SizedBox(height: AppSpacing.medium),
           _buildCard(
@@ -215,6 +259,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
             },
             isSmallScreen: isSmallScreen,
             isVerySmallScreen: isVerySmallScreen,
+            context: context,
           ),
         ],
       );
@@ -232,6 +277,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
               },
               isSmallScreen: isSmallScreen,
               isVerySmallScreen: isVerySmallScreen,
+              context: context,
             ),
           ),
           SizedBox(width: AppSpacing.medium),
@@ -245,6 +291,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
               },
               isSmallScreen: isSmallScreen,
               isVerySmallScreen: isVerySmallScreen,
+              context: context,
             ),
           ),
         ],
@@ -259,9 +306,11 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     required VoidCallback onTap,
     required bool isSmallScreen,
     required bool isVerySmallScreen,
+    required BuildContext context,
   }) {
     return Card(
       elevation: 4,
+      color: _getCardColor(context),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.medium),
       ),
@@ -308,9 +357,14 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     );
   }
 
-  Widget _buildGraficoAsistencias(bool isSmallScreen, bool isVerySmallScreen) {
+  Widget _buildGraficoAsistencias(
+    bool isSmallScreen,
+    bool isVerySmallScreen,
+    BuildContext context,
+  ) {
     return Card(
       elevation: 4,
+      color: _getCardColor(context),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.medium),
       ),
@@ -327,6 +381,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
               'Estadísticas',
               style: AppTextStyles.heading2.copyWith(
                 fontSize: isVerySmallScreen ? 16 : (isSmallScreen ? 18 : 20),
+                color: _getTextColor(context),
               ),
             ),
             SizedBox(
@@ -340,11 +395,13 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                 primaryXAxis: CategoryAxis(
                   labelStyle: TextStyle(
                     fontSize: isVerySmallScreen ? 8 : (isSmallScreen ? 10 : 12),
+                    color: _getChartTextColor(context),
                   ),
                 ),
                 primaryYAxis: NumericAxis(
                   labelStyle: TextStyle(
                     fontSize: isVerySmallScreen ? 8 : (isSmallScreen ? 10 : 12),
+                    color: _getChartTextColor(context),
                   ),
                 ),
                 series: <CartesianSeries<AsistenciaData, String>>[
@@ -363,7 +420,11 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                   ? 6
                   : (isSmallScreen ? AppSpacing.small : AppSpacing.medium),
             ),
-            _buildIndicadoresResponsive(isSmallScreen, isVerySmallScreen),
+            _buildIndicadoresResponsive(
+              isSmallScreen,
+              isVerySmallScreen,
+              context,
+            ),
           ],
         ),
       ),
@@ -373,6 +434,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
   Widget _buildIndicadoresResponsive(
     bool isSmallScreen,
     bool isVerySmallScreen,
+    BuildContext context,
   ) {
     if (isVerySmallScreen) {
       // Para pantallas muy pequeñas, mostrar en 2 filas con textos cortos
@@ -386,12 +448,14 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                 'Asist.',
                 isSmallScreen,
                 isVerySmallScreen,
+                context,
               ),
               _buildIndicador(
                 AppColors.success,
                 'Pres.',
                 isSmallScreen,
                 isVerySmallScreen,
+                context,
               ),
             ],
           ),
@@ -404,12 +468,14 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                 'Aus.',
                 isSmallScreen,
                 isVerySmallScreen,
+                context,
               ),
               _buildIndicador(
                 AppColors.warning,
                 'Tard.',
                 isSmallScreen,
                 isVerySmallScreen,
+                context,
               ),
             ],
           ),
@@ -427,12 +493,14 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                 'Asistencia',
                 isSmallScreen,
                 isVerySmallScreen,
+                context,
               ),
               _buildIndicador(
                 AppColors.success,
                 'Presente',
                 isSmallScreen,
                 isVerySmallScreen,
+                context,
               ),
             ],
           ),
@@ -445,12 +513,14 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                 'Ausente',
                 isSmallScreen,
                 isVerySmallScreen,
+                context,
               ),
               _buildIndicador(
                 AppColors.warning,
                 'Tardanza',
                 isSmallScreen,
                 isVerySmallScreen,
+                context,
               ),
             ],
           ),
@@ -466,24 +536,28 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
             'Asistencia',
             isSmallScreen,
             isVerySmallScreen,
+            context,
           ),
           _buildIndicador(
             AppColors.success,
             'Presente',
             isSmallScreen,
             isVerySmallScreen,
+            context,
           ),
           _buildIndicador(
             AppColors.error,
             'Ausente',
             isSmallScreen,
             isVerySmallScreen,
+            context,
           ),
           _buildIndicador(
             AppColors.warning,
             'Tardanza',
             isSmallScreen,
             isVerySmallScreen,
+            context,
           ),
         ],
       );
@@ -495,6 +569,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     String texto,
     bool isSmallScreen,
     bool isVerySmallScreen,
+    BuildContext context,
   ) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -512,6 +587,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
           texto,
           style: AppTextStyles.body.copyWith(
             fontSize: isVerySmallScreen ? 8 : (isSmallScreen ? 10 : 12),
+            color: _getTextColor(context),
           ),
         ),
       ],
@@ -545,7 +621,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
       SnackBar(
         content: Text(
           'Asistencia registrada exitosamente',
-          style: AppTextStyles.button,
+          style: AppTextStyles.button.copyWith(color: Colors.white),
         ),
         backgroundColor: AppColors.success,
       ),

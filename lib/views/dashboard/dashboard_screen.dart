@@ -338,7 +338,7 @@ class DashboardScreen extends StatelessWidget {
               _buildNavItem(
                 context,
                 Icons.settings,
-                "CONFIG",
+                "AJUSTES",
                 4,
                 dashboardVM,
                 deviceType: DeviceType.mobile,

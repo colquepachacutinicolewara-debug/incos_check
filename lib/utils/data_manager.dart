@@ -1,4 +1,6 @@
 // utils/data_manager.dart
+import 'package:flutter/material.dart';
+
 class DataManager {
   static final DataManager _instance = DataManager._internal();
   factory DataManager() => _instance;
@@ -7,55 +9,9 @@ class DataManager {
   // Estructura principal de datos
   final Map<String, Map<String, dynamic>> _carrerasData = {};
 
-  // ========== MÉTODOS PARA CARRERAS ==========
+  // ========== INICIALIZACIÓN DE DATOS ==========
 
-  // Obtener todas las carreras
-  List<Map<String, dynamic>> getCarreras() {
-    return _carrerasData.values.toList();
-  }
-
-  // Obtener una carrera específica
-  Map<String, dynamic>? getCarrera(String carreraId) {
-    return _carrerasData[carreraId];
-  }
-
-  // Agregar nueva carrera
-  void agregarCarrera(Map<String, dynamic> carrera) {
-    String carreraId = carrera['id'].toString();
-    if (!_carrerasData.containsKey(carreraId)) {
-      _carrerasData[carreraId] = {
-        ...carrera,
-        'turnos': [], // Inicializar turnos vacíos
-        'docentes': [], // Inicializar docentes vacíos
-      };
-    }
-  }
-
-  // Actualizar carrera existente
-  void actualizarCarrera(
-    String carreraId,
-    Map<String, dynamic> carreraActualizada,
-  ) {
-    if (_carrerasData.containsKey(carreraId)) {
-      _carrerasData[carreraId] = {
-        ..._carrerasData[carreraId]!,
-        ...carreraActualizada,
-        'turnos':
-            _carrerasData[carreraId]!['turnos'] ??
-            [], // Mantener turnos existentes
-        'docentes':
-            _carrerasData[carreraId]!['docentes'] ??
-            [], // Mantener docentes existentes
-      };
-    }
-  }
-
-  // Eliminar carrera
-  void eliminarCarrera(String carreraId) {
-    _carrerasData.remove(carreraId);
-  }
-
-  // Inicializar datos para una carrera (método existente)
+  // Inicializar datos para una carrera
   void inicializarCarrera(
     String carreraId,
     String carreraNombre,
@@ -69,7 +25,142 @@ class DataManager {
         'turnos': [],
         'docentes': [],
       };
+
+      // SOLO para Sistemas Informáticos agregar datos por defecto
+      if (carreraNombre == 'Sistemas Informáticos' && carreraId == '1') {
+        _agregarDatosPorDefectoSistemas(carreraId);
+      }
     }
+  }
+
+  // Agregar datos por defecto SOLO para Sistemas Informáticos
+  void _agregarDatosPorDefectoSistemas(String carreraId) {
+    final turnosPorDefecto = [
+      {
+        'id': '${carreraId}_manana',
+        'nombre': 'Mañana',
+        'icon': Icons.wb_sunny,
+        'horario': '08:00 - 13:00',
+        'rangoAsistencia': '07:45 - 08:15',
+        'dias': 'Lunes a Viernes',
+        'color': '#FFA000',
+        'activo': true,
+        'niveles': [
+          {
+            'id': '${carreraId}_manana_tercero',
+            'nombre': 'Tercero',
+            'activo': true,
+            'orden': 3,
+            'paralelos': [
+              {
+                'id': '${carreraId}_manana_tercero_B',
+                'nombre': 'B',
+                'activo': true,
+                'estudiantes': [
+                  {
+                    'id': 1,
+                    'nombres': 'Juan Carlos',
+                    'apellidoPaterno': 'Pérez',
+                    'apellidoMaterno': 'Gómez',
+                    'ci': '1234567',
+                    'fechaRegistro': '2024-01-15',
+                    'huellasRegistradas': 3,
+                  },
+                  {
+                    'id': 2,
+                    'nombres': 'María Elena',
+                    'apellidoPaterno': 'López',
+                    'apellidoMaterno': 'Martínez',
+                    'ci': '7654321',
+                    'fechaRegistro': '2024-01-16',
+                    'huellasRegistradas': 2,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        'id': '${carreraId}_noche',
+        'nombre': 'Noche',
+        'icon': Icons.nights_stay,
+        'horario': '18:30 - 22:00',
+        'rangoAsistencia': '18:30 - 19:30',
+        'dias': 'Lunes a Viernes',
+        'color': '#1565C0',
+        'activo': true,
+        'niveles': [], // Noche empieza vacío
+      },
+    ];
+
+    final docentesPorDefecto = [
+      {
+        'id': 1,
+        'apellidoPaterno': 'FERNANDEZ',
+        'apellidoMaterno': 'GARCIA',
+        'nombres': 'MARIA ELENA',
+        'ci': '6543210',
+        'carrera': 'SISTEMAS INFORMÁTICOS',
+        'turno': 'MAÑANA',
+        'email': 'mfernandez@gmail.com',
+        'telefono': '+59170012345',
+        'estado': 'Activo',
+      },
+      {
+        'id': 2,
+        'apellidoPaterno': 'BUSTOS',
+        'apellidoMaterno': 'MARTINEZ',
+        'nombres': 'CARLOS ALBERTO',
+        'ci': '6543211',
+        'carrera': 'SISTEMAS INFORMÁTICOS',
+        'turno': 'NOCHE',
+        'email': 'cbustos@gmail.com',
+        'telefono': '+59170012346',
+        'estado': 'Activo',
+      },
+    ];
+
+    // Agregar turnos por defecto
+    _carrerasData[carreraId]!['turnos'] = turnosPorDefecto;
+
+    // Agregar docentes por defecto
+    _carrerasData[carreraId]!['docentes'] = docentesPorDefecto;
+  }
+
+  // ========== MÉTODOS PARA CARRERAS ==========
+
+  List<Map<String, dynamic>> getCarreras() {
+    return _carrerasData.values.toList();
+  }
+
+  Map<String, dynamic>? getCarrera(String carreraId) {
+    return _carrerasData[carreraId];
+  }
+
+  void agregarCarrera(Map<String, dynamic> carrera) {
+    String carreraId = carrera['id'].toString();
+    if (!_carrerasData.containsKey(carreraId)) {
+      _carrerasData[carreraId] = {...carrera, 'turnos': [], 'docentes': []};
+    }
+  }
+
+  void actualizarCarrera(
+    String carreraId,
+    Map<String, dynamic> carreraActualizada,
+  ) {
+    if (_carrerasData.containsKey(carreraId)) {
+      _carrerasData[carreraId] = {
+        ..._carrerasData[carreraId]!,
+        ...carreraActualizada,
+        'turnos': _carrerasData[carreraId]!['turnos'] ?? [],
+        'docentes': _carrerasData[carreraId]!['docentes'] ?? [],
+      };
+    }
+  }
+
+  void eliminarCarrera(String carreraId) {
+    _carrerasData.remove(carreraId);
   }
 
   // ========== MÉTODOS PARA TURNOS ==========
@@ -400,17 +491,14 @@ class DataManager {
 
   // ========== MÉTODOS DE UTILIDAD ==========
 
-  // Limpiar todos los datos (útil para testing)
   void limpiarTodosLosDatos() {
     _carrerasData.clear();
   }
 
-  // Verificar si existe una carrera
   bool existeCarrera(String carreraId) {
     return _carrerasData.containsKey(carreraId);
   }
 
-  // Obtener estadísticas - VERSIÓN CORREGIDA
   Map<String, int> getEstadisticas() {
     int totalCarreras = _carrerasData.length;
     int totalTurnos = 0;
@@ -420,13 +508,11 @@ class DataManager {
     int totalDocentes = 0;
 
     _carrerasData.forEach((carreraId, carrera) {
-      // Contar docentes
       final docentes = carrera['docentes'];
       if (docentes is List) {
         totalDocentes += docentes.length;
       }
 
-      // Contar turnos y niveles anidados
       final turnos = carrera['turnos'];
       if (turnos is List) {
         totalTurnos += turnos.length;
