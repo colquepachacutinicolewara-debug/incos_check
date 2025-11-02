@@ -23,6 +23,27 @@ class Materia {
   String get nombreCompleto => '$codigo - $nombre';
   String get anioDisplay => '$anio° Año'; // Aquí puedes usar °
 
+  // Método para crear una copia con nuevos valores
+  Materia copyWith({
+    String? id,
+    String? codigo,
+    String? nombre,
+    String? carrera,
+    int? anio,
+    Color? color,
+    bool? activo,
+  }) {
+    return Materia(
+      id: id ?? this.id,
+      codigo: codigo ?? this.codigo,
+      nombre: nombre ?? this.nombre,
+      carrera: carrera ?? this.carrera,
+      anio: anio ?? this.anio,
+      color: color ?? this.color,
+      activo: activo ?? this.activo,
+    );
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,

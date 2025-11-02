@@ -9,6 +9,7 @@ class AppColors {
   static const secondary = Color(0xFF42A5F5); // Celeste
   static const accent = Color(0xFF90CAF9); // Azul claro
   static const background = Color(0xFFF5F5F5);
+  static const Color info = Color(0xFF17A2B8); // ← NUEVO COLOR
 
   static const success = Color(0xFF28A745);
   static const error = Color(0xFFDC3545);

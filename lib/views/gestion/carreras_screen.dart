@@ -2,17 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:incos_check/utils/constants.dart';
 import 'docentes_screen.dart';
 import 'turnos_screen.dart';
+import '../../views/gestion/programas/programas_screen.dart'; // Importar ProgramasScreen
 
 class CarrerasScreen extends StatefulWidget {
   final String tipo;
   final String carreraSeleccionada;
   final Function(List<String>)? onCarrerasActualizadas;
+  final bool mostrarInformacionCarreras; // Nuevo parámetro
 
   const CarrerasScreen({
     super.key,
     required this.tipo,
     required this.carreraSeleccionada,
     this.onCarrerasActualizadas,
+    this.mostrarInformacionCarreras = false, // Por defecto false
   });
 
   @override
@@ -49,6 +52,12 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // SI ES PARA MOSTRAR INFORMACIÓN DE CARRERAS, MOSTRAR ProgramasScreen
+    if (widget.mostrarInformacionCarreras) {
+      return ProgramasScreen(); // Tu pantalla existente con información
+    }
+
+    // SI NO, MOSTRAR LA GESTIÓN NORMAL DE CARRERAS (TU FUNCIONALIDAD ORIGINAL)
     return Scaffold(
       appBar: AppBar(
         title: Text(

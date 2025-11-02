@@ -1,4 +1,3 @@
-// viewmodels/materia_viewmodel.dart
 import 'package:flutter/material.dart';
 import '../../../utils/constants.dart';
 import '../models/materia_model.dart';
@@ -21,6 +20,21 @@ class MateriaViewModel extends ChangeNotifier {
   final List<String> _paralelos = ['Todos', 'A', 'B', 'C', 'D'];
   final List<String> _turnos = ['Todos', 'Mañana', 'Tarde', 'Noche'];
 
+  // Controladores para el formulario
+  final TextEditingController _codigoController = TextEditingController();
+  final TextEditingController _nombreController = TextEditingController();
+  final TextEditingController _carreraController = TextEditingController();
+
+  // Variables para el formulario
+  int _anioSeleccionadoForm = 1;
+  Color _colorSeleccionado = MateriaColors.programacion;
+  String _materiaEditandoId = '';
+
+  // Efecto de burbuja
+  bool _mostrarBurbuja = false;
+  String _mensajeBurbuja = '';
+  Color _colorBurbuja = Colors.green;
+
   // Getters
   List<Materia> get materias => _materias;
   List<Materia> get materiasFiltradas => _materiasFiltradas;
@@ -33,6 +47,17 @@ class MateriaViewModel extends ChangeNotifier {
   TextEditingController get searchController => _searchController;
   List<String> get paralelos => _paralelos;
   List<String> get turnos => _turnos;
+
+  // Getters para el formulario
+  TextEditingController get codigoController => _codigoController;
+  TextEditingController get nombreController => _nombreController;
+  TextEditingController get carreraController => _carreraController;
+  int get anioSeleccionadoForm => _anioSeleccionadoForm;
+  Color get colorSeleccionado => _colorSeleccionado;
+  bool get mostrarBurbuja => _mostrarBurbuja;
+  String get mensajeBurbuja => _mensajeBurbuja;
+  Color get colorBurbuja => _colorBurbuja;
+  String get materiaEditandoId => _materiaEditandoId;
 
   MateriaViewModel() {
     _cargarMateriasSistemas();
@@ -60,11 +85,148 @@ class MateriaViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Setters para el formulario
+  void setAnioSeleccionadoForm(int value) {
+    _anioSeleccionadoForm = value;
+    notifyListeners();
+  }
+
+  void setColorSeleccionado(Color color) {
+    _colorSeleccionado = color;
+    notifyListeners();
+  }
+
+  void setMateriaEditandoId(String id) {
+    _materiaEditandoId = id;
+    notifyListeners();
+  }
+
   // Setters para historial
   void setAnioSeleccionado(int value) {
     _anioSeleccionado = value;
     _filtrarMateriasPorAnio();
   }
+
+  // ========== OPERACIONES CRUD ==========
+
+  // AGREGAR materia
+  void agregarMateria() {
+    if (_codigoController.text.isEmpty || _nombreController.text.isEmpty) {
+      _mostrarMensajeBurbuja('Complete todos los campos', Colors.red);
+      return;
+    }
+
+    // Verificar si el código ya existe
+    if (_materias.any(
+      (materia) =>
+          materia.codigo == _codigoController.text &&
+          materia.id != _materiaEditandoId,
+    )) {
+      _mostrarMensajeBurbuja('El código ya existe', Colors.red);
+      return;
+    }
+
+    final nuevaMateria = Materia(
+      id: _materiaEditandoId.isEmpty
+          ? DateTime.now().millisecondsSinceEpoch.toString()
+          : _materiaEditandoId,
+      codigo: _codigoController.text,
+      nombre: _nombreController.text,
+      carrera: _carreraController.text.isEmpty
+          ? 'Sistemas Informáticos'
+          : _carreraController.text,
+      anio: _anioSeleccionadoForm,
+      color: _colorSeleccionado,
+      activo: true,
+    );
+
+    if (_materiaEditandoId.isEmpty) {
+      _materias.add(nuevaMateria);
+      _mostrarMensajeBurbuja('Materia agregada exitosamente', Colors.green);
+    } else {
+      final index = _materias.indexWhere(
+        (materia) => materia.id == _materiaEditandoId,
+      );
+      if (index != -1) {
+        _materias[index] = nuevaMateria;
+        _mostrarMensajeBurbuja('Materia actualizada exitosamente', Colors.blue);
+      }
+    }
+
+    _limpiarFormulario();
+    notifyListeners();
+  }
+
+  // MODIFICAR materia - Cargar datos en el formulario
+  void cargarMateriaParaEditar(Materia materia) {
+    _materiaEditandoId = materia.id;
+    _codigoController.text = materia.codigo;
+    _nombreController.text = materia.nombre;
+    _carreraController.text = materia.carrera;
+    _anioSeleccionadoForm = materia.anio;
+    _colorSeleccionado = materia.color;
+    notifyListeners();
+  }
+
+  // ELIMINAR materia
+  void eliminarMateria(String id) {
+    _materias.removeWhere((materia) => materia.id == id);
+    _mostrarMensajeBurbuja('Materia eliminada exitosamente', Colors.orange);
+    notifyListeners();
+  }
+
+  // DESACTIVAR materia
+  void desactivarMateria(String id) {
+    final index = _materias.indexWhere((materia) => materia.id == id);
+    if (index != -1) {
+      _materias[index] = _materias[index].copyWith(activo: false);
+      _mostrarMensajeBurbuja('Materia desactivada', Colors.amber);
+      notifyListeners();
+    }
+  }
+
+  // ACTIVAR materia
+  void activarMateria(String id) {
+    final index = _materias.indexWhere((materia) => materia.id == id);
+    if (index != -1) {
+      _materias[index] = _materias[index].copyWith(activo: true);
+      _mostrarMensajeBurbuja('Materia activada', Colors.green);
+      notifyListeners();
+    }
+  }
+
+  // Limpiar formulario
+  void _limpiarFormulario() {
+    _materiaEditandoId = '';
+    _codigoController.clear();
+    _nombreController.clear();
+    _carreraController.clear();
+    _anioSeleccionadoForm = 1;
+    _colorSeleccionado = MateriaColors.programacion;
+    notifyListeners();
+  }
+
+  // Mostrar mensaje en burbuja
+  void _mostrarMensajeBurbuja(String mensaje, Color color) {
+    _mensajeBurbuja = mensaje;
+    _colorBurbuja = color;
+    _mostrarBurbuja = true;
+    notifyListeners();
+
+    // Ocultar después de 3 segundos
+    Future.delayed(const Duration(seconds: 3), () {
+      _mostrarBurbuja = false;
+      notifyListeners();
+    });
+  }
+
+  // Ocultar burbuja manualmente
+  void ocultarBurbuja() {
+    _mostrarBurbuja = false;
+    notifyListeners();
+  }
+
+  // ========== MÉTODOS EXISTENTES ==========
 
   void _cargarMateriasSistemas() {
     // PRIMER AÑO - Sistemas Informáticos
@@ -75,7 +237,7 @@ class MateriaViewModel extends ChangeNotifier {
         nombre: 'Hardware de Computadoras',
         carrera: 'Sistemas Informáticos',
         anio: 1,
-        color: MateriaColors.redes,
+        color: MateriaColors.redes, // Usando el color correcto de tus constants
       ),
       Materia(
         id: 'matematica',
@@ -377,6 +539,9 @@ class MateriaViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _searchController.dispose();
+    _codigoController.dispose();
+    _nombreController.dispose();
+    _carreraController.dispose();
     super.dispose();
   }
 }
