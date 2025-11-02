@@ -44,54 +44,18 @@ class _TurnosScreenState extends State<TurnosScreen> {
   @override
   void initState() {
     super.initState();
-    // Inicializar la carrera si no existe
+    // Inicializar la carrera SIEMPRE VACÍA
     _dataManager.inicializarCarrera(
       widget.carrera['id'].toString(),
       widget.carrera['nombre'],
       widget.carrera['color'],
     );
+
     // Obtener los turnos de esta carrera específica
     _turnos = _dataManager.getTurnos(widget.carrera['id'].toString());
 
-    // Si no hay turnos, agregar algunos por defecto
-    if (_turnos.isEmpty) {
-      _agregarTurnosPorDefecto();
-    }
-  }
-
-  void _agregarTurnosPorDefecto() {
-    final turnosPorDefecto = [
-      {
-        'id': '${widget.carrera['id']}_manana',
-        'nombre': 'Mañana',
-        'icon': Icons.wb_sunny,
-        'horario': '08:00 - 13:00',
-        'rangoAsistencia': '07:45 - 08:15',
-        'dias': 'Lunes a Viernes',
-        'color': '#FFA000',
-        'activo': true,
-        'niveles': [], // Inicializar niveles vacíos
-      },
-      {
-        'id': '${widget.carrera['id']}_noche',
-        'nombre': 'Noche',
-        'icon': Icons.nights_stay,
-        'horario': '18:30 - 22:00',
-        'rangoAsistencia': '18:30 - 19:30',
-        'dias': 'Lunes a Viernes',
-        'color': '#1565C0',
-        'activo': true,
-        'niveles': [], // Inicializar niveles vacíos
-      },
-    ];
-
-    for (var turno in turnosPorDefecto) {
-      _dataManager.agregarTurno(widget.carrera['id'].toString(), turno);
-    }
-
-    setState(() {
-      _turnos = _dataManager.getTurnos(widget.carrera['id'].toString());
-    });
+    // NO agregar turnos por defecto automáticamente
+    // Las nuevas carreras deben comenzar VACÍAS
   }
 
   @override
@@ -324,7 +288,7 @@ class _TurnosScreenState extends State<TurnosScreen> {
             'dias': dias,
             'color': color,
             'activo': true,
-            'niveles': [], // Inicializar niveles vacíos
+            'niveles': [], // Inicializar niveles VACÍOS
           };
 
           _dataManager.agregarTurno(

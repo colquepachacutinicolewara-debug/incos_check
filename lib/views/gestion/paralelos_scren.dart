@@ -22,40 +22,144 @@ class ParalelosScreen extends StatefulWidget {
 }
 
 class _ParalelosScreenState extends State<ParalelosScreen> {
-  List<Map<String, dynamic>> _paralelos = [
-    {'id': 2, 'nombre': 'B', 'activo': true},
-  ];
+  final DataManager _dataManager = DataManager();
+  List<Map<String, dynamic>> _paralelos = [];
 
   final TextEditingController _nombreController = TextEditingController();
   final TextEditingController _editarNombreController = TextEditingController();
+
+  // Funciones para obtener colores según el tema
+  Color _getBackgroundColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade900
+        : AppColors.background;
+  }
+
+  Color _getCardColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : Colors.white;
+  }
+
+  Color _getTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+  }
+
+  Color _getSecondaryTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white70
+        : Colors.black87;
+  }
+
+  Color _getBorderColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade600
+        : Colors.grey.shade300;
+  }
+
+  Color _getInfoBackgroundColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.blue.shade900.withOpacity(0.3)
+        : Colors.blue.shade50;
+  }
+
+  Color _getInfoTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.blue.shade200
+        : Colors.blue.shade800;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarParalelos();
+  }
+
+  void _cargarParalelos() {
+    // Para SISTEMAS INFORMÁTICOS - TERCERO - NOCHE, mostrar paralelo B
+    if (widget.carrera['nombre'].toUpperCase().contains('SISTEMAS') &&
+        widget.nivel['nombre'] == 'Tercero' &&
+        widget.turno['nombre'] == 'Noche') {
+      setState(() {
+        _paralelos = [
+          {
+            'id': 'sistemas_noche_tercero_B',
+            'nombre': 'B',
+            'activo': true,
+            'estudiantes': [
+              {
+                'id': 1,
+                'nombres': 'Juan Carlos',
+                'apellidoPaterno': 'Pérez',
+                'apellidoMaterno': 'Gómez',
+                'ci': '1234567',
+                'fechaRegistro': '2024-01-15',
+                'huellasRegistradas': 3,
+              },
+              {
+                'id': 2,
+                'nombres': 'María Elena',
+                'apellidoPaterno': 'López',
+                'apellidoMaterno': 'Martínez',
+                'ci': '7654321',
+                'fechaRegistro': '2024-01-16',
+                'huellasRegistradas': 2,
+              },
+            ],
+          },
+        ];
+      });
+    } else {
+      // Para otras carreras, obtener del DataManager
+      final paralelosDataManager = _dataManager.getParalelos(
+        widget.carrera['id'].toString(),
+        widget.turno['id'].toString(),
+        widget.nivel['id'].toString(),
+      );
+
+      setState(() {
+        _paralelos = paralelosDataManager;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     Color carreraColor = _parseColor(widget.carrera['color']);
 
     return Scaffold(
+      backgroundColor: _getBackgroundColor(context),
       appBar: AppBar(
         title: Text(
           '${widget.carrera['nombre']} - ${widget.turno['nombre']} - ${widget.nivel['nombre']}',
           style: AppTextStyles.heading2.copyWith(color: Colors.white),
         ),
         backgroundColor: carreraColor,
+        iconTheme: IconThemeData(color: Colors.white),
       ),
       body: _paralelos.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.group_outlined, size: 80, color: Colors.grey[400]),
+                  Icon(
+                    Icons.group_outlined,
+                    size: 80,
+                    color: _getSecondaryTextColor(context),
+                  ),
                   SizedBox(height: 16),
                   Text(
                     'No hay paralelos',
-                    style: AppTextStyles.heading3.copyWith(color: Colors.grey),
+                    style: AppTextStyles.heading3.copyWith(
+                      color: _getSecondaryTextColor(context),
+                    ),
                   ),
                   SizedBox(height: 8),
                   Text(
                     'Presiona el botón + para agregar el primer paralelo',
-                    style: TextStyle(color: Colors.grey[600]),
+                    style: TextStyle(color: _getSecondaryTextColor(context)),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -87,6 +191,7 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
     return Card(
       elevation: 4,
       margin: EdgeInsets.only(bottom: AppSpacing.medium),
+      color: _getCardColor(context),
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: color.withOpacity(0.2),
@@ -102,7 +207,7 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
         title: Text(
           'Paralelo ${paralelo['nombre']}',
           style: AppTextStyles.heading3.copyWith(
-            color: isActive ? Colors.black : Colors.grey,
+            color: isActive ? _getTextColor(context) : Colors.grey,
           ),
         ),
         subtitle: Text(
@@ -124,8 +229,20 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
             PopupMenuButton<String>(
               onSelected: (value) => _handleMenuAction(value, paralelo),
               itemBuilder: (BuildContext context) => [
-                PopupMenuItem(value: 'edit', child: Text('Modificar')),
-                PopupMenuItem(value: 'delete', child: Text('Eliminar')),
+                PopupMenuItem(
+                  value: 'edit',
+                  child: Text(
+                    'Modificar',
+                    style: TextStyle(color: _getTextColor(context)),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Text(
+                    'Eliminar',
+                    style: TextStyle(color: _getTextColor(context)),
+                  ),
+                ),
               ],
             ),
           ],
@@ -167,17 +284,35 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Agregar Nuevo Paralelo'),
+        backgroundColor: _getCardColor(context),
+        title: Text(
+          'Agregar Nuevo Paralelo',
+          style: TextStyle(color: _getTextColor(context)),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: _nombreController,
+              style: TextStyle(color: _getTextColor(context)),
               decoration: InputDecoration(
                 labelText: 'Letra del Paralelo',
+                labelStyle: TextStyle(color: _getSecondaryTextColor(context)),
                 hintText: 'Ej: A, C, D, etc.',
-                border: OutlineInputBorder(),
+                hintStyle: TextStyle(color: _getSecondaryTextColor(context)),
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: _getBorderColor(context)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: _getBorderColor(context)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(
+                    color: _parseColor(widget.carrera['color']),
+                  ),
+                ),
                 counterText: 'Máximo 2 caracteres',
+                counterStyle: TextStyle(color: _getSecondaryTextColor(context)),
               ),
               maxLength: 2,
               textCapitalization: TextCapitalization.characters,
@@ -186,17 +321,20 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
             Container(
               padding: EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.blue[50],
+                color: _getInfoBackgroundColor(context),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info, color: Colors.blue, size: 16),
+                  Icon(Icons.info, color: _getInfoTextColor(context), size: 16),
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Ingresa una letra para el paralelo (A, B, C, etc.)',
-                      style: TextStyle(fontSize: 12, color: Colors.blue[800]),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _getInfoTextColor(context),
+                      ),
                     ),
                   ),
                 ],
@@ -207,7 +345,10 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: _getSecondaryTextColor(context)),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -248,7 +389,12 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
                 1
           : 1;
 
-      _paralelos.add({'id': nuevoId, 'nombre': nombre, 'activo': true});
+      _paralelos.add({
+        'id': nuevoId,
+        'nombre': nombre,
+        'activo': true,
+        'estudiantes': [],
+      });
 
       // Ordenar paralelos alfabéticamente
       _paralelos.sort((a, b) => a['nombre'].compareTo(b['nombre']));
@@ -268,16 +414,33 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Modificar Paralelo'),
+        backgroundColor: _getCardColor(context),
+        title: Text(
+          'Modificar Paralelo',
+          style: TextStyle(color: _getTextColor(context)),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: _editarNombreController,
+              style: TextStyle(color: _getTextColor(context)),
               decoration: InputDecoration(
                 labelText: 'Letra del Paralelo',
-                border: OutlineInputBorder(),
+                labelStyle: TextStyle(color: _getSecondaryTextColor(context)),
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: _getBorderColor(context)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: _getBorderColor(context)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(
+                    color: _parseColor(widget.carrera['color']),
+                  ),
+                ),
                 counterText: 'Máximo 2 caracteres',
+                counterStyle: TextStyle(color: _getSecondaryTextColor(context)),
               ),
               maxLength: 2,
               textCapitalization: TextCapitalization.characters,
@@ -286,17 +449,20 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
             Container(
               padding: EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.blue[50],
+                color: _getInfoBackgroundColor(context),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info, color: Colors.blue, size: 16),
+                  Icon(Icons.info, color: _getInfoTextColor(context), size: 16),
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Modifica la letra del paralelo',
-                      style: TextStyle(fontSize: 12, color: Colors.blue[800]),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _getInfoTextColor(context),
+                      ),
                     ),
                   ),
                 ],
@@ -307,7 +473,10 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: _getSecondaryTextColor(context)),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -364,14 +533,22 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Eliminar Paralelo'),
+        backgroundColor: _getCardColor(context),
+        title: Text(
+          'Eliminar Paralelo',
+          style: TextStyle(color: _getTextColor(context)),
+        ),
         content: Text(
           '¿Estás seguro de eliminar el Paralelo ${paralelo['nombre']}?',
+          style: TextStyle(color: _getTextColor(context)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: _getSecondaryTextColor(context)),
+            ),
           ),
           TextButton(
             onPressed: () {

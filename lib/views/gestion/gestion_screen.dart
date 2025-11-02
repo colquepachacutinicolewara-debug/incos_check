@@ -3,6 +3,7 @@ import 'package:incos_check/utils/constants.dart';
 import 'package:incos_check/utils/helpers.dart';
 import 'carreras_screen.dart';
 import 'turnos_screen.dart';
+import '../../views/gestion/materias_screen.dart'; // Importar MateriasScreen directamente
 import '../../views/gestion/programas/programas_screen.dart';
 
 class GestionScreen extends StatefulWidget {
@@ -184,7 +185,7 @@ class _GestionScreenState extends State<GestionScreen> {
                   'Cursos',
                   Icons.book,
                   AppColors.success,
-                  () => _navigateToCarreras(context, 'Cursos'),
+                  () => _navigateToCursos(context),
                 ),
                 _buildMenuCard(
                   context,
@@ -270,6 +271,16 @@ class _GestionScreenState extends State<GestionScreen> {
           builder: (context) =>
               TurnosScreen(tipo: 'Estudiantes', carrera: carreraConfig),
         ),
+      );
+    });
+  }
+
+  // Navegación DIRECTA a MateriasScreen para Cursos
+  void _navigateToCursos(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => MateriasScreen()),
       );
     });
   }
