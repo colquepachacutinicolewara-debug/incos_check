@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:incos_check/utils/constants.dart';
 import 'package:incos_check/utils/helpers.dart';
 import 'carreras_screen.dart';
-import 'turnos_screen.dart'; // Asegúrate de importar TurnosScreen
+import 'turnos_screen.dart';
 import '../../views/gestion/programas/programas_screen.dart';
 
 class GestionScreen extends StatefulWidget {
@@ -15,6 +15,28 @@ class GestionScreen extends StatefulWidget {
 class _GestionScreenState extends State<GestionScreen> {
   String _carreraSeleccionada = 'Sistemas Informáticos';
   List<String> _carreras = ['Sistemas Informáticos'];
+
+  // Constantes para strings
+  static const _kCarreraDefault = 'Sistemas Informáticos';
+  static const _kCarreraIdiomas = 'Idioma Inglés';
+
+  // Configuración de carreras predefinidas
+  final Map<String, Map<String, dynamic>> _carrerasConfig = {
+    'Sistemas Informáticos': {
+      'id': 1,
+      'nombre': 'Sistemas Informáticos',
+      'color': '#1565C0',
+      'icon': Icons.computer,
+      'activa': true,
+    },
+    'Idioma Inglés': {
+      'id': 2,
+      'nombre': 'Idioma Inglés',
+      'color': '#F44336',
+      'icon': Icons.language,
+      'activa': true,
+    },
+  };
 
   // Funciones para obtener colores según el tema
   Color _getBackgroundColor(BuildContext context) {
@@ -53,9 +75,20 @@ class _GestionScreenState extends State<GestionScreen> {
         : Colors.grey.shade300;
   }
 
+  // Método para obtener configuración de carrera
+  Map<String, dynamic> _getCarreraConfig(String carrera) {
+    return _carrerasConfig[carrera] ??
+        {
+          'id': DateTime.now().millisecondsSinceEpoch,
+          'nombre': carrera,
+          'color': '#9C27B0',
+          'icon': Icons.school,
+          'activa': true,
+        };
+  }
+
   // Método para actualizar carreras desde CarrerasScreen
   void _actualizarCarreras(List<String> nuevasCarreras) {
-    // Usar post frame callback para evitar el error durante build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       setState(() {
         _carreras = nuevasCarreras;
@@ -76,15 +109,17 @@ class _GestionScreenState extends State<GestionScreen> {
           style: AppTextStyles.heading2.copyWith(color: Colors.white),
         ),
         backgroundColor: AppColors.secondary,
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Column(
         children: [
           // Selector de Carrera
           Padding(
-            padding: EdgeInsets.all(AppSpacing.medium),
+            padding: const EdgeInsets.all(AppSpacing.medium),
             child: Container(
-              padding: EdgeInsets.symmetric(horizontal: AppSpacing.medium),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.medium,
+              ),
               decoration: BoxDecoration(
                 color: _getDropdownBackgroundColor(context),
                 borderRadius: BorderRadius.circular(AppRadius.medium),
@@ -93,7 +128,7 @@ class _GestionScreenState extends State<GestionScreen> {
               child: DropdownButton<String>(
                 value: _carreraSeleccionada,
                 isExpanded: true,
-                underline: SizedBox(),
+                underline: const SizedBox(),
                 dropdownColor: _getDropdownBackgroundColor(context),
                 items: _carreras.map((String carrera) {
                   return DropdownMenuItem<String>(
@@ -115,7 +150,7 @@ class _GestionScreenState extends State<GestionScreen> {
 
           // Título de la carrera seleccionada
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: AppSpacing.medium),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.medium),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
@@ -128,13 +163,13 @@ class _GestionScreenState extends State<GestionScreen> {
             ),
           ),
 
-          SizedBox(height: AppSpacing.medium),
+          const SizedBox(height: AppSpacing.medium),
 
           // Grid de opciones de gestión
           Expanded(
             child: GridView.count(
               crossAxisCount: 2,
-              padding: EdgeInsets.all(AppSpacing.medium),
+              padding: const EdgeInsets.all(AppSpacing.medium),
               childAspectRatio: 1.0,
               children: [
                 _buildMenuCard(
@@ -142,30 +177,28 @@ class _GestionScreenState extends State<GestionScreen> {
                   'Estudiantes',
                   Icons.people,
                   UserThemeColors.estudiante,
-                  () => _navigateToEstudiantes(context), // ✅ DIRECTO A TURNOS
+                  () => _navigateToEstudiantes(context),
                 ),
                 _buildMenuCard(
                   context,
                   'Cursos',
                   Icons.book,
                   AppColors.success,
-                  () => _navigateToCarreras(context, 'Cursos'), // ✅ A CARRERAS
+                  () => _navigateToCarreras(context, 'Cursos'),
                 ),
                 _buildMenuCard(
                   context,
                   'Carreras',
                   Icons.school,
                   AppColors.warning,
-                  () =>
-                      _navigateToCarrerasGestion(context), // ✅ GESTIÓN CARRERAS
+                  () => _navigateToCarrerasGestion(context),
                 ),
                 _buildMenuCard(
                   context,
                   'Docentes',
                   Icons.person,
                   UserThemeColors.docente,
-                  () =>
-                      _navigateToCarreras(context, 'Docentes'), // ✅ A CARRERAS
+                  () => _navigateToCarreras(context, 'Docentes'),
                 ),
               ],
             ),
@@ -184,7 +217,7 @@ class _GestionScreenState extends State<GestionScreen> {
   ) {
     return Card(
       elevation: 4,
-      margin: EdgeInsets.all(AppSpacing.small),
+      margin: const EdgeInsets.all(AppSpacing.small),
       color: _getCardColor(context),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.medium),
@@ -193,12 +226,12 @@ class _GestionScreenState extends State<GestionScreen> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.medium),
         child: Container(
-          padding: EdgeInsets.all(AppSpacing.small),
+          padding: const EdgeInsets.all(AppSpacing.small),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon, size: 50, color: color),
-              SizedBox(height: AppSpacing.small),
+              const SizedBox(height: AppSpacing.small),
               Text(
                 title,
                 style: AppTextStyles.body.copyWith(
@@ -207,7 +240,7 @@ class _GestionScreenState extends State<GestionScreen> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              SizedBox(height: AppSpacing.small),
+              const SizedBox(height: AppSpacing.small),
               Text(
                 _carreraSeleccionada,
                 style: TextStyle(
@@ -226,53 +259,22 @@ class _GestionScreenState extends State<GestionScreen> {
     );
   }
 
-  // ✅ NUEVO MÉTODO: Estudiantes va DIRECTAMENTE a TurnosScreen
+  // Navegación a TurnosScreen para Estudiantes
   void _navigateToEstudiantes(BuildContext context) {
+    final carreraConfig = _getCarreraConfig(_carreraSeleccionada);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Crear un objeto carrera con la carrera seleccionada
-      Map<String, dynamic> carreraSeleccionadaObj;
-
-      // Determinar color e icono según la carrera seleccionada
-      if (_carreraSeleccionada == 'Sistemas Informáticos') {
-        carreraSeleccionadaObj = {
-          'id': 1,
-          'nombre': _carreraSeleccionada,
-          'color': '#1565C0',
-          'icon': Icons.computer,
-          'activa': true,
-        };
-      } else if (_carreraSeleccionada == 'Idioma Inglés') {
-        carreraSeleccionadaObj = {
-          'id': 2,
-          'nombre': _carreraSeleccionada,
-          'color': '#F44336',
-          'icon': Icons.language,
-          'activa': true,
-        };
-      } else {
-        // Para cualquier otra carrera nueva
-        carreraSeleccionadaObj = {
-          'id': DateTime.now().millisecondsSinceEpoch,
-          'nombre': _carreraSeleccionada,
-          'color': '#9C27B0',
-          'icon': Icons.school,
-          'activa': true,
-        };
-      }
-
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => TurnosScreen(
-            tipo: 'Estudiantes',
-            carrera: carreraSeleccionadaObj,
-          ),
+          builder: (context) =>
+              TurnosScreen(tipo: 'Estudiantes', carrera: carreraConfig),
         ),
       );
     });
   }
 
-  // ✅ MÉTODO: Cursos y Docentes van a CarrerasScreen
+  // Navegación a CarrerasScreen para Cursos y Docentes
   void _navigateToCarreras(BuildContext context, String tipo) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Navigator.push(
@@ -288,7 +290,7 @@ class _GestionScreenState extends State<GestionScreen> {
     });
   }
 
-  // ✅ MÉTODO: Gestión de Carreras
+  // Navegación a CarrerasScreen para Gestión
   void _navigateToCarrerasGestion(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Navigator.push(
@@ -304,6 +306,7 @@ class _GestionScreenState extends State<GestionScreen> {
     });
   }
 
+  // Navegación a ProgramasScreen
   void _navigateToProgramas(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Navigator.push(

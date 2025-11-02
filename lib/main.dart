@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+// *[NUEVOS IMPORTS DE FIREBASE]*
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 // ViewModels
 import 'viewmodels/dashboard_viewmodel.dart';
@@ -10,7 +13,13 @@ import 'services/theme_service.dart';
 import 'views/dashboard/dashboard_screen.dart';
 
 void main() async {
+  // 1. Asegura que los widgets de Flutter estén inicializados
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 2. *[INICIALIZACIÓN DE FIREBASE]*
+  // Conecta la app con el proyecto de Firebase usando las opciones específicas de la plataforma
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // ------------------------------------
 
   // Inicializa localización española para intl
 

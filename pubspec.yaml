@@ -59,6 +59,10 @@ dependencies:
   permission_handler: ^12.0.1
   
   syncfusion_flutter_charts: ^31.2.4
+  cloud_firestore: ^6.0.3
+  firebase_core: ^4.2.0
+  
+
 
 dev_dependencies:
   flutter_test:

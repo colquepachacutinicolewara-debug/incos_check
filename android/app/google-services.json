@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "382827134847",
+    "project_id": "incos-check",
+    "storage_bucket": "incos-check.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:382827134847:android:e4e710b7a29ff555e2a44a",
+        "android_client_info": {
+          "package_name": "com.example.incos_check"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDtTWVEejH77fYXDkU78ZZ0ggZFfD6hydM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
