@@ -13,16 +13,6 @@ class NivelModel {
     required this.paralelos,
   });
 
-  factory NivelModel.fromMap(Map<String, dynamic> map) {
-    return NivelModel(
-      id: map['id']?.toString() ?? '',
-      nombre: map['nombre']?.toString() ?? '',
-      activo: map['activo'] ?? true,
-      orden: map['orden'] ?? 99,
-      paralelos: map['paralelos'] ?? [],
-    );
-  }
-
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -31,6 +21,16 @@ class NivelModel {
       'orden': orden,
       'paralelos': paralelos,
     };
+  }
+
+  static NivelModel fromMap(Map<String, dynamic> map) {
+    return NivelModel(
+      id: map['id']?.toString() ?? '',
+      nombre: map['nombre']?.toString() ?? '',
+      activo: map['activo'] ?? true,
+      orden: map['orden'] ?? 99,
+      paralelos: map['paralelos'] ?? [],
+    );
   }
 
   NivelModel copyWith({

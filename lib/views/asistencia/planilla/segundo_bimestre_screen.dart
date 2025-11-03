@@ -942,7 +942,7 @@ class _SegundoBimestreScreenState extends State<SegundoBimestreScreen> {
                 const SizedBox(height: 8),
                 if (_estudianteSeleccionado != null)
                   Text(
-                    'Estudiante seleccionado: ${_estudianteSeleccionado}',
+                    'Estudiante seleccionado: $_estudianteSeleccionado',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       color: _getBlueAccentColor(context),
@@ -980,7 +980,7 @@ class _SegundoBimestreScreenState extends State<SegundoBimestreScreen> {
                     child: SingleChildScrollView(
                       scrollDirection: Axis.vertical,
                       child: DataTable(
-                        headingRowColor: MaterialStateProperty.resolveWith(
+                        headingRowColor: WidgetStateProperty.resolveWith(
                           (states) => _getHeaderBackgroundColor(context),
                         ),
                         columnSpacing: 8,
@@ -1025,7 +1025,7 @@ class _SegundoBimestreScreenState extends State<SegundoBimestreScreen> {
                                   ),
                                 ),
                               )
-                              .toList(),
+                              ,
                           DataColumn(
                             label: Text(
                               'TOTAL',
@@ -1042,8 +1042,8 @@ class _SegundoBimestreScreenState extends State<SegundoBimestreScreen> {
                               _estudianteSeleccionado == estudiante.item;
 
                           return DataRow(
-                            color: MaterialStateProperty.resolveWith<Color?>((
-                              Set<MaterialState> states,
+                            color: WidgetStateProperty.resolveWith<Color?>((
+                              Set<WidgetState> states,
                             ) {
                               return _getColorFila(estudiante.item, context);
                             }),

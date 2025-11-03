@@ -956,7 +956,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
           ),
           value: value,
           onChanged: onChanged,
-          activeColor: AppColors.primary,
+          activeThumbColor: AppColors.primary,
         ),
         Divider(color: AppColors.background),
       ],

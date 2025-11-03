@@ -1,6 +1,5 @@
 // models/usuario_model.dart
 import 'package:flutter/material.dart';
-import 'dart:ui';
 
 class Usuario {
   final String id;

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:incos_check/utils/constants.dart';
-import 'package:incos_check/utils/helpers.dart';
 import 'package:incos_check/utils/validators.dart';
 
 class DocentesScreen extends StatefulWidget {
@@ -374,10 +373,10 @@ class _DocentesScreenState extends State<DocentesScreen> {
     String selectedTurno = docente?['turno'] ?? 'MAÑANA';
     String selectedEstado = docente?['estado'] ?? Estados.activo;
 
-    final _formKey = GlobalKey<FormState>();
+    final formKey = GlobalKey<FormState>();
 
     // Auto-completar email cuando se llenen los nombres
-    void _autoCompletarEmail() {
+    void autoCompletarEmail() {
       if (apellidoPaternoController.text.isNotEmpty &&
           nombresController.text.isNotEmpty &&
           emailController.text.isEmpty) {
@@ -398,7 +397,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
           ),
           content: SingleChildScrollView(
             child: Form(
-              key: _formKey,
+              key: formKey,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -463,7 +462,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
                           text: value.toUpperCase(),
                           selection: apellidoPaternoController.selection,
                         );
-                        _autoCompletarEmail();
+                        autoCompletarEmail();
                       }
                     },
                   ),
@@ -538,7 +537,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
                           text: value.toUpperCase(),
                           selection: nombresController.selection,
                         );
-                        _autoCompletarEmail();
+                        autoCompletarEmail();
                       }
                     },
                   ),
@@ -546,7 +545,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
 
                   // Selector de Carrera
                   DropdownButtonFormField<String>(
-                    value: selectedCarrera,
+                    initialValue: selectedCarrera,
                     dropdownColor: _getCardColor(context),
                     style: TextStyle(color: _getTextColor(context)),
                     decoration: InputDecoration(
@@ -586,7 +585,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
 
                   // Selector de Turno
                   DropdownButtonFormField<String>(
-                    value: selectedTurno,
+                    initialValue: selectedTurno,
                     dropdownColor: _getCardColor(context),
                     style: TextStyle(color: _getTextColor(context)),
                     decoration: InputDecoration(
@@ -647,7 +646,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
                       suffixIcon: IconButton(
                         icon: Icon(Icons.email, color: _carreraColor),
                         onPressed: () {
-                          _autoCompletarEmail();
+                          autoCompletarEmail();
                         },
                       ),
                       errorStyle: TextStyle(color: AppColors.error),
@@ -692,7 +691,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
 
                   // Estado
                   DropdownButtonFormField<String>(
-                    value: selectedEstado,
+                    initialValue: selectedEstado,
                     dropdownColor: _getCardColor(context),
                     style: TextStyle(color: _getTextColor(context)),
                     decoration: InputDecoration(
@@ -744,7 +743,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                if (_formKey.currentState!.validate()) {
+                if (formKey.currentState!.validate()) {
                   // Formatear teléfono si es necesario
                   String telefonoFormateado = telefonoController.text;
                   if (!telefonoFormateado.startsWith('+591')) {
@@ -1046,7 +1045,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
           Padding(
             padding: EdgeInsets.all(AppSpacing.medium),
             child: DropdownButtonFormField<String>(
-              value: _selectedCarrera,
+              initialValue: _selectedCarrera,
               dropdownColor: _getCardColor(context),
               style: TextStyle(color: _getTextColor(context)),
               decoration: InputDecoration(
@@ -1104,7 +1103,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '$_selectedCarrera',
+                        _selectedCarrera,
                         style: AppTextStyles.body.copyWith(
                           fontWeight: FontWeight.bold,
                           color: _carreraColor,

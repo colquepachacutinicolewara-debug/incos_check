@@ -655,7 +655,7 @@ class _MateriasScreenState extends State<MateriasScreen> {
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<int>(
-                  value: viewModel.anioSeleccionadoForm,
+                  initialValue: viewModel.anioSeleccionadoForm,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12),

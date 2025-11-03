@@ -166,7 +166,7 @@ class CarreraEmpresas extends StatelessWidget {
                           ),
                         ],
                       );
-                    }).toList(),
+                    }),
                   ],
                 ),
               ],

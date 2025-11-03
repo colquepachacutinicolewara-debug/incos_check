@@ -166,7 +166,7 @@ class CarreraSecretariado extends StatelessWidget {
                           ),
                         ],
                       );
-                    }).toList(),
+                    }),
                   ],
                 ),
               ],

@@ -1,21 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:incos_check/utils/constants.dart';
 import 'package:incos_check/utils/data_manager.dart';
 import 'niveles_screen.dart';
+import '../../viewmodels/turnos_viewmodel.dart';
+import '../../models/turnos_model.dart';
 
-class TurnosScreen extends StatefulWidget {
+class TurnosScreen extends StatelessWidget {
   final String tipo;
   final Map<String, dynamic> carrera;
 
   const TurnosScreen({super.key, required this.tipo, required this.carrera});
 
   @override
-  State<TurnosScreen> createState() => _TurnosScreenState();
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (context) => TurnosViewModel(tipo: tipo, carrera: carrera),
+      child: _TurnosScreenContent(tipo: tipo, carrera: carrera),
+    );
+  }
 }
 
-class _TurnosScreenState extends State<TurnosScreen> {
-  final DataManager _dataManager = DataManager();
-  late List<Map<String, dynamic>> _turnos;
+class _TurnosScreenContent extends StatelessWidget {
+  final String tipo;
+  final Map<String, dynamic> carrera;
+
+  const _TurnosScreenContent({required this.tipo, required this.carrera});
 
   Color _getTextColor(BuildContext context) {
     return Theme.of(context).brightness == Brightness.dark
@@ -42,44 +52,22 @@ class _TurnosScreenState extends State<TurnosScreen> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _inicializarCarrera();
-  }
-
-  void _inicializarCarrera() {
-    final carreraId = widget.carrera['id'].toString();
-
-    // SOLUCIÓN: Obtener los turnos primero para verificar si la carrera existe
-    _turnos = _dataManager.getTurnos(carreraId);
-
-    // Si no hay turnos, significa que es una carrera nueva y debemos inicializarla
-    if (_turnos.isEmpty) {
-      _dataManager.inicializarCarrera(
-        carreraId,
-        widget.carrera['nombre'],
-        widget.carrera['color'],
-      );
-      // Volver a cargar los turnos (ahora debería estar inicializada)
-      _turnos = _dataManager.getTurnos(carreraId);
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    Color carreraColor = _parseColor(widget.carrera['color']);
+    final viewModel = Provider.of<TurnosViewModel>(context);
+    final turnos = viewModel.turnos;
+    Color carreraColor = viewModel.parseColor(carrera['color']);
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          '${widget.carrera['nombre']} - Turnos',
+          '${carrera['nombre']} - Turnos',
           style: AppTextStyles.heading2Dark(
             context,
           ).copyWith(color: Colors.white),
         ),
         backgroundColor: carreraColor,
       ),
-      body: _turnos.isEmpty
+      body: turnos.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -108,14 +96,14 @@ class _TurnosScreenState extends State<TurnosScreen> {
             )
           : ListView.builder(
               padding: EdgeInsets.all(AppSpacing.medium),
-              itemCount: _turnos.length,
+              itemCount: turnos.length,
               itemBuilder: (context, index) {
-                final turno = _turnos[index];
-                return _buildTurnoCard(turno, context, carreraColor);
+                final turno = turnos[index];
+                return _buildTurnoCard(turno, context, carreraColor, viewModel);
               },
             ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showAgregarTurnoDialog,
+        onPressed: () => _showAgregarTurnoDialog(context, viewModel),
         backgroundColor: carreraColor,
         child: Icon(Icons.add, color: Colors.white),
       ),
@@ -123,12 +111,13 @@ class _TurnosScreenState extends State<TurnosScreen> {
   }
 
   Widget _buildTurnoCard(
-    Map<String, dynamic> turno,
+    TurnoModel turno,
     BuildContext context,
     Color color,
+    TurnosViewModel viewModel,
   ) {
-    Color turnoColor = _parseColor(turno['color']);
-    bool isActivo = turno['activo'] ?? false;
+    Color turnoColor = viewModel.parseColor(turno.color);
+    bool isActivo = turno.activo;
 
     return Card(
       elevation: 4,
@@ -139,12 +128,12 @@ class _TurnosScreenState extends State<TurnosScreen> {
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: isActivo ? turnoColor : Colors.grey,
-          child: Icon(turno['icon'], color: Colors.white),
+          child: Icon(turno.icon, color: Colors.white),
         ),
         title: Row(
           children: [
             Text(
-              'Turno ${turno['nombre']}',
+              'Turno ${turno.nombre}',
               style: AppTextStyles.heading3Dark(context).copyWith(
                 color: isActivo ? _getTextColor(context) : Colors.grey,
               ),
@@ -169,19 +158,19 @@ class _TurnosScreenState extends State<TurnosScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Horario: ${turno['horario']}',
+              'Horario: ${turno.horario}',
               style: AppTextStyles.bodyDark(context).copyWith(
                 color: isActivo ? _getTextColor(context) : Colors.grey,
               ),
             ),
             Text(
-              'Días: ${turno['dias']}',
+              'Días: ${turno.dias}',
               style: AppTextStyles.bodyDark(context).copyWith(
                 color: isActivo ? _getTextColor(context) : Colors.grey,
               ),
             ),
             Text(
-              'Registro: ${turno['rangoAsistencia']}',
+              'Registro: ${turno.rangoAsistencia}',
               style: AppTextStyles.bodyDark(
                 context,
               ).copyWith(color: isActivo ? AppColors.success : Colors.grey),
@@ -189,7 +178,8 @@ class _TurnosScreenState extends State<TurnosScreen> {
           ],
         ),
         trailing: PopupMenuButton<String>(
-          onSelected: (value) => _handleMenuAction(value, turno),
+          onSelected: (value) =>
+              _handleMenuAction(value, turno, viewModel, context),
           itemBuilder: (BuildContext context) => [
             PopupMenuItem(
               value: 'edit',
@@ -211,13 +201,13 @@ class _TurnosScreenState extends State<TurnosScreen> {
               child: Row(
                 children: [
                   Icon(
-                    turno['activo'] ? Icons.toggle_off : Icons.toggle_on,
+                    turno.activo ? Icons.toggle_off : Icons.toggle_on,
                     size: 20,
                     color: _getTextColor(context),
                   ),
                   SizedBox(width: 8),
                   Text(
-                    turno['activo'] ? 'Desactivar' : 'Activar',
+                    turno.activo ? 'Desactivar' : 'Activar',
                     style: AppTextStyles.bodyDark(
                       context,
                     ).copyWith(color: _getTextColor(context)),
@@ -248,9 +238,9 @@ class _TurnosScreenState extends State<TurnosScreen> {
                   context,
                   MaterialPageRoute(
                     builder: (context) => NivelesScreen(
-                      tipo: widget.tipo,
-                      carrera: widget.carrera,
-                      turno: turno,
+                      tipo: tipo,
+                      carrera: carrera,
+                      turno: turno.toMap(),
                     ),
                   ),
                 );
@@ -260,74 +250,65 @@ class _TurnosScreenState extends State<TurnosScreen> {
     );
   }
 
-  void _handleMenuAction(String action, Map<String, dynamic> turno) {
+  void _handleMenuAction(
+    String action,
+    TurnoModel turno,
+    TurnosViewModel viewModel,
+    BuildContext context,
+  ) {
     switch (action) {
       case 'edit':
-        _showEditarTurnoDialog(turno);
+        _showEditarTurnoDialog(turno, viewModel, context);
         break;
       case 'toggle_active':
-        _toggleActivarTurno(turno);
+        _toggleActivarTurno(turno, viewModel, context);
         break;
       case 'delete':
-        _showEliminarTurnoDialog(turno);
+        _showEliminarTurnoDialog(turno, viewModel, context);
         break;
     }
   }
 
-  void _toggleActivarTurno(Map<String, dynamic> turno) {
-    final turnoActualizado = Map<String, dynamic>.from(turno);
-    turnoActualizado['activo'] = !(turno['activo'] ?? false);
-
-    _dataManager.actualizarTurno(
-      widget.carrera['id'].toString(),
-      turno['id'].toString(),
-      turnoActualizado,
-    );
-
-    setState(() {
-      _turnos = _dataManager.getTurnos(widget.carrera['id'].toString());
-    });
+  void _toggleActivarTurno(
+    TurnoModel turno,
+    TurnosViewModel viewModel,
+    BuildContext context,
+  ) {
+    viewModel.toggleActivarTurno(turno);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Turno ${turno['nombre']} ${turnoActualizado['activo'] ? 'activado' : 'desactivado'}',
+          'Turno ${turno.nombre} ${!turno.activo ? 'activado' : 'desactivado'}',
           style: AppTextStyles.bodyDark(context).copyWith(color: Colors.white),
         ),
-        backgroundColor: turnoActualizado['activo']
-            ? AppColors.success
-            : AppColors.warning,
+        backgroundColor: !turno.activo ? AppColors.success : AppColors.warning,
       ),
     );
   }
 
-  void _showAgregarTurnoDialog() {
+  void _showAgregarTurnoDialog(
+    BuildContext context,
+    TurnosViewModel viewModel,
+  ) {
     showDialog(
       context: context,
       builder: (context) => _TurnoDialog(
         title: 'Agregar Turno',
         onSave: (nombre, icon, horario, rangoAsistencia, dias, color) {
-          final nuevoTurno = {
-            'id':
-                '${widget.carrera['id']}_${DateTime.now().millisecondsSinceEpoch}',
-            'nombre': nombre,
-            'icon': icon,
-            'horario': horario,
-            'rangoAsistencia': rangoAsistencia,
-            'dias': dias,
-            'color': color,
-            'activo': true,
-            'niveles': [], // Inicializar niveles VACÍOS
-          };
-
-          _dataManager.agregarTurno(
-            widget.carrera['id'].toString(),
-            nuevoTurno,
+          final nuevoTurno = TurnoModel(
+            id: '${carrera['id']}_${DateTime.now().millisecondsSinceEpoch}',
+            nombre: nombre,
+            icon: icon,
+            horario: horario,
+            rangoAsistencia: rangoAsistencia,
+            dias: dias,
+            color: color,
+            activo: true,
+            niveles: [], // Inicializar niveles VACÍOS
           );
 
-          setState(() {
-            _turnos = _dataManager.getTurnos(widget.carrera['id'].toString());
-          });
+          viewModel.agregarTurno(nuevoTurno);
 
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -346,35 +327,32 @@ class _TurnosScreenState extends State<TurnosScreen> {
     );
   }
 
-  void _showEditarTurnoDialog(Map<String, dynamic> turno) {
+  void _showEditarTurnoDialog(
+    TurnoModel turno,
+    TurnosViewModel viewModel,
+    BuildContext context,
+  ) {
     showDialog(
       context: context,
       builder: (context) => _TurnoDialog(
         title: 'Modificar Turno',
-        nombreInicial: turno['nombre'],
-        iconoInicial: turno['icon'],
-        horarioInicial: turno['horario'],
-        rangoAsistenciaInicial: turno['rangoAsistencia'],
-        diasInicial: turno['dias'],
-        colorInicial: turno['color'],
+        nombreInicial: turno.nombre,
+        iconoInicial: turno.icon,
+        horarioInicial: turno.horario,
+        rangoAsistenciaInicial: turno.rangoAsistencia,
+        diasInicial: turno.dias,
+        colorInicial: turno.color,
         onSave: (nombre, icon, horario, rangoAsistencia, dias, color) {
-          final turnoActualizado = Map<String, dynamic>.from(turno);
-          turnoActualizado['nombre'] = nombre;
-          turnoActualizado['icon'] = icon;
-          turnoActualizado['horario'] = horario;
-          turnoActualizado['rangoAsistencia'] = rangoAsistencia;
-          turnoActualizado['dias'] = dias;
-          turnoActualizado['color'] = color;
-
-          _dataManager.actualizarTurno(
-            widget.carrera['id'].toString(),
-            turno['id'].toString(),
-            turnoActualizado,
+          final turnoActualizado = turno.copyWith(
+            nombre: nombre,
+            icon: icon,
+            horario: horario,
+            rangoAsistencia: rangoAsistencia,
+            dias: dias,
+            color: color,
           );
 
-          setState(() {
-            _turnos = _dataManager.getTurnos(widget.carrera['id'].toString());
-          });
+          viewModel.actualizarTurno(turno.id, turnoActualizado);
 
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -393,7 +371,11 @@ class _TurnosScreenState extends State<TurnosScreen> {
     );
   }
 
-  void _showEliminarTurnoDialog(Map<String, dynamic> turno) {
+  void _showEliminarTurnoDialog(
+    TurnoModel turno,
+    TurnosViewModel viewModel,
+    BuildContext context,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -405,7 +387,7 @@ class _TurnosScreenState extends State<TurnosScreen> {
           ).copyWith(color: _getTextColor(context)),
         ),
         content: Text(
-          '¿Estás seguro de eliminar el Turno ${turno['nombre']}? Esta acción no se puede deshacer.',
+          '¿Estás seguro de eliminar el Turno ${turno.nombre}? Esta acción no se puede deshacer.',
           style: AppTextStyles.bodyDark(
             context,
           ).copyWith(color: _getTextColor(context)),
@@ -422,18 +404,9 @@ class _TurnosScreenState extends State<TurnosScreen> {
           ),
           TextButton(
             onPressed: () {
-              String nombreTurno = turno['nombre'];
+              String nombreTurno = turno.nombre;
 
-              _dataManager.eliminarTurno(
-                widget.carrera['id'].toString(),
-                turno['id'].toString(),
-              );
-
-              setState(() {
-                _turnos = _dataManager.getTurnos(
-                  widget.carrera['id'].toString(),
-                );
-              });
+              viewModel.eliminarTurno(turno.id);
 
               Navigator.pop(context);
 
@@ -460,17 +433,9 @@ class _TurnosScreenState extends State<TurnosScreen> {
       ),
     );
   }
-
-  Color _parseColor(String colorString) {
-    try {
-      return Color(int.parse(colorString.replaceAll('#', '0xFF')));
-    } catch (e) {
-      return AppColors.primary;
-    }
-  }
 }
 
-// Diálogo para agregar/modificar turnos
+// Diálogo para agregar/modificar turnos (se mantiene igual)
 class _TurnoDialog extends StatefulWidget {
   final String title;
   final String? nombreInicial;

@@ -81,7 +81,7 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
                       const SizedBox(height: 12),
 
                       // Botón para Todas las Materias
-                      Container(
+                      SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
                           icon: Icon(
@@ -378,7 +378,7 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
     if (mostrarTodas) {
       filtros.add('Todas las materias');
     } else {
-      filtros.add('${anioSeleccionado}° Año');
+      filtros.add('$anioSeleccionado° Año');
     }
 
     if (query.isNotEmpty) {

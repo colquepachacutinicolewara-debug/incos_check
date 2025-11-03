@@ -18,7 +18,7 @@ class SoporteViewModel {
     }
   }
 
-  // Abrir correo
+  // Abrir correzo
   Future<void> openGmail() async {
     final String subject = Uri.encodeComponent(model.emailSubject);
     final String body = Uri.encodeComponent(model.emailBody);

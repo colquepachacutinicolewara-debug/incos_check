@@ -17,9 +17,10 @@ class DataManager {
     String carreraNombre,
     String color,
   ) {
-    if (!_carrerasData.containsKey(carreraId)) {
-      _carrerasData[carreraId] = {
-        'id': carreraId,
+    final key = carreraId.toString();
+    if (!_carrerasData.containsKey(key)) {
+      _carrerasData[key] = {
+        'id': key,
         'nombre': carreraNombre,
         'color': color,
         'turnos': [],
@@ -27,8 +28,8 @@ class DataManager {
       };
 
       // SOLO para Sistemas Informáticos agregar datos por defecto
-      if (carreraNombre == 'Sistemas Informáticos' && carreraId == '1') {
-        _agregarDatosPorDefectoSistemas(carreraId);
+      if (carreraNombre == 'Sistemas Informáticos' && key == '1') {
+        _agregarDatosPorDefectoSistemas(key);
       }
     }
   }
@@ -39,7 +40,7 @@ class DataManager {
       {
         'id': '${carreraId}_manana',
         'nombre': 'Mañana',
-        'icon': Icons.wb_sunny,
+        'icon': _serializeIcon(Icons.wb_sunny),
         'horario': '08:00 - 13:00',
         'rangoAsistencia': '07:45 - 08:15',
         'dias': 'Lunes a Viernes',
@@ -84,7 +85,7 @@ class DataManager {
       {
         'id': '${carreraId}_noche',
         'nombre': 'Noche',
-        'icon': Icons.nights_stay,
+        'icon': _serializeIcon(Icons.nights_stay),
         'horario': '18:30 - 22:00',
         'rangoAsistencia': '18:30 - 19:30',
         'dias': 'Lunes a Viernes',
@@ -122,7 +123,7 @@ class DataManager {
     ];
 
     // Agregar turnos por defecto
-    _carrerasData[carreraId]!['turnos'] = turnosPorDefecto;
+  _carrerasData[carreraId]!['turnos'] = turnosPorDefecto;
 
     // Agregar docentes por defecto
     _carrerasData[carreraId]!['docentes'] = docentesPorDefecto;
@@ -131,17 +132,29 @@ class DataManager {
   // ========== MÉTODOS PARA CARRERAS ==========
 
   List<Map<String, dynamic>> getCarreras() {
-    return _carrerasData.values.toList();
+    // Devolver copias con iconos deserializados
+    return _carrerasData.values
+        .map((c) => _deserializeCarrera(Map<String, dynamic>.from(c)))
+        .toList();
   }
 
   Map<String, dynamic>? getCarrera(String carreraId) {
-    return _carrerasData[carreraId];
+    final key = carreraId.toString();
+    final raw = _carrerasData[key];
+    if (raw == null) return null;
+    return _deserializeCarrera(Map<String, dynamic>.from(raw));
   }
 
   void agregarCarrera(Map<String, dynamic> carrera) {
     String carreraId = carrera['id'].toString();
     if (!_carrerasData.containsKey(carreraId)) {
-      _carrerasData[carreraId] = {...carrera, 'turnos': [], 'docentes': []};
+      final stored = Map<String, dynamic>.from(carrera);
+      stored['id'] = carreraId.toString();
+      stored['icon'] = _serializeIcon(stored['icon']);
+      stored['turnos'] = stored['turnos'] ?? [];
+      stored['docentes'] = stored['docentes'] ?? [];
+      final safe = _ensureJsonCompatible(stored);
+      _carrerasData[carreraId] = safe;
     }
   }
 
@@ -149,36 +162,48 @@ class DataManager {
     String carreraId,
     Map<String, dynamic> carreraActualizada,
   ) {
-    if (_carrerasData.containsKey(carreraId)) {
-      _carrerasData[carreraId] = {
-        ..._carrerasData[carreraId]!,
-        ...carreraActualizada,
-        'turnos': _carrerasData[carreraId]!['turnos'] ?? [],
-        'docentes': _carrerasData[carreraId]!['docentes'] ?? [],
-      };
+    final key = carreraId.toString();
+    if (_carrerasData.containsKey(key)) {
+      final merged = {..._carrerasData[key]!, ...carreraActualizada};
+      if (merged.containsKey('icon')) {
+        merged['icon'] = _serializeIcon(merged['icon']);
+      }
+      merged['turnos'] = _carrerasData[key]!['turnos'] ?? [];
+      merged['docentes'] = _carrerasData[key]!['docentes'] ?? [];
+      final safe = _ensureJsonCompatible(Map<String, dynamic>.from(merged));
+      _carrerasData[key] = safe;
     }
   }
 
   void eliminarCarrera(String carreraId) {
-    _carrerasData.remove(carreraId);
+    final key = carreraId.toString();
+    _carrerasData.remove(key);
   }
 
   // ========== MÉTODOS PARA TURNOS ==========
 
   List<Map<String, dynamic>> getTurnos(String carreraId) {
-    final carrera = _carrerasData[carreraId];
+    final key = carreraId.toString();
+    final carrera = _carrerasData[key];
     if (carrera != null && carrera['turnos'] != null) {
-      return List<Map<String, dynamic>>.from(carrera['turnos']);
+      // Deserializar iconos de turnos antes de devolver
+      return (List<Map<String, dynamic>>.from(carrera['turnos']))
+          .map((t) => _deserializeTurno(Map<String, dynamic>.from(t)))
+          .toList();
     }
     return [];
   }
 
   void agregarTurno(String carreraId, Map<String, dynamic> turno) {
-    if (_carrerasData.containsKey(carreraId)) {
-      if (_carrerasData[carreraId]!['turnos'] == null) {
-        _carrerasData[carreraId]!['turnos'] = [];
+    final key = carreraId.toString();
+    if (_carrerasData.containsKey(key)) {
+      if (_carrerasData[key]!['turnos'] == null) {
+        _carrerasData[key]!['turnos'] = [];
       }
-      _carrerasData[carreraId]!['turnos'].add(turno);
+      final stored = Map<String, dynamic>.from(turno);
+      if (stored.containsKey('icon')) stored['icon'] = _serializeIcon(stored['icon']);
+      final safe = _ensureJsonCompatible(stored);
+      _carrerasData[key]!['turnos'].add(safe);
     }
   }
 
@@ -187,22 +212,27 @@ class DataManager {
     String turnoId,
     Map<String, dynamic> turnoActualizado,
   ) {
-    if (_carrerasData.containsKey(carreraId)) {
-      final turnos = _carrerasData[carreraId]!['turnos'];
+    final key = carreraId.toString();
+    if (_carrerasData.containsKey(key)) {
+      final turnos = _carrerasData[key]!['turnos'];
       if (turnos != null) {
         final index = turnos.indexWhere(
           (t) => t['id'].toString() == turnoId.toString(),
         );
         if (index != -1) {
-          turnos[index] = turnoActualizado;
+          final stored = Map<String, dynamic>.from(turnoActualizado);
+          if (stored.containsKey('icon')) stored['icon'] = _serializeIcon(stored['icon']);
+          final safe = _ensureJsonCompatible(stored);
+          turnos[index] = safe;
         }
       }
     }
   }
 
   void eliminarTurno(String carreraId, String turnoId) {
-    if (_carrerasData.containsKey(carreraId)) {
-      final turnos = _carrerasData[carreraId]!['turnos'];
+    final key = carreraId.toString();
+    if (_carrerasData.containsKey(key)) {
+      final turnos = _carrerasData[key]!['turnos'];
       if (turnos != null) {
         turnos.removeWhere((t) => t['id'].toString() == turnoId.toString());
       }
@@ -212,7 +242,7 @@ class DataManager {
   // ========== MÉTODOS PARA NIVELES ==========
 
   List<Map<String, dynamic>> getNiveles(String carreraId, String turnoId) {
-    final turno = _getTurno(carreraId, turnoId);
+    final turno = _getTurno(carreraId.toString(), turnoId);
     if (turno != null && turno['niveles'] != null) {
       return List<Map<String, dynamic>>.from(turno['niveles']);
     }
@@ -224,12 +254,12 @@ class DataManager {
     String turnoId,
     Map<String, dynamic> nivel,
   ) {
-    final turno = _getTurno(carreraId, turnoId);
+    final turno = _getTurno(carreraId.toString(), turnoId);
     if (turno != null) {
       if (turno['niveles'] == null) {
         turno['niveles'] = [];
       }
-      turno['niveles'].add(nivel);
+      turno['niveles'].add(_ensureJsonCompatible(Map<String, dynamic>.from(nivel)));
     }
   }
 
@@ -239,20 +269,20 @@ class DataManager {
     String nivelId,
     Map<String, dynamic> nivelActualizado,
   ) {
-    final turno = _getTurno(carreraId, turnoId);
+    final turno = _getTurno(carreraId.toString(), turnoId);
     if (turno != null && turno['niveles'] != null) {
       final niveles = turno['niveles'];
       final index = niveles.indexWhere(
         (n) => n['id'].toString() == nivelId.toString(),
       );
       if (index != -1) {
-        niveles[index] = nivelActualizado;
+        niveles[index] = _ensureJsonCompatible(Map<String, dynamic>.from(nivelActualizado));
       }
     }
   }
 
   void eliminarNivel(String carreraId, String turnoId, String nivelId) {
-    final turno = _getTurno(carreraId, turnoId);
+    final turno = _getTurno(carreraId.toString(), turnoId);
     if (turno != null && turno['niveles'] != null) {
       turno['niveles'].removeWhere(
         (n) => n['id'].toString() == nivelId.toString(),
@@ -267,7 +297,7 @@ class DataManager {
     String turnoId,
     String nivelId,
   ) {
-    final nivel = _getNivel(carreraId, turnoId, nivelId);
+    final nivel = _getNivel(carreraId.toString(), turnoId, nivelId);
     if (nivel != null && nivel['paralelos'] != null) {
       return List<Map<String, dynamic>>.from(nivel['paralelos']);
     }
@@ -280,12 +310,12 @@ class DataManager {
     String nivelId,
     Map<String, dynamic> paralelo,
   ) {
-    final nivel = _getNivel(carreraId, turnoId, nivelId);
+    final nivel = _getNivel(carreraId.toString(), turnoId, nivelId);
     if (nivel != null) {
       if (nivel['paralelos'] == null) {
         nivel['paralelos'] = [];
       }
-      nivel['paralelos'].add(paralelo);
+      nivel['paralelos'].add(_ensureJsonCompatible(Map<String, dynamic>.from(paralelo)));
     }
   }
 
@@ -296,14 +326,14 @@ class DataManager {
     String paraleloId,
     Map<String, dynamic> paraleloActualizado,
   ) {
-    final nivel = _getNivel(carreraId, turnoId, nivelId);
+    final nivel = _getNivel(carreraId.toString(), turnoId, nivelId);
     if (nivel != null && nivel['paralelos'] != null) {
       final paralelos = nivel['paralelos'];
       final index = paralelos.indexWhere(
         (p) => p['id'].toString() == paraleloId.toString(),
       );
       if (index != -1) {
-        paralelos[index] = paraleloActualizado;
+        paralelos[index] = _ensureJsonCompatible(Map<String, dynamic>.from(paraleloActualizado));
       }
     }
   }
@@ -314,7 +344,7 @@ class DataManager {
     String nivelId,
     String paraleloId,
   ) {
-    final nivel = _getNivel(carreraId, turnoId, nivelId);
+    final nivel = _getNivel(carreraId.toString(), turnoId, nivelId);
     if (nivel != null && nivel['paralelos'] != null) {
       nivel['paralelos'].removeWhere(
         (p) => p['id'].toString() == paraleloId.toString(),
@@ -330,7 +360,12 @@ class DataManager {
     String nivelId,
     String paraleloId,
   ) {
-    final paralelo = _getParalelo(carreraId, turnoId, nivelId, paraleloId);
+    final paralelo = _getParalelo(
+      carreraId.toString(),
+      turnoId,
+      nivelId,
+      paraleloId,
+    );
     if (paralelo != null && paralelo['estudiantes'] != null) {
       return List<Map<String, dynamic>>.from(paralelo['estudiantes']);
     }
@@ -344,12 +379,17 @@ class DataManager {
     String paraleloId,
     Map<String, dynamic> estudiante,
   ) {
-    final paralelo = _getParalelo(carreraId, turnoId, nivelId, paraleloId);
+    final paralelo = _getParalelo(
+      carreraId.toString(),
+      turnoId,
+      nivelId,
+      paraleloId,
+    );
     if (paralelo != null) {
       if (paralelo['estudiantes'] == null) {
         paralelo['estudiantes'] = [];
       }
-      paralelo['estudiantes'].add(estudiante);
+      paralelo['estudiantes'].add(_ensureJsonCompatible(Map<String, dynamic>.from(estudiante)));
     }
   }
 
@@ -361,14 +401,19 @@ class DataManager {
     String estudianteId,
     Map<String, dynamic> estudianteActualizado,
   ) {
-    final paralelo = _getParalelo(carreraId, turnoId, nivelId, paraleloId);
+    final paralelo = _getParalelo(
+      carreraId.toString(),
+      turnoId,
+      nivelId,
+      paraleloId,
+    );
     if (paralelo != null && paralelo['estudiantes'] != null) {
       final estudiantes = paralelo['estudiantes'];
       final index = estudiantes.indexWhere(
         (e) => e['id'].toString() == estudianteId.toString(),
       );
       if (index != -1) {
-        estudiantes[index] = estudianteActualizado;
+        estudiantes[index] = _ensureJsonCompatible(Map<String, dynamic>.from(estudianteActualizado));
       }
     }
   }
@@ -380,7 +425,12 @@ class DataManager {
     String paraleloId,
     String estudianteId,
   ) {
-    final paralelo = _getParalelo(carreraId, turnoId, nivelId, paraleloId);
+    final paralelo = _getParalelo(
+      carreraId.toString(),
+      turnoId,
+      nivelId,
+      paraleloId,
+    );
     if (paralelo != null && paralelo['estudiantes'] != null) {
       paralelo['estudiantes'].removeWhere(
         (e) => e['id'].toString() == estudianteId.toString(),
@@ -391,7 +441,8 @@ class DataManager {
   // ========== MÉTODOS PARA DOCENTES ==========
 
   List<Map<String, dynamic>> getDocentes(String carreraId) {
-    final carrera = _carrerasData[carreraId];
+    final key = carreraId.toString();
+    final carrera = _carrerasData[key];
     if (carrera != null && carrera['docentes'] != null) {
       return List<Map<String, dynamic>>.from(carrera['docentes']);
     }
@@ -399,11 +450,12 @@ class DataManager {
   }
 
   void agregarDocente(String carreraId, Map<String, dynamic> docente) {
-    if (_carrerasData.containsKey(carreraId)) {
-      if (_carrerasData[carreraId]!['docentes'] == null) {
-        _carrerasData[carreraId]!['docentes'] = [];
+    final key = carreraId.toString();
+    if (_carrerasData.containsKey(key)) {
+      if (_carrerasData[key]!['docentes'] == null) {
+        _carrerasData[key]!['docentes'] = [];
       }
-      _carrerasData[carreraId]!['docentes'].add(docente);
+      _carrerasData[key]!['docentes'].add(_ensureJsonCompatible(Map<String, dynamic>.from(docente)));
     }
   }
 
@@ -412,22 +464,24 @@ class DataManager {
     String docenteId,
     Map<String, dynamic> docenteActualizado,
   ) {
-    if (_carrerasData.containsKey(carreraId)) {
-      final docentes = _carrerasData[carreraId]!['docentes'];
+    final key = carreraId.toString();
+    if (_carrerasData.containsKey(key)) {
+      final docentes = _carrerasData[key]!['docentes'];
       if (docentes != null) {
         final index = docentes.indexWhere(
           (d) => d['id'].toString() == docenteId.toString(),
         );
         if (index != -1) {
-          docentes[index] = docenteActualizado;
+          docentes[index] = _ensureJsonCompatible(Map<String, dynamic>.from(docenteActualizado));
         }
       }
     }
   }
 
   void eliminarDocente(String carreraId, String docenteId) {
-    if (_carrerasData.containsKey(carreraId)) {
-      final docentes = _carrerasData[carreraId]!['docentes'];
+    final key = carreraId.toString();
+    if (_carrerasData.containsKey(key)) {
+      final docentes = _carrerasData[key]!['docentes'];
       if (docentes != null) {
         docentes.removeWhere((d) => d['id'].toString() == docenteId.toString());
       }
@@ -437,8 +491,9 @@ class DataManager {
   // ========== MÉTODOS AUXILIARES PRIVADOS ==========
 
   Map<String, dynamic>? _getTurno(String carreraId, String turnoId) {
-    if (_carrerasData.containsKey(carreraId)) {
-      final turnos = _carrerasData[carreraId]!['turnos'];
+    final key = carreraId.toString();
+    if (_carrerasData.containsKey(key)) {
+      final turnos = _carrerasData[key]!['turnos'];
       if (turnos != null) {
         try {
           return turnos.firstWhere(
@@ -457,7 +512,7 @@ class DataManager {
     String turnoId,
     String nivelId,
   ) {
-    final turno = _getTurno(carreraId, turnoId);
+    final turno = _getTurno(carreraId.toString(), turnoId);
     if (turno != null && turno['niveles'] != null) {
       try {
         return turno['niveles'].firstWhere(
@@ -476,7 +531,7 @@ class DataManager {
     String nivelId,
     String paraleloId,
   ) {
-    final nivel = _getNivel(carreraId, turnoId, nivelId);
+    final nivel = _getNivel(carreraId.toString(), turnoId, nivelId);
     if (nivel != null && nivel['paralelos'] != null) {
       try {
         return nivel['paralelos'].firstWhere(
@@ -489,6 +544,90 @@ class DataManager {
     return null;
   }
 
+  // ========== HELPERS DE ICONOS / DESERIALIZACIÓN ==========
+
+  dynamic _serializeIcon(dynamic icon) {
+    if (icon is IconData) {
+      return {'codePoint': icon.codePoint, 'fontFamily': icon.fontFamily};
+    }
+    if (icon is Map) return icon;
+    if (icon is int) return {'codePoint': icon, 'fontFamily': 'MaterialIcons'};
+    return null;
+  }
+
+  IconData _deserializeIcon(dynamic iconField) {
+    try {
+      if (iconField is IconData) return iconField;
+      if (iconField is Map) {
+        final cp = iconField['codePoint'];
+        final ff = iconField['fontFamily'];
+        if (cp is int) return IconData(cp, fontFamily: ff as String?);
+        if (cp is String) {
+          final parsed = int.tryParse(cp);
+          if (parsed != null) return IconData(parsed, fontFamily: ff as String?);
+        }
+      }
+      if (iconField is int) return IconData(iconField, fontFamily: 'MaterialIcons');
+    } catch (e) {
+      // fallback below
+    }
+    return Icons.help;
+  }
+
+  // Asegura que el mapa/listas sean compatibles con JSON/operaciones que
+  // esperan Map<String, Object> en tiempo de ejecución. Convierte recursivamente
+  // IconData a mapas serializables y normaliza mapas anidados.
+  Map<String, dynamic> _ensureJsonCompatible(Map<String, dynamic> input) {
+    final out = <String, dynamic>{};
+    input.forEach((key, value) {
+      if (value is IconData) {
+        out[key] = _serializeIcon(value);
+      } else if (value is Map) {
+        try {
+          out[key] = _ensureJsonCompatible(Map<String, dynamic>.from(value));
+        } catch (e) {
+          out[key] = value;
+        }
+      } else if (value is List) {
+        out[key] = value.map((e) {
+          if (e is IconData) return _serializeIcon(e);
+          if (e is Map) return _ensureJsonCompatible(Map<String, dynamic>.from(e));
+          return e;
+        }).toList();
+      } else {
+        out[key] = value;
+      }
+    });
+    return out;
+  }
+
+  Map<String, dynamic> _deserializeTurno(Map<String, dynamic> t) {
+    final m = Map<String, dynamic>.from(t);
+    m['icon'] = _deserializeIcon(m['icon']);
+    return m;
+  }
+
+  Map<String, dynamic> _deserializeCarrera(Map<String, dynamic> c) {
+    final m = Map<String, dynamic>.from(c);
+    m['icon'] = _deserializeIcon(m['icon']);
+    // Normalizar campo 'activa' a boolean
+    final a = m['activa'];
+    if (a is bool) {
+      m['activa'] = a;
+    } else if (a is String) {
+      m['activa'] = a.toLowerCase() == 'true';
+    } else if (a is int) {
+      m['activa'] = a != 0;
+    } else {
+      m['activa'] = false;
+    }
+    final turnos = m['turnos'];
+    if (turnos is List) {
+      m['turnos'] = turnos.map((t) => _deserializeTurno(Map<String, dynamic>.from(t))).toList();
+    }
+    return m;
+  }
+
   // ========== MÉTODOS DE UTILIDAD ==========
 
   void limpiarTodosLosDatos() {
@@ -496,7 +635,8 @@ class DataManager {
   }
 
   bool existeCarrera(String carreraId) {
-    return _carrerasData.containsKey(carreraId);
+    final key = carreraId.toString();
+    return _carrerasData.containsKey(key);
   }
 
   Map<String, int> getEstadisticas() {

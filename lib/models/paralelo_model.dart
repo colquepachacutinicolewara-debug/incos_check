@@ -1,8 +1,8 @@
 class Paralelo {
-  final dynamic id;
+  final String id;
   final String nombre;
-  bool activo;
-  List<Map<String, dynamic>> estudiantes;
+  final bool activo;
+  final List<Map<String, dynamic>> estudiantes;
 
   Paralelo({
     required this.id,
@@ -22,15 +22,15 @@ class Paralelo {
 
   factory Paralelo.fromMap(Map<String, dynamic> map) {
     return Paralelo(
-      id: map['id'],
-      nombre: map['nombre'],
+      id: map['id'] ?? '',
+      nombre: map['nombre'] ?? '',
       activo: map['activo'] ?? true,
       estudiantes: List<Map<String, dynamic>>.from(map['estudiantes'] ?? []),
     );
   }
 
   Paralelo copyWith({
-    dynamic id,
+    String? id,
     String? nombre,
     bool? activo,
     List<Map<String, dynamic>>? estudiantes,

@@ -1,11 +1,13 @@
+// views/gestion_screen.dart
 import 'package:flutter/material.dart';
 import 'package:incos_check/utils/constants.dart';
-import 'package:incos_check/utils/helpers.dart';
+import 'package:provider/provider.dart';
+import '../../viewmodels/gestion_viewmodel.dart';
 import 'carreras_screen.dart';
 import 'turnos_screen.dart';
 import '../../views/gestion/materias_screen.dart';
 import '../../views/gestion/programas/programas_screen.dart';
-import 'docentes_screen.dart'; // Importar DocentesScreen directamente
+import 'docentes_screen.dart';
 
 class GestionScreen extends StatefulWidget {
   const GestionScreen({super.key});
@@ -15,205 +17,137 @@ class GestionScreen extends StatefulWidget {
 }
 
 class _GestionScreenState extends State<GestionScreen> {
-  String _carreraSeleccionada = 'Sistemas Informáticos';
-  List<String> _carreras = ['Sistemas Informáticos'];
-
-  // Constantes para strings
-  static const _kCarreraDefault = 'Sistemas Informáticos';
-  static const _kCarreraIdiomas = 'Idioma Inglés';
-
-  // Configuración de carreras predefinidas
-  final Map<String, Map<String, dynamic>> _carrerasConfig = {
-    'Sistemas Informáticos': {
-      'id': 1,
-      'nombre': 'Sistemas Informáticos',
-      'color': '#1565C0',
-      'icon': Icons.computer,
-      'activa': true,
-    },
-    'Idioma Inglés': {
-      'id': 2,
-      'nombre': 'Idioma Inglés',
-      'color': '#F44336',
-      'icon': Icons.language,
-      'activa': true,
-    },
-  };
-
-  // Funciones para obtener colores según el tema
-  Color _getBackgroundColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade900
-        : AppColors.background;
-  }
-
-  Color _getCardColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade800
-        : Colors.white;
-  }
-
-  Color _getTextColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.white
-        : Colors.black;
-  }
-
-  Color _getSecondaryTextColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.white70
-        : Colors.black87;
-  }
-
-  Color _getDropdownBackgroundColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade800
-        : Colors.grey.shade50;
-  }
-
-  Color _getBorderColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade600
-        : Colors.grey.shade300;
-  }
-
-  // Método para obtener configuración de carrera
-  Map<String, dynamic> _getCarreraConfig(String carrera) {
-    return _carrerasConfig[carrera] ??
-        {
-          'id': DateTime.now().millisecondsSinceEpoch,
-          'nombre': carrera,
-          'color': '#9C27B0',
-          'icon': Icons.school,
-          'activa': true,
-        };
-  }
-
-  // Método para actualizar carreras desde CarrerasScreen
-  void _actualizarCarreras(List<String> nuevasCarreras) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      setState(() {
-        _carreras = nuevasCarreras;
-        if (!_carreras.contains(_carreraSeleccionada) && _carreras.isNotEmpty) {
-          _carreraSeleccionada = _carreras.first;
-        }
-      });
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _getBackgroundColor(context),
-      appBar: AppBar(
-        title: Text(
-          'Gestión Académica',
-          style: AppTextStyles.heading2.copyWith(color: Colors.white),
+    return ChangeNotifierProvider(
+      create: (context) => GestionViewModel(),
+      child: Scaffold(
+        backgroundColor: _getBackgroundColor(context),
+        appBar: AppBar(
+          title: Text(
+            'Gestión Académica',
+            style: AppTextStyles.heading2.copyWith(color: Colors.white),
+          ),
+          backgroundColor: AppColors.secondary,
+          iconTheme: const IconThemeData(color: Colors.white),
         ),
-        backgroundColor: AppColors.secondary,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: Column(
-        children: [
-          // Selector de Carrera
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.medium),
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.medium,
-              ),
-              decoration: BoxDecoration(
-                color: _getDropdownBackgroundColor(context),
-                borderRadius: BorderRadius.circular(AppRadius.medium),
-                border: Border.all(color: _getBorderColor(context)),
-              ),
-              child: DropdownButton<String>(
-                value: _carreraSeleccionada,
-                isExpanded: true,
-                underline: const SizedBox(),
-                dropdownColor: _getDropdownBackgroundColor(context),
-                items: _carreras.map((String carrera) {
-                  return DropdownMenuItem<String>(
-                    value: carrera,
-                    child: Text(
-                      carrera,
-                      style: TextStyle(color: _getTextColor(context)),
-                    ),
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
-                  setState(() {
-                    _carreraSeleccionada = newValue!;
-                  });
-                },
-              ),
-            ),
-          ),
-
-          // Título de la carrera seleccionada
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.medium),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Carrera: $_carreraSeleccionada',
-                style: AppTextStyles.heading3.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.secondary,
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: AppSpacing.medium),
-
-          // Grid de opciones de gestión
-          Expanded(
-            child: GridView.count(
-              crossAxisCount: 2,
-              padding: const EdgeInsets.all(AppSpacing.medium),
-              childAspectRatio: 1.0,
+        body: Consumer<GestionViewModel>(
+          builder: (context, viewModel, child) {
+            return Column(
               children: [
-                _buildMenuCard(
-                  context,
-                  'Estudiantes',
-                  Icons.people,
-                  UserThemeColors.estudiante,
-                  () => _navigateToEstudiantes(context),
+                // Selector de Carrera
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.medium),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.medium,
+                    ),
+                    decoration: BoxDecoration(
+                      color: viewModel.getDropdownBackgroundColor(context),
+                      borderRadius: BorderRadius.circular(AppRadius.medium),
+                      border: Border.all(
+                        color: viewModel.getBorderColor(context),
+                      ),
+                    ),
+                    child: DropdownButton<String>(
+                      value: viewModel.carreraSeleccionada,
+                      isExpanded: true,
+                      underline: const SizedBox(),
+                      dropdownColor: viewModel.getDropdownBackgroundColor(
+                        context,
+                      ),
+                      items: viewModel.carreras.map((String carrera) {
+                        return DropdownMenuItem<String>(
+                          value: carrera,
+                          child: Text(
+                            carrera,
+                            style: TextStyle(
+                              color: viewModel.getTextColor(context),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        if (newValue != null) {
+                          viewModel.seleccionarCarrera(newValue);
+                        }
+                      },
+                    ),
+                  ),
                 ),
-                _buildMenuCard(
-                  context,
-                  'Cursos',
-                  Icons.book,
-                  AppColors.success,
-                  () => _navigateToCursos(context),
+
+                // Título de la carrera seleccionada
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.medium,
+                  ),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Carrera: ${viewModel.carreraSeleccionada}',
+                      style: AppTextStyles.heading3.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.secondary,
+                      ),
+                    ),
+                  ),
                 ),
-                _buildMenuCard(
-                  context,
-                  'Carreras',
-                  Icons.school,
-                  AppColors.warning,
-                  () => _navigateToCarrerasGestion(context),
-                ),
-                _buildMenuCard(
-                  context,
-                  'Docentes',
-                  Icons.person,
-                  UserThemeColors.docente,
-                  () => _navigateToDocentes(
-                    context,
-                  ), // MODIFICADO: Llamada directa
+
+                const SizedBox(height: AppSpacing.medium),
+
+                // Grid de opciones de gestión
+                Expanded(
+                  child: GridView.count(
+                    crossAxisCount: 2,
+                    padding: const EdgeInsets.all(AppSpacing.medium),
+                    childAspectRatio: 1.0,
+                    children: [
+                      _buildMenuCard(
+                        context,
+                        viewModel,
+                        'Estudiantes',
+                        Icons.people,
+                        UserThemeColors.estudiante,
+                        () => _navigateToEstudiantes(context, viewModel),
+                      ),
+                      _buildMenuCard(
+                        context,
+                        viewModel,
+                        'Cursos',
+                        Icons.book,
+                        AppColors.success,
+                        () => _navigateToCursos(context),
+                      ),
+                      _buildMenuCard(
+                        context,
+                        viewModel,
+                        'Carreras',
+                        Icons.school,
+                        AppColors.warning,
+                        () => _navigateToCarrerasGestion(context, viewModel),
+                      ),
+                      _buildMenuCard(
+                        context,
+                        viewModel,
+                        'Docentes',
+                        Icons.person,
+                        UserThemeColors.docente,
+                        () => _navigateToDocentes(context, viewModel),
+                      ),
+                    ],
+                  ),
                 ),
               ],
-            ),
-          ),
-        ],
+            );
+          },
+        ),
       ),
     );
   }
 
   Widget _buildMenuCard(
     BuildContext context,
+    GestionViewModel viewModel,
     String title,
     IconData icon,
     Color color,
@@ -222,7 +156,7 @@ class _GestionScreenState extends State<GestionScreen> {
     return Card(
       elevation: 4,
       margin: const EdgeInsets.all(AppSpacing.small),
-      color: _getCardColor(context),
+      color: viewModel.getCardColor(context),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.medium),
       ),
@@ -240,15 +174,15 @@ class _GestionScreenState extends State<GestionScreen> {
                 title,
                 style: AppTextStyles.body.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: _getTextColor(context),
+                  color: viewModel.getTextColor(context),
                 ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.small),
               Text(
-                _carreraSeleccionada,
+                viewModel.carreraSeleccionada,
                 style: TextStyle(
-                  color: _getSecondaryTextColor(context),
+                  color: viewModel.getSecondaryTextColor(context),
                   fontSize: 12,
                   fontWeight: FontWeight.normal,
                 ),
@@ -263,22 +197,26 @@ class _GestionScreenState extends State<GestionScreen> {
     );
   }
 
-  // Navegación a TurnosScreen para Estudiantes
-  void _navigateToEstudiantes(BuildContext context) {
-    final carreraConfig = _getCarreraConfig(_carreraSeleccionada);
+  // Funciones de navegación
+  void _navigateToEstudiantes(
+    BuildContext context,
+    GestionViewModel viewModel,
+  ) {
+    final carreraConfig = viewModel.getCarreraConfig(
+      viewModel.carreraSeleccionada,
+    );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) =>
-              TurnosScreen(tipo: 'Estudiantes', carrera: carreraConfig),
+              TurnosScreen(tipo: 'Estudiantes', carrera: carreraConfig.toMap()),
         ),
       );
     });
   }
 
-  // Navegación DIRECTA a MateriasScreen para Cursos
   void _navigateToCursos(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Navigator.push(
@@ -288,37 +226,39 @@ class _GestionScreenState extends State<GestionScreen> {
     });
   }
 
-  // NUEVO MÉTODO: Navegación DIRECTA a DocentesScreen
-  void _navigateToDocentes(BuildContext context) {
-    final carreraConfig = _getCarreraConfig(_carreraSeleccionada);
+  void _navigateToDocentes(BuildContext context, GestionViewModel viewModel) {
+    final carreraConfig = viewModel.getCarreraConfig(
+      viewModel.carreraSeleccionada,
+    );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => DocentesScreen(carrera: carreraConfig),
+          builder: (context) => DocentesScreen(carrera: carreraConfig.toMap()),
         ),
       );
     });
   }
 
-  // Navegación a CarrerasScreen para Gestión
-  void _navigateToCarrerasGestion(BuildContext context) {
+  void _navigateToCarrerasGestion(
+    BuildContext context,
+    GestionViewModel viewModel,
+  ) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => CarrerasScreen(
             tipo: 'Gestión',
-            carreraSeleccionada: _carreraSeleccionada,
-            onCarrerasActualizadas: _actualizarCarreras,
+            carreraSeleccionada: viewModel.carreraSeleccionada,
+            onCarrerasActualizadas: viewModel.actualizarCarreras,
           ),
         ),
       );
     });
   }
 
-  // Navegación a ProgramasScreen
   void _navigateToProgramas(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Navigator.push(
@@ -326,5 +266,12 @@ class _GestionScreenState extends State<GestionScreen> {
         MaterialPageRoute(builder: (context) => ProgramasScreen()),
       );
     });
+  }
+
+  // Helper method para background color
+  Color _getBackgroundColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade900
+        : Colors.grey.shade100;
   }
 }

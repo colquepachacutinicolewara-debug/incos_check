@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:incos_check/utils/constants.dart';
+import '../models/nivel_model.dart';
 import 'package:incos_check/utils/data_manager.dart';
-import 'package:incos_check/models/nivel_model.dart';
 
-class NivelViewModel extends ChangeNotifier {
+class NivelesViewModel with ChangeNotifier {
   final DataManager _dataManager = DataManager();
   final Map<String, dynamic> carrera;
   final Map<String, dynamic> turno;
@@ -12,8 +11,11 @@ class NivelViewModel extends ChangeNotifier {
   List<NivelModel> _niveles = [];
   List<NivelModel> get niveles => _niveles;
 
-  final TextEditingController nombreController = TextEditingController();
-  final TextEditingController editarNombreController = TextEditingController();
+  final TextEditingController _nombreController = TextEditingController();
+  TextEditingController get nombreController => _nombreController;
+
+  final TextEditingController _editarNombreController = TextEditingController();
+  TextEditingController get editarNombreController => _editarNombreController;
 
   // Mapeo de nombres a valores de orden
   final Map<String, int> _ordenNiveles = {
@@ -29,7 +31,155 @@ class NivelViewModel extends ChangeNotifier {
     'décimo': 10,
   };
 
-  NivelViewModel({
+  // Mapeo de años a materias para Sistemas Informáticos
+  final Map<int, List<Map<String, dynamic>>> _materiasPorAnio = {
+    1: [
+      {
+        'id': 'hardware',
+        'codigo': 'HARD101',
+        'nombre': 'Hardware de Computadoras',
+        'color': '#FF6B6B',
+      },
+      {
+        'id': 'matematica',
+        'codigo': 'MAT101',
+        'nombre': 'Matemática para la Informática',
+        'color': '#4ECDC4',
+      },
+      {
+        'id': 'ingles',
+        'codigo': 'ING101',
+        'nombre': 'Inglés Técnico',
+        'color': '#45B7D1',
+      },
+      {
+        'id': 'web1',
+        'codigo': 'WEB101',
+        'nombre': 'Diseño y Programación Web I',
+        'color': '#96CEB4',
+      },
+      {
+        'id': 'ofimatica',
+        'codigo': 'OFI101',
+        'nombre': 'Ofimática y Tecnología Multimedia',
+        'color': '#FECA57',
+      },
+      {
+        'id': 'sistemas-op',
+        'codigo': 'SO101',
+        'nombre': 'Taller de Sistemas Operativos',
+        'color': '#FF9FF3',
+      },
+      {
+        'id': 'programacion1',
+        'codigo': 'PROG101',
+        'nombre': 'Programación I',
+        'color': '#54A0FF',
+      },
+    ],
+    2: [
+      {
+        'id': 'programacion2',
+        'codigo': 'PROG201',
+        'nombre': 'Programación II',
+        'color': '#54A0FF',
+      },
+      {
+        'id': 'estructura',
+        'codigo': 'ED201',
+        'nombre': 'Estructura de Datos',
+        'color': '#4ECDC4',
+      },
+      {
+        'id': 'estadistica',
+        'codigo': 'EST201',
+        'nombre': 'Estadística',
+        'color': '#4ECDC4',
+      },
+      {
+        'id': 'basedatos1',
+        'codigo': 'BD201',
+        'nombre': 'Base de Datos I',
+        'color': '#A55EEA',
+      },
+      {
+        'id': 'redes1',
+        'codigo': 'RED201',
+        'nombre': 'Redes de Computadoras I',
+        'color': '#FF6B6B',
+      },
+      {
+        'id': 'analisis1',
+        'codigo': 'ADS201',
+        'nombre': 'Análisis y Diseño de Sistemas I',
+        'color': '#F78FB3',
+      },
+      {
+        'id': 'moviles1',
+        'codigo': 'PM201',
+        'nombre': 'Programación para Dispositivos Móviles I',
+        'color': '#54A0FF',
+      },
+      {
+        'id': 'web2',
+        'codigo': 'WEB201',
+        'nombre': 'Diseño y Programación Web II',
+        'color': '#96CEB4',
+      },
+    ],
+    3: [
+      {
+        'id': 'redes2',
+        'codigo': 'RED301',
+        'nombre': 'Redes de Computadoras II',
+        'color': '#FF6B6B',
+      },
+      {
+        'id': 'web3',
+        'codigo': 'WEB301',
+        'nombre': 'Diseño y Programación Web III',
+        'color': '#96CEB4',
+      },
+      {
+        'id': 'moviles2',
+        'codigo': 'PM301',
+        'nombre': 'Programación para Dispositivos Móviles II',
+        'color': '#54A0FF',
+      },
+      {
+        'id': 'analisis2',
+        'codigo': 'ADS301',
+        'nombre': 'Análisis y Diseño de Sistemas II',
+        'color': '#F78FB3',
+      },
+      {
+        'id': 'taller-grado',
+        'codigo': 'TMG301',
+        'nombre': 'Taller de Modalidad de Graduación',
+        'color': '#45B7D1',
+      },
+      {
+        'id': 'gestion-calidad',
+        'codigo': 'GMC301',
+        'nombre': 'Gestión y Mejoramiento de la Calidad de Software',
+        'color': '#F78FB3',
+      },
+      {
+        'id': 'basedatos2',
+        'codigo': 'BD301',
+        'nombre': 'Base de Datos II',
+        'color': '#A55EEA',
+      },
+      {
+        'id': 'emprendimiento',
+        'codigo': 'EMP301',
+        'nombre': 'Emprendimiento Productivo',
+        'color': '#45B7D1',
+      },
+    ],
+  };
+
+  NivelesViewModel({
     required this.carrera,
     required this.turno,
     required this.tipo,
@@ -82,11 +232,30 @@ class NivelViewModel extends ChangeNotifier {
     _niveles.sort((a, b) => a.orden.compareTo(b.orden));
   }
 
-  // CRUD Operations
+  // Mapeo de nombres de nivel a año numérico
+  int obtenerAnioDesdeNivel(String nombreNivel) {
+    switch (nombreNivel.toLowerCase()) {
+      case 'primero':
+        return 1;
+      case 'segundo':
+        return 2;
+      case 'tercero':
+        return 3;
+      case 'cuarto':
+        return 4;
+      case 'quinto':
+        return 5;
+      default:
+        return 1;
+    }
+  }
+
+  int obtenerCantidadMaterias(String nombreNivel) {
+    int anio = obtenerAnioDesdeNivel(nombreNivel);
+    return _materiasPorAnio[anio]?.length ?? 0;
+  }
 
   void agregarNivel(String nombre) {
-    if (nombre.trim().isEmpty) return;
-
     String nombreLower = nombre.toLowerCase().trim();
     int orden = _ordenNiveles[nombreLower] ?? 99;
 
@@ -104,7 +273,7 @@ class NivelViewModel extends ChangeNotifier {
       nuevoNivel.toMap(),
     );
 
-    _cargarNiveles(); // Esto ya llama a notifyListeners()
+    _cargarNiveles();
   }
 
   void editarNivel(NivelModel nivel, String nuevoNombre) {
@@ -149,74 +318,20 @@ class NivelViewModel extends ChangeNotifier {
     _cargarNiveles();
   }
 
-  // Helper methods
-  int obtenerAnioDesdeNivel(String nombreNivel) {
-    switch (nombreNivel.toLowerCase()) {
-      case 'primero':
-        return 1;
-      case 'segundo':
-        return 2;
-      case 'tercero':
-        return 3;
-      case 'cuarto':
-        return 4;
-      case 'quinto':
-        return 5;
-      default:
-        return 1;
-    }
-  }
-
-  int obtenerCantidadMaterias(NivelModel nivel) {
-    int anio = obtenerAnioDesdeNivel(nivel.nombre);
-    // Retornar 0 por ahora, puedes implementar la lógica de materias después
-    return 0;
-  }
-
-  String obtenerNumeroRomano(int numero) {
-    switch (numero) {
-      case 1:
-        return 'I';
-      case 2:
-        return 'II';
-      case 3:
-        return 'III';
-      case 4:
-        return 'IV';
-      case 5:
-        return 'V';
-      case 6:
-        return 'VI';
-      case 7:
-        return 'VII';
-      case 8:
-        return 'VIII';
-      case 9:
-        return 'IX';
-      case 10:
-        return 'X';
-      default:
-        return numero.toString();
-    }
-  }
-
   String _capitalizarPrimeraLetra(String texto) {
     if (texto.isEmpty) return texto;
     return texto[0].toUpperCase() + texto.substring(1).toLowerCase();
   }
 
-  Color parseColor(String colorString) {
-    try {
-      return Color(int.parse(colorString.replaceAll('#', '0xFF')));
-    } catch (e) {
-      return AppColors.primary;
-    }
+  void limpiarControladores() {
+    _nombreController.clear();
+    _editarNombreController.clear();
   }
 
   @override
   void dispose() {
-    nombreController.dispose();
-    editarNombreController.dispose();
+    _nombreController.dispose();
+    _editarNombreController.dispose();
     super.dispose();
   }
 }

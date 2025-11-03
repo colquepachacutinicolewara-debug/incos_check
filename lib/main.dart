@@ -66,8 +66,8 @@ class MyApp extends StatelessWidget {
               colorScheme: ColorScheme.light(
                 primary: Colors.blueAccent,
                 secondary: Colors.blueAccent,
-                background: Colors.grey[100]!,
-                onBackground: Colors.black87, // Texto sobre fondo claro
+                surface: Colors.grey[100]!,
+                onSurface: Colors.black87, // Texto sobre fondo claro
               ),
               textTheme: const TextTheme(
                 bodyLarge: TextStyle(color: Colors.black87, fontSize: 16),
@@ -116,9 +116,7 @@ class MyApp extends StatelessWidget {
               colorScheme: const ColorScheme.dark(
                 primary: Colors.blueAccent,
                 secondary: Colors.blueAccent,
-                background: Color(0xFF121212),
-                surface: Color(0xFF1E1E1E), // Gris más claro para surfaces
-                onBackground: Colors.white, // Texto blanco sobre fondo oscuro
+                surface: Color(0xFF1E1E1E), // Texto blanco sobre fondo oscuro
                 onSurface: Colors.white, // Texto blanco sobre surfaces
               ),
               cardTheme: CardThemeData(

@@ -131,7 +131,7 @@ class _GestionCursosScreenState extends State<GestionCursosScreen> {
               ),
               SizedBox(height: AppSpacing.small),
               DropdownButtonFormField(
-                value: estado,
+                initialValue: estado,
                 decoration: InputDecoration(labelText: 'Estado', border: OutlineInputBorder()),
                 items: [Estados.activo, Estados.inactivo].map((estado) {
                   return DropdownMenuItem(value: estado, child: Text(estado));
@@ -262,8 +262,8 @@ class _GestionCursosScreenState extends State<GestionCursosScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: _agregarCurso,
         backgroundColor: AppColors.success,
-        child: Icon(Icons.add, color: Colors.white),
         tooltip: 'Agregar nuevo curso',
+        child: Icon(Icons.add, color: Colors.white),
       ),
     );
   }

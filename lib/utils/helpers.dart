@@ -8,8 +8,11 @@ import 'constants.dart'; // Para usar colores de la app
 class Helpers {
   /// Muestra un SnackBar con mensaje y color opcional según tipo de mensaje
   /// type: 'success', 'error', 'warning', o null (negro por defecto)
-  static void showSnackBar(BuildContext context, String message,
-      {String? type}) {
+  static void showSnackBar(
+    BuildContext context,
+    String message, {
+    String? type,
+  }) {
     Color bgColor = Colors.black;
     switch (type) {
       case 'success':
@@ -25,10 +28,7 @@ class Helpers {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          message,
-          style: const TextStyle(color: Colors.white),
-        ),
+        content: Text(message, style: const TextStyle(color: Colors.white)),
         backgroundColor: bgColor,
         duration: const Duration(seconds: 3),
       ),
@@ -37,12 +37,12 @@ class Helpers {
 
   /// Formatea fecha en formato dd/mm/yyyy
   static String formatDate(DateTime date) {
-    return "${date.day.toString().padLeft(2,'0')}/${date.month.toString().padLeft(2,'0')}/${date.year}";
+    return "${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}";
   }
 
   /// Formatea hora en formato hh:mm
   static String formatTime(DateTime date) {
-    return "${date.hour.toString().padLeft(2,'0')}:${date.minute.toString().padLeft(2,'0')}";
+    return "${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
   }
 
   /// Formatea fecha y hora completa: dd/mm/yyyy hh:mm
@@ -51,8 +51,11 @@ class Helpers {
   }
 
   /// Muestra un diálogo de confirmación
-  static Future<bool> showConfirmationDialog(BuildContext context,
-      {required String title, required String content}) async {
+  static Future<bool> showConfirmationDialog(
+    BuildContext context, {
+    required String title,
+    required String content,
+  }) async {
     return await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
@@ -60,11 +63,13 @@ class Helpers {
             content: Text(content),
             actions: [
               TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('Cancelar')),
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancelar'),
+              ),
               ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text('Aceptar')),
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Aceptar'),
+              ),
             ],
           ),
         ) ??
@@ -92,4 +97,3 @@ class Helpers {
     return regex.hasMatch(value);
   }
 }
-

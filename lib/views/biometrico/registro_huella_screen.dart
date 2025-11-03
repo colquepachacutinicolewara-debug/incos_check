@@ -1,472 +1,478 @@
-// views/biometrico/registro_huella_screen.dart
 import 'package:flutter/material.dart';
-import '../../services/biometrico_service.dart';
-import '../../utils/constants.dart';
-import '../../utils/helpers.dart';
+import 'package:local_auth/local_auth.dart';
+import 'package:incos_check/utils/constants.dart';
+import 'package:incos_check/utils/helpers.dart';
 
-class RegistroHuellaScreen extends StatefulWidget {
+class RegistroHuellasScreen extends StatefulWidget {
   final Map<String, dynamic> estudiante;
-  final Map<String, dynamic> carrera;
-  final Map<String, dynamic> turno;
-  final Map<String, dynamic> nivel;
-  final Map<String, dynamic> paralelo;
-  final Function(int) onHuellasRegistradas; // CALLBACK AGREGADO
+  final Function(int) onHuellasRegistradas;
 
-  const RegistroHuellaScreen({
-    Key? key,
+  const RegistroHuellasScreen({
+    super.key,
     required this.estudiante,
-    required this.carrera,
-    required this.turno,
-    required this.nivel,
-    required this.paralelo,
-    required this.onHuellasRegistradas, // CALLBACK AGREGADO
-  }) : super(key: key);
+    required this.onHuellasRegistradas,
+  });
 
   @override
-  _RegistroHuellaScreenState createState() => _RegistroHuellaScreenState();
+  State<RegistroHuellasScreen> createState() => _RegistroHuellasScreenState();
 }
 
-class _RegistroHuellaScreenState extends State<RegistroHuellaScreen> {
-  final BiometricoService _biometricoService = BiometricoService();
+class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
+  final LocalAuthentication _auth = LocalAuthentication();
+  final List<bool> _huellasRegistradas = [false, false, false];
+  int _huellaActual = 0;
   bool _isLoading = false;
-  bool _sensorConectado = false;
-  String _estado = 'Verificando conexión con sensor...';
-  int _huellasRegistradas = 0;
-  List<String> _huellasIds = [];
+  bool _biometricAvailable = false;
+  List<BiometricType> _availableBiometrics = [];
+
+  final List<String> _nombresDedos = [
+    'Pulgar - Mano Derecha',
+    'Índice - Mano Derecha',
+    'Medio - Mano Derecha',
+  ];
 
   @override
   void initState() {
     super.initState();
-    _verificarSensor();
+    _checkBiometricSupport();
   }
 
-  Future<void> _verificarSensor() async {
-    setState(() {
-      _isLoading = true;
-    });
+  Future<void> _checkBiometricSupport() async {
+    try {
+      final bool canCheckBiometrics = await _auth.canCheckBiometrics;
+      _availableBiometrics = await _auth.getAvailableBiometrics();
 
-    // Verificar si el sensor está disponible
-    bool sensorDisponible = await _biometricoService.isBiometricSupported();
-
-    // Para el proyecto, simulamos que el sensor está disponible
-    // En producción, esto se conectaría al hardware real
-
-    setState(() {
-      _sensorConectado = sensorDisponible;
-      _isLoading = false;
-      _estado = sensorDisponible
-          ? 'Sensor biométrico conectado y listo'
-          : 'MODO SIMULACIÓN: Para demostración del proyecto';
-    });
-  }
-
-  Future<void> _registrarHuellaIndividual() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    final resultado = await _biometricoService.registrarHuella(
-      widget.estudiante['id'].toString(),
-      '${widget.estudiante['nombres']} ${widget.estudiante['apellidoPaterno']}',
-    );
-
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (resultado['success'] == true) {
-      Helpers.showSnackBar(
-        context,
-        '✅ Huella registrada exitosamente',
-        type: 'success',
-      );
       setState(() {
-        _huellasRegistradas = 1;
-        _huellasIds.add(resultado['huellaId']);
+        _biometricAvailable =
+            canCheckBiometrics && _availableBiometrics.isNotEmpty;
       });
-      // ACTUALIZAR CALLBACK
-      widget.onHuellasRegistradas(_huellasRegistradas);
-    } else {
-      // Si falla el método real, usar simulación para el proyecto
-      await _registrarSimulacionIndividual();
+
+      if (_biometricAvailable) {
+        print('Biométricos disponibles: $_availableBiometrics');
+      } else {
+        print('No hay sensores biométricos disponibles');
+      }
+    } catch (e) {
+      print('Error verificando biométricos: $e');
+      setState(() {
+        _biometricAvailable = false;
+      });
     }
   }
 
-  Future<void> _registrarSimulacionIndividual() async {
+  Future<void> _registrarHuellaActual() async {
+    if (_isLoading || _huellasRegistradas[_huellaActual]) return;
+
     setState(() {
       _isLoading = true;
     });
 
-    // Simulación para el proyecto
-    await Future.delayed(Duration(seconds: 2));
+    try {
+      // Verificar disponibilidad biométrica
+      if (!_biometricAvailable) {
+        Helpers.showSnackBar(
+          context,
+          'El dispositivo no soporta autenticación biométrica',
+          type: 'error',
+        );
+        return;
+      }
 
-    setState(() {
-      _isLoading = false;
-      _huellasRegistradas = 1;
-      _huellasIds.add(
-        'SIM_${widget.estudiante['id']}_${DateTime.now().millisecondsSinceEpoch}',
+      // Realizar autenticación biométrica
+      final bool authenticated = await _auth.authenticate(
+        localizedReason:
+            'Registra tu huella para ${_nombresDedos[_huellaActual]}',
+        options: const AuthenticationOptions(
+          biometricOnly: true, // Solo permite huella/face ID
+          useErrorDialogs: true,
+          stickyAuth: true,
+        ),
       );
-    });
 
+      if (authenticated) {
+        // Simular procesamiento del registro
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        setState(() {
+          _huellasRegistradas[_huellaActual] = true;
+        });
+
+        Helpers.showSnackBar(
+          context,
+          '✅ ${_nombresDedos[_huellaActual]} registrada exitosamente',
+          type: 'success',
+        );
+
+        // Avanzar automáticamente a la siguiente huella
+        if (_huellaActual < 2) {
+          await Future.delayed(const Duration(milliseconds: 800));
+          _siguienteHuella();
+        }
+      } else {
+        Helpers.showSnackBar(
+          context,
+          '❌ Autenticación fallida para ${_nombresDedos[_huellaActual]}',
+          type: 'error',
+        );
+      }
+    } catch (e) {
+      print('Error en autenticación: $e');
+      Helpers.showSnackBar(context, 'Error: ${e.toString()}', type: 'error');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _siguienteHuella() {
+    if (_huellaActual < 2) {
+      setState(() {
+        _huellaActual++;
+      });
+    }
+  }
+
+  void _anteriorHuella() {
+    if (_huellaActual > 0) {
+      setState(() {
+        _huellaActual--;
+      });
+    }
+  }
+
+  void _finalizarRegistro() {
+    int totalRegistradas = _huellasRegistradas.where((h) => h).length;
+    widget.onHuellasRegistradas(totalRegistradas);
+    Navigator.pop(context);
     Helpers.showSnackBar(
       context,
-      '✅ SIMULACIÓN: Huella registrada para proyecto',
+      'Registro de huellas completado: $totalRegistradas/3',
       type: 'success',
     );
-    // ACTUALIZAR CALLBACK
-    widget.onHuellasRegistradas(_huellasRegistradas);
   }
 
-  Future<void> _registrarTresHuellas() async {
+  void _reenrolarHuella(int index) {
     setState(() {
-      _isLoading = true;
+      _huellasRegistradas[index] = false;
+      _huellaActual = index;
     });
-
-    final resultado = await _biometricoService.registrarMultiplesHuellasSimuladas(
-      estudianteId: widget.estudiante['id'].toString(),
-      estudianteNombre:
-          '${widget.estudiante['nombres']} ${widget.estudiante['apellidoPaterno']}',
-      cantidadHuellas: 3,
-    );
-
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (resultado['success'] == true) {
-      Helpers.showSnackBar(
-        context,
-        '✅ ${resultado['totalRegistradas']}/3 huellas registradas',
-        type: 'success',
-      );
-      setState(() {
-        _huellasRegistradas = resultado['totalRegistradas'];
-        _huellasIds = List<String>.from(resultado['huellasIds']);
-      });
-      // ACTUALIZAR CALLBACK
-      widget.onHuellasRegistradas(_huellasRegistradas);
-    }
-  }
-
-  Future<void> _verificarHuella() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    final resultado = await _biometricoService.verificarHuellaSimulada();
-
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (resultado['success'] == true) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('✅ Huella Verificada - PROYECTO INCOS'),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Estudiante: ${resultado['estudianteNombre']}'),
-                Text('ID: ${resultado['estudianteId']}'),
-                Text(
-                  'Hora: ${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}',
-                ),
-                SizedBox(height: 10),
-                Text(
-                  'Carrera: ${widget.carrera['nombre']}',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Text('Turno: ${widget.turno['nombre']}'),
-                Text('Nivel: ${widget.nivel['nombre']}'),
-                Text('Paralelo: ${widget.paralelo['nombre']}'),
-                SizedBox(height: 10),
-                Text(
-                  resultado['mensaje'],
-                  style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Registrar Asistencia'),
-            ),
-          ],
-        ),
-      );
-    }
-  }
-
-  Future<void> _mostrarInformacionProyecto() async {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('🔬 Proyecto INCOS - Sistema Biométrico'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'APLICACIÓN MÓVIL PARA EL CONTROL DE ASISTENCIA DE ESTUDIANTES MEDIANTE EL USO DE UN LECTOR BIOMÉTRICO DE HUELLA DIGITAL',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 10),
-              Text('Caso: Tercer Año "B"'),
-              Text('Carrera: Sistemas Informáticos'),
-              Text('Institución: INCOS - El Alto'),
-              SizedBox(height: 10),
-              Text(
-                'Funcionalidades:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Text('• Registro biométrico de estudiantes'),
-              Text('• Control de asistencia con huella digital'),
-              Text('• Gestión de paralelos y niveles'),
-              Text('• Reportes y estadísticas'),
-              SizedBox(height: 10),
-              Text(
-                'Nota: Esta es una simulación para fines del proyecto. En producción se integrará con hardware biométrico real.',
-                style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Entendido'),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sistema Biométrico - Proyecto INCOS'),
+        title: Text(
+          'Registro de Huellas',
+          style: AppTextStyles.heading2Dark(
+            context,
+          ).copyWith(color: Colors.white),
+        ),
         backgroundColor: AppColors.primary,
         actions: [
-          IconButton(
-            icon: Icon(Icons.info_outline),
-            onPressed: _mostrarInformacionProyecto,
-            tooltip: 'Información del Proyecto',
-          ),
+          if (_huellasRegistradas.any((h) => h))
+            IconButton(
+              icon: const Icon(Icons.done_all, color: Colors.white),
+              onPressed: _finalizarRegistro,
+              tooltip: 'Finalizar registro',
+            ),
         ],
       ),
-      body: _isLoading
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 20),
-                  Text(
-                    'Procesando huella digital...',
-                    style: AppTextStyles.body,
+      body: Padding(
+        padding: EdgeInsets.all(AppSpacing.medium),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Información del estudiante
+            Card(
+              elevation: 2,
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: AppColors.primary,
+                  child: Text(
+                    widget.estudiante['nombres'][0],
+                    style: const TextStyle(color: Colors.white),
                   ),
-                  Text(
-                    'Proyecto INCOS - Sistema Biométrico',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
-              ),
-            )
-          : Padding(
-              padding: EdgeInsets.all(AppSpacing.medium),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Información del estudiante
-                  Card(
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: AppColors.primary,
-                        child: Text(
-                          widget.estudiante['nombres'][0],
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
-                      title: Text(
-                        '${widget.estudiante['nombres']} ${widget.estudiante['apellidoPaterno']} ${widget.estudiante['apellidoMaterno']}',
-                        style: AppTextStyles.heading3,
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('CI: ${widget.estudiante['ci']}'),
-                          Text('Carrera: ${widget.carrera['nombre']}'),
-                          Text('Paralelo: ${widget.paralelo['nombre']}'),
-                          Text('Huellas registradas: $_huellasRegistradas/3'),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: AppSpacing.large),
-
-                  // Estado del sensor
-                  Card(
-                    color: _sensorConectado
-                        ? Colors.green[50]
-                        : Colors.blue[50],
-                    child: Padding(
-                      padding: EdgeInsets.all(AppSpacing.medium),
-                      child: Row(
-                        children: [
-                          Icon(
-                            _sensorConectado ? Icons.sensors : Icons.computer,
-                            color: _sensorConectado
-                                ? Colors.green
-                                : Colors.blue,
-                          ),
-                          SizedBox(width: AppSpacing.small),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _sensorConectado
-                                      ? 'Sensor Biométrico Conectado'
-                                      : 'Modo Simulación',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: _sensorConectado
-                                        ? Colors.green
-                                        : Colors.blue,
-                                  ),
-                                ),
-                                Text(
-                                  _estado,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: _sensorConectado
-                                        ? Colors.green
-                                        : Colors.blue,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: AppSpacing.large),
-
-                  // Logo y información del proyecto
-                  Center(
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.fingerprint,
-                          size: 80,
-                          color: AppColors.primary,
-                        ),
-                        SizedBox(height: AppSpacing.medium),
-                        Text(
-                          'SISTEMA BIOMÉTRICO INCOS',
-                          style: AppTextStyles.heading2,
-                          textAlign: TextAlign.center,
-                        ),
-                        SizedBox(height: AppSpacing.small),
-                        Text(
-                          'Control de Asistencia con Huella Digital\nTercer Año "B" - Sistemas Informáticos',
-                          style: AppTextStyles.body,
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: AppSpacing.xlarge),
-
-                  // Botones de acción
-                  if (_huellasRegistradas == 0) ...[
-                    ElevatedButton.icon(
-                      onPressed: _registrarHuellaIndividual,
-                      icon: Icon(Icons.fingerprint),
-                      label: Text('Registrar 1 Huella'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        minimumSize: Size(double.infinity, 50),
-                      ),
-                    ),
-                    SizedBox(height: AppSpacing.small),
-                    ElevatedButton.icon(
-                      onPressed: _registrarTresHuellas,
-                      icon: Icon(Icons.fingerprint),
-                      label: Text('Registrar 3 Huellas (Recomendado)'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        minimumSize: Size(double.infinity, 50),
-                      ),
-                    ),
-                  ],
-
-                  if (_huellasRegistradas > 0) ...[
-                    ElevatedButton.icon(
-                      onPressed: _verificarHuella,
-                      icon: Icon(Icons.verified_user),
-                      label: Text('Verificar Huella y Registrar Asistencia'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        minimumSize: Size(double.infinity, 50),
-                      ),
-                    ),
-                    SizedBox(height: AppSpacing.small),
-                    Card(
-                      color: Colors.green[50],
-                      child: Padding(
-                        padding: EdgeInsets.all(AppSpacing.medium),
-                        child: Column(
-                          children: [
-                            Text(
-                              '✅ $_huellasRegistradas Huella(s) Registrada(s)',
-                              style: TextStyle(
-                                color: Colors.green,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            if (_huellasIds.isNotEmpty)
-                              Text(
-                                'IDs: ${_huellasIds.join(', ')}',
-                                style: TextStyle(fontSize: 10),
-                                textAlign: TextAlign.center,
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-
-                  SizedBox(height: AppSpacing.large),
-                  Divider(),
-                  SizedBox(height: AppSpacing.small),
-
-                  // Información adicional del proyecto
-                  Text(
-                    '🔬 Proyecto de Grado - INCOS El Alto',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  SizedBox(height: AppSpacing.small),
-                  Text(
-                    'Sistema de control de asistencia biométrico para el Tercer Año "B" de la carrera de Sistemas Informáticos.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                  ),
-                ],
+                ),
+                title: Text(
+                  '${widget.estudiante['apellidoPaterno']} ${widget.estudiante['apellidoMaterno']} ${widget.estudiante['nombres']}',
+                  style: AppTextStyles.heading3Dark(context),
+                ),
+                subtitle: Text(
+                  'CI: ${widget.estudiante['ci']}',
+                  style: AppTextStyles.bodyDark(context),
+                ),
               ),
             ),
+            SizedBox(height: AppSpacing.large),
+
+            // Estado del sensor biométrico
+            if (!_biometricAvailable)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(AppRadius.small),
+                  border: Border.all(color: Colors.orange),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning, color: Colors.orange, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Sensor biométrico no disponible",
+                            style: AppTextStyles.bodyDark(context).copyWith(
+                              fontWeight: FontWeight.w500,
+                              color: Colors.orange,
+                            ),
+                          ),
+                          if (_availableBiometrics.isEmpty)
+                            Text(
+                              "No se detectaron sensores de huella",
+                              style: AppTextStyles.bodyDark(
+                                context,
+                              ).copyWith(fontSize: 12, color: Colors.orange),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(AppRadius.small),
+                  border: Border.all(color: Colors.green),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 20,
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Sensor biométrico disponible",
+                            style: AppTextStyles.bodyDark(context).copyWith(
+                              fontWeight: FontWeight.w500,
+                              color: Colors.green,
+                            ),
+                          ),
+                          Text(
+                            "Sensores: ${_availableBiometrics.map((b) => _getBiometricName(b)).join(', ')}",
+                            style: AppTextStyles.bodyDark(
+                              context,
+                            ).copyWith(fontSize: 12, color: Colors.green),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // Progreso
+            Text(
+              'Progreso: ${_huellasRegistradas.where((h) => h).length}/3 huellas registradas',
+              style: AppTextStyles.heading2Dark(context),
+            ),
+            SizedBox(height: AppSpacing.small),
+            LinearProgressIndicator(
+              value: _huellasRegistradas.where((h) => h).length / 3,
+              backgroundColor: Colors.grey.shade300,
+              color: AppColors.primary,
+            ),
+            SizedBox(height: AppSpacing.large),
+
+            // Huella actual
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    GestureDetector(
+                      onTap: _isLoading ? null : _registrarHuellaActual,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: _huellasRegistradas[_huellaActual]
+                              ? Colors.green.withOpacity(0.1)
+                              : AppColors.primary.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: _huellasRegistradas[_huellaActual]
+                                ? Colors.green
+                                : AppColors.primary,
+                            width: 3,
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.fingerprint,
+                          size: 120,
+                          color: _huellasRegistradas[_huellaActual]
+                              ? Colors.green
+                              : AppColors.primary,
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: AppSpacing.medium),
+                    Text(
+                      _nombresDedos[_huellaActual],
+                      style: AppTextStyles.heading2Dark(context),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: AppSpacing.small),
+                    Text(
+                      _huellasRegistradas[_huellaActual]
+                          ? '✅ Huella registrada - Toca para reenrolar'
+                          : 'Toca el icono para registrar esta huella',
+                      style: AppTextStyles.bodyDark(context),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: AppSpacing.medium),
+
+                    if (_isLoading)
+                      Column(
+                        children: [
+                          CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              AppColors.primary,
+                            ),
+                          ),
+                          SizedBox(height: AppSpacing.small),
+                          Text(
+                            'Esperando huella...',
+                            style: AppTextStyles.bodyDark(context),
+                          ),
+                        ],
+                      )
+                    else
+                      ElevatedButton.icon(
+                        onPressed: _registrarHuellaActual,
+                        icon: const Icon(Icons.fingerprint),
+                        label: Text(
+                          _huellasRegistradas[_huellaActual]
+                              ? 'Reenrolar Huella'
+                              : 'Registrar Huella',
+                          style: AppTextStyles.bodyDark(context),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Controles de navegación
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ElevatedButton(
+                  onPressed: _huellaActual > 0 ? _anteriorHuella : null,
+                  child: Text(
+                    'Anterior',
+                    style: AppTextStyles.bodyDark(context),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: _huellaActual < 2 ? _siguienteHuella : null,
+                  child: Text(
+                    'Siguiente',
+                    style: AppTextStyles.bodyDark(context),
+                  ),
+                ),
+              ],
+            ),
+
+            // Lista de huellas
+            SizedBox(height: AppSpacing.large),
+            Text(
+              'Huellas registradas:',
+              style: AppTextStyles.heading3Dark(context),
+            ),
+            SizedBox(height: AppSpacing.small),
+            ..._nombresDedos.asMap().entries.map((entry) {
+              int index = entry.key;
+              String nombre = entry.value;
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  leading: Icon(
+                    _huellasRegistradas[index]
+                        ? Icons.check_circle
+                        : Icons.radio_button_unchecked,
+                    color: _huellasRegistradas[index]
+                        ? Colors.green
+                        : Colors.grey,
+                  ),
+                  title: Text(nombre, style: AppTextStyles.bodyDark(context)),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_huellasRegistradas[index])
+                        IconButton(
+                          icon: const Icon(Icons.refresh, size: 20),
+                          onPressed: () => _reenrolarHuella(index),
+                          tooltip: 'Reenrolar huella',
+                          color: AppColors.primary,
+                        ),
+                      Icon(
+                        Icons.fingerprint,
+                        color: _huellasRegistradas[index]
+                            ? Colors.green
+                            : Colors.grey,
+                      ),
+                    ],
+                  ),
+                  onTap: () {
+                    setState(() {
+                      _huellaActual = index;
+                    });
+                  },
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
     );
+  }
+
+  String _getBiometricName(BiometricType type) {
+    switch (type) {
+      case BiometricType.face:
+        return 'Reconocimiento Facial';
+      case BiometricType.fingerprint:
+        return 'Sensor de Huella';
+      case BiometricType.iris:
+        return 'Reconocimiento de Iris';
+      default:
+        return 'Biométrico';
+    }
   }
 }

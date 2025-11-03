@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:incos_check/utils/constants.dart';
-import 'package:incos_check/utils/data_manager.dart';
 import '../../views/gestion/estudiantes_screen.dart';
+import '../../viewmodels/paralelos_viewmodel.dart';
+import '../../models/paralelo_model.dart';
 
 class ParalelosScreen extends StatefulWidget {
   final String tipo;
@@ -22,11 +24,25 @@ class ParalelosScreen extends StatefulWidget {
 }
 
 class _ParalelosScreenState extends State<ParalelosScreen> {
-  final DataManager _dataManager = DataManager();
-  List<Map<String, dynamic>> _paralelos = [];
+  late ParalelosViewModel _viewModel;
 
-  final TextEditingController _nombreController = TextEditingController();
-  final TextEditingController _editarNombreController = TextEditingController();
+  @override
+  void initState() {
+    super.initState();
+    _viewModel = ParalelosViewModel();
+    _viewModel.inicializarDatos(
+      tipo: widget.tipo,
+      carrera: widget.carrera,
+      turno: widget.turno,
+      nivel: widget.nivel,
+    );
+  }
+
+  @override
+  void dispose() {
+    _viewModel.dispose();
+    super.dispose();
+  }
 
   // Funciones para obtener colores según el tema
   Color _getBackgroundColor(BuildContext context) {
@@ -72,160 +88,99 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _inicializarYcargarParalelos();
-  }
-
-  void _inicializarYcargarParalelos() {
-    // INICIALIZAR SIEMPRE la carrera en DataManager
-    _dataManager.inicializarCarrera(
-      widget.carrera['id'].toString(),
-      widget.carrera['nombre'],
-      widget.carrera['color'],
-    );
-
-    // SOLO cargar datos de ejemplo para Sistemas Informáticos - Tercero - Noche
-    final bool esSistemasTerceroNoche =
-        widget.carrera['nombre'].toUpperCase().contains('SISTEMAS') &&
-        widget.nivel['nombre'] == 'Tercero' &&
-        widget.turno['nombre'] == 'Noche';
-
-    if (esSistemasTerceroNoche) {
-      _cargarParaleloEjemploSistemas();
-    } else {
-      _cargarParalelosDataManager();
-    }
-  }
-
-  void _cargarParaleloEjemploSistemas() {
-    // Datos de ejemplo SOLO para mostrar
-    setState(() {
-      _paralelos = [
-        {
-          'id': 'sistemas_noche_tercero_B',
-          'nombre': 'B',
-          'activo': true,
-          'estudiantes': [
-            {
-              'id': 1,
-              'nombres': 'Juan Carlos',
-              'apellidoPaterno': 'Pérez',
-              'apellidoMaterno': 'Gómez',
-              'ci': '1234567',
-              'fechaRegistro': '2024-01-15',
-              'huellasRegistradas': 3,
-            },
-            {
-              'id': 2,
-              'nombres': 'María Elena',
-              'apellidoPaterno': 'López',
-              'apellidoMaterno': 'Martínez',
-              'ci': '7654321',
-              'fechaRegistro': '2024-01-16',
-              'huellasRegistradas': 2,
-            },
-          ],
-        },
-      ];
-    });
-  }
-
-  void _cargarParalelosDataManager() {
-    // Para TODAS las demás carreras, usar DataManager
-    final paralelosDataManager = _dataManager.getParalelos(
-      widget.carrera['id'].toString(),
-      widget.turno['id'].toString(),
-      widget.nivel['id'].toString(),
-    );
-
-    setState(() {
-      _paralelos = paralelosDataManager;
-    });
-  }
-
-  bool get _esCarreraDeEjemplo {
-    return widget.carrera['nombre'].toUpperCase().contains('SISTEMAS') &&
-        widget.nivel['nombre'] == 'Tercero' &&
-        widget.turno['nombre'] == 'Noche';
-  }
-
-  @override
   Widget build(BuildContext context) {
-    Color carreraColor = _parseColor(widget.carrera['color']);
+    return ChangeNotifierProvider.value(
+      value: _viewModel,
+      child: Consumer<ParalelosViewModel>(
+        builder: (context, viewModel, child) {
+          Color carreraColor = _parseColor(viewModel.carrera['color']);
 
-    return Scaffold(
-      backgroundColor: _getBackgroundColor(context),
-      appBar: AppBar(
-        title: Text(
-          '${widget.carrera['nombre']} - ${widget.turno['nombre']} - ${widget.nivel['nombre']}',
-          style: AppTextStyles.heading2.copyWith(color: Colors.white),
-        ),
-        backgroundColor: carreraColor,
-        iconTheme: IconThemeData(color: Colors.white),
-      ),
-      body: _paralelos.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.group_outlined,
-                    size: 80,
-                    color: _getSecondaryTextColor(context),
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'No hay paralelos',
-                    style: AppTextStyles.heading3.copyWith(
-                      color: _getSecondaryTextColor(context),
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    _esCarreraDeEjemplo
-                        ? 'Esta es una vista de ejemplo con datos demostrativos'
-                        : 'Presiona el botón + para agregar el primer paralelo',
-                    style: TextStyle(color: _getSecondaryTextColor(context)),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+          return Scaffold(
+            backgroundColor: _getBackgroundColor(context),
+            appBar: AppBar(
+              title: Text(
+                '${viewModel.carrera['nombre']} - ${viewModel.turno['nombre']} - ${viewModel.nivel['nombre']}',
+                style: AppTextStyles.heading2.copyWith(color: Colors.white),
               ),
-            )
-          : ListView.builder(
-              padding: EdgeInsets.all(AppSpacing.medium),
-              itemCount: _paralelos.length,
-              itemBuilder: (context, index) {
-                final paralelo = _paralelos[index];
-                return _buildParaleloCard(paralelo, context, carreraColor);
-              },
+              backgroundColor: carreraColor,
+              iconTheme: const IconThemeData(color: Colors.white),
             ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAgregarParaleloDialog,
-        backgroundColor: carreraColor,
-        child: Icon(Icons.add, color: Colors.white),
+            body: viewModel.paralelos.isEmpty
+                ? _buildEmptyState(viewModel, context)
+                : _buildParalelosList(viewModel, context, carreraColor),
+            floatingActionButton: FloatingActionButton(
+              onPressed: () => _showAgregarParaleloDialog(context, viewModel),
+              backgroundColor: carreraColor,
+              child: const Icon(Icons.add, color: Colors.white),
+            ),
+          );
+        },
       ),
+    );
+  }
+
+  Widget _buildEmptyState(ParalelosViewModel viewModel, BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.group_outlined,
+            size: 80,
+            color: _getSecondaryTextColor(context),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No hay paralelos',
+            style: AppTextStyles.heading3.copyWith(
+              color: _getSecondaryTextColor(context),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            viewModel.esCarreraDeEjemplo
+                ? 'Esta es una vista de ejemplo con datos demostrativos'
+                : 'Presiona el botón + para agregar el primer paralelo',
+            style: TextStyle(color: _getSecondaryTextColor(context)),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildParalelosList(
+    ParalelosViewModel viewModel,
+    BuildContext context,
+    Color color,
+  ) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(AppSpacing.medium),
+      itemCount: viewModel.paralelos.length,
+      itemBuilder: (context, index) {
+        final paralelo = viewModel.paralelos[index];
+        return _buildParaleloCard(paralelo, context, color, viewModel);
+      },
     );
   }
 
   Widget _buildParaleloCard(
-    Map<String, dynamic> paralelo,
+    Paralelo paralelo,
     BuildContext context,
     Color color,
+    ParalelosViewModel viewModel,
   ) {
-    bool isActive = paralelo['activo'] ?? true;
-    bool esEjemplo =
-        _esCarreraDeEjemplo && paralelo['id'] == 'sistemas_noche_tercero_B';
+    bool esEjemplo = viewModel.esParaleloEjemplo(paralelo);
 
     return Card(
       elevation: 4,
-      margin: EdgeInsets.only(bottom: AppSpacing.medium),
+      margin: const EdgeInsets.only(bottom: AppSpacing.medium),
       color: _getCardColor(context),
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: color.withOpacity(0.2),
           child: Text(
-            paralelo['nombre'],
+            paralelo.nombre,
             style: TextStyle(
               color: color,
               fontWeight: FontWeight.bold,
@@ -236,15 +191,15 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
         title: Row(
           children: [
             Text(
-              'Paralelo ${paralelo['nombre']}',
+              'Paralelo ${paralelo.nombre}',
               style: AppTextStyles.heading3.copyWith(
-                color: isActive ? _getTextColor(context) : Colors.grey,
+                color: paralelo.activo ? _getTextColor(context) : Colors.grey,
               ),
             ),
             if (esEjemplo) ...[
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: Colors.orange.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(4),
@@ -265,8 +220,10 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              isActive ? 'Activo' : 'Inactivo',
-              style: TextStyle(color: isActive ? Colors.green : Colors.red),
+              paralelo.activo ? 'Activo' : 'Inactivo',
+              style: TextStyle(
+                color: paralelo.activo ? Colors.green : Colors.red,
+              ),
             ),
             if (esEjemplo)
               Text(
@@ -281,18 +238,25 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Switch(
-              value: isActive,
-              onChanged: esEjemplo
-                  ? null
-                  : (value) {
-                      _cambiarEstadoParalelo(paralelo, value);
-                    },
-              activeColor: color,
+            // keep a small gap and limit width so the popup icon always shows
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: Switch(
+                value: paralelo.activo,
+                onChanged: esEjemplo
+                    ? null
+                    : (value) {
+                        viewModel.cambiarEstadoParalelo(paralelo, value);
+                      },
+                activeColor: color,
+              ),
             ),
             if (!esEjemplo)
               PopupMenuButton<String>(
-                onSelected: (value) => _handleMenuAction(value, paralelo),
+                icon: Icon(Icons.more_vert, color: _getTextColor(context)),
+                tooltip: 'Más opciones',
+                onSelected: (value) =>
+                    _handleMenuAction(value, paralelo, viewModel, context),
                 itemBuilder: (BuildContext context) => [
                   PopupMenuItem(
                     value: 'edit',
@@ -313,16 +277,16 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
           ],
         ),
         onTap: () {
-          if (isActive) {
+          if (paralelo.activo) {
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => EstudiantesListScreen(
-                  tipo: widget.tipo,
-                  carrera: widget.carrera,
-                  turno: widget.turno,
-                  nivel: widget.nivel,
-                  paralelo: paralelo,
+                  tipo: viewModel.tipo,
+                  carrera: viewModel.carrera,
+                  turno: viewModel.turno,
+                  nivel: viewModel.nivel,
+                  paralelo: paralelo.toMap(),
                 ),
               ),
             );
@@ -332,19 +296,27 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
     );
   }
 
-  void _handleMenuAction(String action, Map<String, dynamic> paralelo) {
+  void _handleMenuAction(
+    String action,
+    Paralelo paralelo,
+    ParalelosViewModel viewModel,
+    BuildContext context,
+  ) {
     switch (action) {
       case 'edit':
-        _showEditarParaleloDialog(paralelo);
+        _showEditarParaleloDialog(context, paralelo, viewModel);
         break;
       case 'delete':
-        _showEliminarParaleloDialog(paralelo);
+        _showEliminarParaleloDialog(context, paralelo, viewModel);
         break;
     }
   }
 
-  void _showAgregarParaleloDialog() {
-    _nombreController.clear();
+  void _showAgregarParaleloDialog(
+    BuildContext context,
+    ParalelosViewModel viewModel,
+  ) {
+    viewModel.nombreController.clear();
 
     showDialog(
       context: context,
@@ -358,7 +330,7 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
-              controller: _nombreController,
+              controller: viewModel.nombreController,
               style: TextStyle(color: _getTextColor(context)),
               decoration: InputDecoration(
                 labelText: 'Letra del Paralelo',
@@ -373,7 +345,7 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderSide: BorderSide(
-                    color: _parseColor(widget.carrera['color']),
+                    color: _parseColor(viewModel.carrera['color']),
                   ),
                 ),
                 counterText: 'Máximo 2 caracteres',
@@ -382,9 +354,9 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
               maxLength: 2,
               textCapitalization: TextCapitalization.characters,
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Container(
-              padding: EdgeInsets.all(12),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: _getInfoBackgroundColor(context),
                 borderRadius: BorderRadius.circular(8),
@@ -392,7 +364,7 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
               child: Row(
                 children: [
                   Icon(Icons.info, color: _getInfoTextColor(context), size: 16),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Ingresa una letra para el paralelo (A, B, C, etc.)',
@@ -417,83 +389,46 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              if (_nombreController.text.trim().isNotEmpty) {
-                _agregarParalelo(_nombreController.text.trim().toUpperCase());
-                Navigator.pop(context);
+              if (viewModel.nombreController.text.trim().isNotEmpty) {
+                try {
+                  viewModel.agregarParalelo(
+                    viewModel.nombreController.text.trim().toUpperCase(),
+                  );
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Paralelo ${viewModel.nombreController.text.trim().toUpperCase()} agregado correctamente',
+                      ),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(e.toString()),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                }
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: _parseColor(widget.carrera['color']),
+              backgroundColor: _parseColor(viewModel.carrera['color']),
             ),
-            child: Text('Agregar', style: TextStyle(color: Colors.white)),
+            child: const Text('Agregar', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
   }
 
-  void _agregarParalelo(String nombre) {
-    // Verificar si ya existe un paralelo con ese nombre
-    bool existe = _paralelos.any((p) => p['nombre'] == nombre);
-
-    if (existe) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Ya existe un paralelo con la letra $nombre'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    // Crear nuevo paralelo con ID único
-    Map<String, dynamic> nuevoParalelo = {
-      'id':
-          '${widget.carrera['id']}_${widget.turno['id']}_${widget.nivel['id']}_$nombre',
-      'nombre': nombre,
-      'activo': true,
-      'estudiantes': [],
-    };
-
-    // Guardar en DataManager
-    _dataManager.agregarParalelo(
-      widget.carrera['id'].toString(),
-      widget.turno['id'].toString(),
-      widget.nivel['id'].toString(),
-      nuevoParalelo,
-    );
-
-    setState(() {
-      _paralelos.add(nuevoParalelo);
-      // Ordenar paralelos alfabéticamente
-      _paralelos.sort((a, b) => a['nombre'].compareTo(b['nombre']));
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Paralelo $nombre agregado correctamente'),
-        backgroundColor: Colors.green,
-      ),
-    );
-  }
-
-  void _cambiarEstadoParalelo(Map<String, dynamic> paralelo, bool nuevoEstado) {
-    setState(() {
-      paralelo['activo'] = nuevoEstado;
-    });
-
-    // Actualizar en DataManager
-    _dataManager.actualizarParalelo(
-      widget.carrera['id'].toString(),
-      widget.turno['id'].toString(),
-      widget.nivel['id'].toString(),
-      paralelo['id'].toString(),
-      paralelo,
-    );
-  }
-
-  void _showEditarParaleloDialog(Map<String, dynamic> paralelo) {
-    _editarNombreController.text = paralelo['nombre'];
+  void _showEditarParaleloDialog(
+    BuildContext context,
+    Paralelo paralelo,
+    ParalelosViewModel viewModel,
+  ) {
+    viewModel.editarNombreController.text = paralelo.nombre;
 
     showDialog(
       context: context,
@@ -507,7 +442,7 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
-              controller: _editarNombreController,
+              controller: viewModel.editarNombreController,
               style: TextStyle(color: _getTextColor(context)),
               decoration: InputDecoration(
                 labelText: 'Letra del Paralelo',
@@ -520,7 +455,7 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderSide: BorderSide(
-                    color: _parseColor(widget.carrera['color']),
+                    color: _parseColor(viewModel.carrera['color']),
                   ),
                 ),
                 counterText: 'Máximo 2 caracteres',
@@ -529,9 +464,9 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
               maxLength: 2,
               textCapitalization: TextCapitalization.characters,
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Container(
-              padding: EdgeInsets.all(12),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: _getInfoBackgroundColor(context),
                 borderRadius: BorderRadius.circular(8),
@@ -539,7 +474,7 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
               child: Row(
                 children: [
                   Icon(Icons.info, color: _getInfoTextColor(context), size: 16),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Modifica la letra del paralelo',
@@ -564,66 +499,46 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              if (_editarNombreController.text.trim().isNotEmpty) {
-                _editarParalelo(
-                  paralelo,
-                  _editarNombreController.text.trim().toUpperCase(),
-                );
-                Navigator.pop(context);
+              if (viewModel.editarNombreController.text.trim().isNotEmpty) {
+                try {
+                  viewModel.editarParalelo(
+                    paralelo,
+                    viewModel.editarNombreController.text.trim().toUpperCase(),
+                  );
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Paralelo actualizado a ${viewModel.editarNombreController.text.trim().toUpperCase()}',
+                      ),
+                      backgroundColor: Colors.blue,
+                    ),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(e.toString()),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                }
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: _parseColor(widget.carrera['color']),
+              backgroundColor: _parseColor(viewModel.carrera['color']),
             ),
-            child: Text('Guardar', style: TextStyle(color: Colors.white)),
+            child: const Text('Guardar', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
   }
 
-  void _editarParalelo(Map<String, dynamic> paralelo, String nuevoNombre) {
-    // Verificar si ya existe otro paralelo con ese nombre (excluyendo el actual)
-    bool existe = _paralelos.any(
-      (p) => p['nombre'] == nuevoNombre && p['id'] != paralelo['id'],
-    );
-
-    if (existe) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Ya existe un paralelo con la letra $nuevoNombre'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    String nombreAnterior = paralelo['nombre'];
-
-    setState(() {
-      paralelo['nombre'] = nuevoNombre;
-      // Reordenar después de editar
-      _paralelos.sort((a, b) => a['nombre'].compareTo(b['nombre']));
-    });
-
-    // Actualizar en DataManager
-    _dataManager.actualizarParalelo(
-      widget.carrera['id'].toString(),
-      widget.turno['id'].toString(),
-      widget.nivel['id'].toString(),
-      paralelo['id'].toString(),
-      paralelo,
-    );
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Paralelo actualizado a $nuevoNombre'),
-        backgroundColor: Colors.blue,
-      ),
-    );
-  }
-
-  void _showEliminarParaleloDialog(Map<String, dynamic> paralelo) {
+  void _showEliminarParaleloDialog(
+    BuildContext context,
+    Paralelo paralelo,
+    ParalelosViewModel viewModel,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -633,7 +548,7 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
           style: TextStyle(color: _getTextColor(context)),
         ),
         content: Text(
-          '¿Estás seguro de eliminar el Paralelo ${paralelo['nombre']}?',
+          '¿Estás seguro de eliminar el Paralelo ${paralelo.nombre}?',
           style: TextStyle(color: _getTextColor(context)),
         ),
         actions: [
@@ -646,35 +561,18 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
           ),
           TextButton(
             onPressed: () {
-              _eliminarParalelo(paralelo);
+              viewModel.eliminarParalelo(paralelo);
               Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Paralelo ${paralelo.nombre} eliminado'),
+                  backgroundColor: Colors.red,
+                ),
+              );
             },
-            child: Text('Eliminar', style: TextStyle(color: Colors.red)),
+            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
           ),
         ],
-      ),
-    );
-  }
-
-  void _eliminarParalelo(Map<String, dynamic> paralelo) {
-    String nombreEliminado = paralelo['nombre'];
-
-    // Eliminar del DataManager
-    _dataManager.eliminarParalelo(
-      widget.carrera['id'].toString(),
-      widget.turno['id'].toString(),
-      widget.nivel['id'].toString(),
-      paralelo['id'].toString(),
-    );
-
-    setState(() {
-      _paralelos.removeWhere((p) => p['id'] == paralelo['id']);
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Paralelo $nombreEliminado eliminado'),
-        backgroundColor: Colors.red,
       ),
     );
   }

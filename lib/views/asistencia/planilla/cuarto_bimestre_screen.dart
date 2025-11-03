@@ -171,7 +171,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
 
   List<AsistenciaEstudiante> _filteredEstudiantes = [];
   int? _estudianteSeleccionado;
-  bool _mostrarEditorFechas = false;
+  final bool _mostrarEditorFechas = false;
 
   // Funciones para obtener colores según el tema
   Color _getBackgroundColor(BuildContext context) {
@@ -897,7 +897,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                 const SizedBox(height: 8),
                 if (_estudianteSeleccionado != null)
                   Text(
-                    'Estudiante seleccionado: ${_estudianteSeleccionado}',
+                    'Estudiante seleccionado: $_estudianteSeleccionado',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       color: _getTealAccentColor(context),
@@ -935,7 +935,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                     child: SingleChildScrollView(
                       scrollDirection: Axis.vertical,
                       child: DataTable(
-                        headingRowColor: MaterialStateProperty.resolveWith(
+                        headingRowColor: WidgetStateProperty.resolveWith(
                           (states) => _getHeaderBackgroundColor(context),
                         ),
                         columnSpacing: 8,
@@ -980,7 +980,7 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                                   ),
                                 ),
                               )
-                              .toList(),
+                              ,
                           DataColumn(
                             label: Text(
                               'TOTAL',
@@ -997,8 +997,8 @@ class _CuartoBimestreScreenState extends State<CuartoBimestreScreen> {
                               _estudianteSeleccionado == estudiante.item;
 
                           return DataRow(
-                            color: MaterialStateProperty.resolveWith<Color?>((
-                              Set<MaterialState> states,
+                            color: WidgetStateProperty.resolveWith<Color?>((
+                              Set<WidgetState> states,
                             ) {
                               return _getColorFila(estudiante.item, context);
                             }),

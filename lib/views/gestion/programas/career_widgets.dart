@@ -90,25 +90,25 @@ class InfoRow extends StatelessWidget {
 Widget buildYearSection(String year, List<Map<String, String>> subjects) {
   return Builder(
     builder: (context) {
-      Color _getTextColor(BuildContext context) {
+      Color getTextColor(BuildContext context) {
         return Theme.of(context).brightness == Brightness.dark
             ? Colors.white
             : Colors.black;
       }
 
-      Color _getBackgroundColor(BuildContext context) {
+      Color getBackgroundColor(BuildContext context) {
         return Theme.of(context).brightness == Brightness.dark
             ? Colors.grey.shade800
             : Colors.grey.shade50;
       }
 
-      Color _getHeaderBackgroundColor(BuildContext context) {
+      Color getHeaderBackgroundColor(BuildContext context) {
         return Theme.of(context).brightness == Brightness.dark
             ? Colors.grey.shade700
             : Colors.grey.shade300;
       }
 
-      Color _getBorderColor(BuildContext context) {
+      Color getBorderColor(BuildContext context) {
         return Theme.of(context).brightness == Brightness.dark
             ? Colors.grey.shade600
             : Colors.grey.shade300;
@@ -133,11 +133,11 @@ Widget buildYearSection(String year, List<Map<String, String>> subjects) {
               2: FlexColumnWidth(0.8),
               3: FlexColumnWidth(1.5),
             },
-            border: TableBorder.all(color: _getBorderColor(context)),
+            border: TableBorder.all(color: getBorderColor(context)),
             children: [
               TableRow(
                 decoration: BoxDecoration(
-                  color: _getHeaderBackgroundColor(context),
+                  color: getHeaderBackgroundColor(context),
                 ),
                 children: [
                   Padding(
@@ -146,7 +146,7 @@ Widget buildYearSection(String year, List<Map<String, String>> subjects) {
                       "Código",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: _getTextColor(context),
+                        color: getTextColor(context),
                       ),
                     ),
                   ),
@@ -156,7 +156,7 @@ Widget buildYearSection(String year, List<Map<String, String>> subjects) {
                       "Asignatura",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: _getTextColor(context),
+                        color: getTextColor(context),
                       ),
                     ),
                   ),
@@ -166,7 +166,7 @@ Widget buildYearSection(String year, List<Map<String, String>> subjects) {
                       "Horas",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: _getTextColor(context),
+                        color: getTextColor(context),
                       ),
                     ),
                   ),
@@ -176,7 +176,7 @@ Widget buildYearSection(String year, List<Map<String, String>> subjects) {
                       "Prerequisito",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: _getTextColor(context),
+                        color: getTextColor(context),
                       ),
                     ),
                   ),
@@ -185,40 +185,40 @@ Widget buildYearSection(String year, List<Map<String, String>> subjects) {
               ...subjects.map((subject) {
                 return TableRow(
                   decoration: BoxDecoration(
-                    color: _getBackgroundColor(context),
+                    color: getBackgroundColor(context),
                   ),
                   children: [
                     Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: Text(
                         subject["code"] ?? "",
-                        style: TextStyle(color: _getTextColor(context)),
+                        style: TextStyle(color: getTextColor(context)),
                       ),
                     ),
                     Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: Text(
                         subject["name"] ?? "",
-                        style: TextStyle(color: _getTextColor(context)),
+                        style: TextStyle(color: getTextColor(context)),
                       ),
                     ),
                     Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: Text(
                         subject["hours"] ?? "",
-                        style: TextStyle(color: _getTextColor(context)),
+                        style: TextStyle(color: getTextColor(context)),
                       ),
                     ),
                     Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: Text(
                         subject["req"] ?? "-",
-                        style: TextStyle(color: _getTextColor(context)),
+                        style: TextStyle(color: getTextColor(context)),
                       ),
                     ),
                   ],
                 );
-              }).toList(),
+              }),
             ],
           ),
           const SizedBox(height: AppSpacing.medium),
@@ -232,25 +232,25 @@ Widget buildYearSection(String year, List<Map<String, String>> subjects) {
 Widget buildModuleSection(String module, List<Map<String, String>> subjects) {
   return Builder(
     builder: (context) {
-      Color _getTextColor(BuildContext context) {
+      Color getTextColor(BuildContext context) {
         return Theme.of(context).brightness == Brightness.dark
             ? Colors.white
             : Colors.black;
       }
 
-      Color _getBackgroundColor(BuildContext context) {
+      Color getBackgroundColor(BuildContext context) {
         return Theme.of(context).brightness == Brightness.dark
             ? Colors.grey.shade800
             : Colors.grey.shade50;
       }
 
-      Color _getHeaderBackgroundColor(BuildContext context) {
+      Color getHeaderBackgroundColor(BuildContext context) {
         return Theme.of(context).brightness == Brightness.dark
             ? Colors.grey.shade700
             : Colors.grey.shade300;
       }
 
-      Color _getBorderColor(BuildContext context) {
+      Color getBorderColor(BuildContext context) {
         return Theme.of(context).brightness == Brightness.dark
             ? Colors.grey.shade600
             : Colors.grey.shade300;
@@ -275,11 +275,11 @@ Widget buildModuleSection(String module, List<Map<String, String>> subjects) {
               2: FlexColumnWidth(1.2),
               3: FlexColumnWidth(1.5),
             },
-            border: TableBorder.all(color: _getBorderColor(context)),
+            border: TableBorder.all(color: getBorderColor(context)),
             children: [
               TableRow(
                 decoration: BoxDecoration(
-                  color: _getHeaderBackgroundColor(context),
+                  color: getHeaderBackgroundColor(context),
                 ),
                 children: [
                   Padding(
@@ -288,7 +288,7 @@ Widget buildModuleSection(String module, List<Map<String, String>> subjects) {
                       "Código",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: _getTextColor(context),
+                        color: getTextColor(context),
                       ),
                     ),
                   ),
@@ -298,7 +298,7 @@ Widget buildModuleSection(String module, List<Map<String, String>> subjects) {
                       "Asignatura",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: _getTextColor(context),
+                        color: getTextColor(context),
                       ),
                     ),
                   ),
@@ -308,7 +308,7 @@ Widget buildModuleSection(String module, List<Map<String, String>> subjects) {
                       "Horas/Sem.",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: _getTextColor(context),
+                        color: getTextColor(context),
                       ),
                     ),
                   ),
@@ -318,7 +318,7 @@ Widget buildModuleSection(String module, List<Map<String, String>> subjects) {
                       "Requisito",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: _getTextColor(context),
+                        color: getTextColor(context),
                       ),
                     ),
                   ),
@@ -327,40 +327,40 @@ Widget buildModuleSection(String module, List<Map<String, String>> subjects) {
               ...subjects.map((subject) {
                 return TableRow(
                   decoration: BoxDecoration(
-                    color: _getBackgroundColor(context),
+                    color: getBackgroundColor(context),
                   ),
                   children: [
                     Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: Text(
                         subject["code"] ?? "",
-                        style: TextStyle(color: _getTextColor(context)),
+                        style: TextStyle(color: getTextColor(context)),
                       ),
                     ),
                     Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: Text(
                         subject["name"] ?? "",
-                        style: TextStyle(color: _getTextColor(context)),
+                        style: TextStyle(color: getTextColor(context)),
                       ),
                     ),
                     Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: Text(
                         subject["hours"] ?? "",
-                        style: TextStyle(color: _getTextColor(context)),
+                        style: TextStyle(color: getTextColor(context)),
                       ),
                     ),
                     Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: Text(
                         subject["req"] ?? "-",
-                        style: TextStyle(color: _getTextColor(context)),
+                        style: TextStyle(color: getTextColor(context)),
                       ),
                     ),
                   ],
                 );
-              }).toList(),
+              }),
             ],
           ),
           const SizedBox(height: AppSpacing.medium),

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:incos_check/utils/constants.dart';
 import 'package:incos_check/viewmodels/programas_viewmodel.dart';
-import 'package:incos_check/models/programa_model.dart';
 
 // Importar las carreras individuales
 import 'carrera_secretariado.dart';
@@ -101,6 +100,12 @@ class _ProgramasScreenState extends State<ProgramasScreen> {
                                 fontSize: 18,
                               ),
                             ),
+                            trailing: Icon(
+                              isExpanded
+                                  ? Icons.expand_less
+                                  : Icons.expand_more,
+                              color: AppColors.primary,
+                            ),
                             children: [
                               Padding(
                                 padding: const EdgeInsets.all(
@@ -109,12 +114,6 @@ class _ProgramasScreenState extends State<ProgramasScreen> {
                                 child: _getExpandedContent(realIndex),
                               ),
                             ],
-                            trailing: Icon(
-                              isExpanded
-                                  ? Icons.expand_less
-                                  : Icons.expand_more,
-                              color: AppColors.primary,
-                            ),
                           ),
                         );
                       },

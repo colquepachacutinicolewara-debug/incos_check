@@ -529,7 +529,7 @@ class MateriaViewModel extends ChangeNotifier {
 
   String obtenerTextoFiltros() {
     List<String> filtros = [];
-    if (_anioFiltro != 0) filtros.add('${_anioFiltro}° Año');
+    if (_anioFiltro != 0) filtros.add('$_anioFiltro° Año');
     if (_carreraFiltro != 'Todas') filtros.add(_carreraFiltro);
     if (_paraleloFiltro != 'Todos') filtros.add('Paralelo $_paraleloFiltro');
     if (_turnoFiltro != 'Todos') filtros.add('Turno $_turnoFiltro');

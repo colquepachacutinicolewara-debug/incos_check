@@ -166,7 +166,7 @@ class CarreraSistemas extends StatelessWidget {
                           ),
                         ],
                       );
-                    }).toList(),
+                    }),
                   ],
                 ),
               ],

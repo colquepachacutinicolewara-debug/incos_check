@@ -148,7 +148,7 @@ class CarreraIngles extends StatelessWidget {
                           ),
                         ],
                       );
-                    }).toList(),
+                    }),
                   ],
                 ),
               ],

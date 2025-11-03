@@ -904,7 +904,7 @@ class _PrimerBimestreScreenState extends State<PrimerBimestreScreen> {
                 const SizedBox(height: 8),
                 if (_estudianteSeleccionado != null)
                   Text(
-                    'Estudiante seleccionado: ${_estudianteSeleccionado}',
+                    'Estudiante seleccionado: $_estudianteSeleccionado',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       color: _getOrangeAccentColor(context),
@@ -942,7 +942,7 @@ class _PrimerBimestreScreenState extends State<PrimerBimestreScreen> {
                     child: SingleChildScrollView(
                       scrollDirection: Axis.vertical,
                       child: DataTable(
-                        headingRowColor: MaterialStateProperty.resolveWith(
+                        headingRowColor: WidgetStateProperty.resolveWith(
                           (states) => _getHeaderBackgroundColor(context),
                         ),
                         columnSpacing: 8,
@@ -987,7 +987,7 @@ class _PrimerBimestreScreenState extends State<PrimerBimestreScreen> {
                                   ),
                                 ),
                               )
-                              .toList(),
+                              ,
                           DataColumn(
                             label: Text(
                               'TOTAL',
@@ -1004,8 +1004,8 @@ class _PrimerBimestreScreenState extends State<PrimerBimestreScreen> {
                               _estudianteSeleccionado == estudiante.item;
 
                           return DataRow(
-                            color: MaterialStateProperty.resolveWith<Color?>((
-                              Set<MaterialState> states,
+                            color: WidgetStateProperty.resolveWith<Color?>((
+                              Set<WidgetState> states,
                             ) {
                               return _getColorFila(estudiante.item, context);
                             }),

@@ -1,7 +1,6 @@
 // widgets/estudiante_widget.dart
 import 'package:flutter/material.dart';
 import '../../../utils/constants.dart';
-import 'package:incos_check/utils/helpers.dart';
 
 class EstudianteCard extends StatelessWidget {
   final Map<String, dynamic> estudiante;

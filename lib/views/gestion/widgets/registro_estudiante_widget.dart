@@ -210,7 +210,7 @@ class _RegistroEstudianteWidgetState extends State<RegistroEstudianteWidget> {
                       Text('Información Académica y Biométrica', style: AppTextStyles.heading2.copyWith(color: AppColors.primary)),
                       SizedBox(height: AppSpacing.medium),
                       DropdownButtonFormField(
-                        value: _selectedCurso,
+                        initialValue: _selectedCurso,
                         decoration: InputDecoration(
                           labelText: 'Curso',
                           prefixIcon: Icon(Icons.school, color: AppColors.primary),
@@ -223,7 +223,7 @@ class _RegistroEstudianteWidgetState extends State<RegistroEstudianteWidget> {
                       ),
                       SizedBox(height: AppSpacing.small),
                       DropdownButtonFormField(
-                        value: _selectedEstado,
+                        initialValue: _selectedEstado,
                         decoration: InputDecoration(
                           labelText: 'Estado',
                           prefixIcon: Icon(Icons.circle, color: AppColors.primary),

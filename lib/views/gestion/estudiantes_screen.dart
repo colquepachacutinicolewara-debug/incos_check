@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:incos_check/utils/export_utils.dart';
+import 'package:local_auth/local_auth.dart';
 import 'package:incos_check/utils/constants.dart';
 import 'package:incos_check/utils/validators.dart';
 import 'package:incos_check/utils/helpers.dart';
@@ -25,7 +25,7 @@ class EstudiantesListScreen extends StatefulWidget {
 }
 
 class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
-  List<Map<String, dynamic>> _estudiantes = [
+  final List<Map<String, dynamic>> _estudiantes = [
     {
       'id': 1,
       'nombres': 'Juan Carlos',
@@ -625,14 +625,36 @@ class RegistroHuellasScreen extends StatefulWidget {
 }
 
 class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
-  List<bool> _huellasRegistradas = [false, false, false];
+  final List<bool> _huellasRegistradas = [false, false, false];
   int _huellaActual = 0;
+  final LocalAuthentication _localAuth = LocalAuthentication();
+  bool _biometricAvailable = false;
 
   final List<String> _nombresDedos = [
     'Pulgar - Mano Derecha',
     'Índice - Mano Derecha',
     'Medio - Mano Derecha',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBiometricSupport();
+  }
+
+  Future<void> _checkBiometricSupport() async {
+    try {
+      final bool canCheckBiometrics = await _localAuth.canCheckBiometrics;
+      final available = await _localAuth.getAvailableBiometrics();
+      setState(() {
+        _biometricAvailable = canCheckBiometrics && available.isNotEmpty;
+      });
+    } catch (e) {
+      setState(() {
+        _biometricAvailable = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -646,11 +668,13 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
         ),
         backgroundColor: AppColors.primary,
       ),
-      body: Padding(
-        padding: EdgeInsets.all(AppSpacing.medium),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: SingleChildScrollView(
+        padding: MediaQuery.of(context).viewInsets,
+        child: Padding(
+          padding: EdgeInsets.all(AppSpacing.medium),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             // Información del estudiante
             Card(
               child: ListTile(
@@ -768,10 +792,11 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
                     ? Icon(Icons.check, color: Colors.green)
                     : null,
               );
-            }).toList(),
+            }),
           ],
         ),
-      ),
+    ),
+    ),
       floatingActionButton: _huellasRegistradas.every((h) => h)
           ? FloatingActionButton.extended(
               onPressed: _finalizarRegistro,
@@ -786,19 +811,54 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
     );
   }
 
-  void _registrarHuellaActual() {
-    setState(() {
-      _huellasRegistradas[_huellaActual] = true;
-    });
+  Future<void> _registrarHuellaActual() async {
+    if (!_biometricAvailable) {
+      Helpers.showSnackBar(
+        context,
+        'El dispositivo no soporta autenticación biométrica',
+        type: 'error',
+      );
+      return;
+    }
 
-    Helpers.showSnackBar(
-      context,
-      'Huella ${_nombresDedos[_huellaActual]} registrada exitosamente',
-      type: 'success',
-    );
+    try {
+      final bool autenticado = await _localAuth.authenticate(
+        localizedReason:
+            'Autentica tu identidad para registrar ${_nombresDedos[_huellaActual]}',
+        options: const AuthenticationOptions(
+          biometricOnly: true,
+          useErrorDialogs: true,
+          stickyAuth: true,
+        ),
+      );
 
-    if (_huellaActual == 2) {
-      _finalizarRegistro();
+      if (autenticado) {
+        setState(() {
+          _huellasRegistradas[_huellaActual] = true;
+        });
+
+        Helpers.showSnackBar(
+          context,
+          'Huella ${_nombresDedos[_huellaActual]} registrada exitosamente',
+          type: 'success',
+        );
+
+        if (_huellaActual == 2) {
+          _finalizarRegistro();
+        }
+      } else {
+        Helpers.showSnackBar(
+          context,
+          'Huella no reconocida',
+          type: 'error',
+        );
+      }
+    } catch (e) {
+      Helpers.showSnackBar(
+        context,
+        'Error de autenticación: ${e.toString()}',
+        type: 'error',
+      );
     }
   }
 
@@ -873,94 +933,106 @@ class _EstudianteDialogState extends State<_EstudianteDialog> {
 
   @override
   Widget build(BuildContext context) {
+    // Use SingleChildScrollView + viewInsets so the dialog scrolls when the
+    // keyboard appears (prevents Bottom overflow by X pixels).
     return Dialog(
       insetPadding: EdgeInsets.all(AppSpacing.medium),
-      child: Padding(
-        padding: EdgeInsets.all(AppSpacing.medium),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(widget.title, style: AppTextStyles.heading2Dark(context)),
-            SizedBox(height: AppSpacing.medium),
-            Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: _nombresController,
-                    decoration: InputDecoration(
-                      labelText: 'Nombres *',
-                      labelStyle: AppTextStyles.bodyDark(context),
-                      border: OutlineInputBorder(),
-                    ),
-                    style: AppTextStyles.bodyDark(context),
-                    validator: (value) => Validators.validateName(value),
-                  ),
-                  SizedBox(height: AppSpacing.small),
-                  TextFormField(
-                    controller: _paternoController,
-                    decoration: InputDecoration(
-                      labelText: 'Apellido Paterno *',
-                      labelStyle: AppTextStyles.bodyDark(context),
-                      border: OutlineInputBorder(),
-                    ),
-                    style: AppTextStyles.bodyDark(context),
-                    validator: (value) => Validators.validateName(value),
-                  ),
-                  SizedBox(height: AppSpacing.small),
-                  TextFormField(
-                    controller: _maternoController,
-                    decoration: InputDecoration(
-                      labelText: 'Apellido Materno',
-                      labelStyle: AppTextStyles.bodyDark(context),
-                      border: OutlineInputBorder(),
-                    ),
-                    style: AppTextStyles.bodyDark(context),
-                    validator: (value) {
-                      if (value != null && value.isNotEmpty) {
-                        return Validators.validateName(value);
-                      }
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: AppSpacing.small),
-                  TextFormField(
-                    controller: _ciController,
-                    decoration: InputDecoration(
-                      labelText: 'Cédula de Identidad *',
-                      labelStyle: AppTextStyles.bodyDark(context),
-                      border: OutlineInputBorder(),
-                    ),
-                    style: AppTextStyles.bodyDark(context),
-                    keyboardType: TextInputType.number,
-                    validator: (value) => Validators.validateCI(value),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: AppSpacing.large),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+      child: SingleChildScrollView(
+        padding: MediaQuery.of(context).viewInsets,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.95,
+            // Limit height so dialog becomes scrollable on small screens
+            maxHeight: MediaQuery.of(context).size.height * 0.85,
+          ),
+          child: Padding(
+            padding: EdgeInsets.all(AppSpacing.medium),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(
-                    'Cancelar',
-                    style: AppTextStyles.bodyDark(context),
+                Text(widget.title, style: AppTextStyles.heading2Dark(context)),
+                SizedBox(height: AppSpacing.medium),
+                Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: _nombresController,
+                        decoration: InputDecoration(
+                          labelText: 'Nombres *',
+                          labelStyle: AppTextStyles.bodyDark(context),
+                          border: OutlineInputBorder(),
+                        ),
+                        style: AppTextStyles.bodyDark(context),
+                        validator: (value) => Validators.validateName(value),
+                      ),
+                      SizedBox(height: AppSpacing.small),
+                      TextFormField(
+                        controller: _paternoController,
+                        decoration: InputDecoration(
+                          labelText: 'Apellido Paterno *',
+                          labelStyle: AppTextStyles.bodyDark(context),
+                          border: OutlineInputBorder(),
+                        ),
+                        style: AppTextStyles.bodyDark(context),
+                        validator: (value) => Validators.validateName(value),
+                      ),
+                      SizedBox(height: AppSpacing.small),
+                      TextFormField(
+                        controller: _maternoController,
+                        decoration: InputDecoration(
+                          labelText: 'Apellido Materno',
+                          labelStyle: AppTextStyles.bodyDark(context),
+                          border: OutlineInputBorder(),
+                        ),
+                        style: AppTextStyles.bodyDark(context),
+                        validator: (value) {
+                          if (value != null && value.isNotEmpty) {
+                            return Validators.validateName(value);
+                          }
+                          return null;
+                        },
+                      ),
+                      SizedBox(height: AppSpacing.small),
+                      TextFormField(
+                        controller: _ciController,
+                        decoration: InputDecoration(
+                          labelText: 'Cédula de Identidad *',
+                          labelStyle: AppTextStyles.bodyDark(context),
+                          border: OutlineInputBorder(),
+                        ),
+                        style: AppTextStyles.bodyDark(context),
+                        keyboardType: TextInputType.number,
+                        validator: (value) => Validators.validateCI(value),
+                      ),
+                    ],
                   ),
                 ),
-                SizedBox(width: AppSpacing.small),
-                ElevatedButton(
-                  onPressed: _guardarEstudiante,
-                  child: Text(
-                    'Guardar',
-                    style: AppTextStyles.bodyDark(context),
-                  ),
+                SizedBox(height: AppSpacing.large),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        'Cancelar',
+                        style: AppTextStyles.bodyDark(context),
+                      ),
+                    ),
+                    SizedBox(width: AppSpacing.small),
+                    ElevatedButton(
+                      onPressed: _guardarEstudiante,
+                      child: Text(
+                        'Guardar',
+                        style: AppTextStyles.bodyDark(context),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );
