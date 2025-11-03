@@ -1,6 +1,8 @@
-// views/biometrico/registro_huellas_screen.dart
+// 📂 views/biometrico/registro_huellas_screen.dart
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
+
+// Utilidades y estilos
 import '../../utils/constants.dart';
 import '../../utils/helpers.dart';
 
@@ -38,6 +40,7 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
     _checkBiometricSupport();
   }
 
+  // ✅ Verifica si hay sensores disponibles en el dispositivo
   Future<void> _checkBiometricSupport() async {
     try {
       final bool canCheckBiometrics = await _auth.canCheckBiometrics;
@@ -47,29 +50,19 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
         _biometricAvailable =
             canCheckBiometrics && _availableBiometrics.isNotEmpty;
       });
-
-      if (_biometricAvailable) {
-        print('Biométricos disponibles: $_availableBiometrics');
-      } else {
-        print('No hay sensores biométricos disponibles');
-      }
     } catch (e) {
-      print('Error verificando biométricos: $e');
-      setState(() {
-        _biometricAvailable = false;
-      });
+      setState(() => _biometricAvailable = false);
+      debugPrint('Error verificando biométricos: $e');
     }
   }
 
+  // ✅ Registra huella simulando autenticación del dedo actual
   Future<void> _registrarHuellaActual() async {
     if (_isLoading || _huellasRegistradas[_huellaActual]) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      // Verificar disponibilidad biométrica
       if (!_biometricAvailable) {
         Helpers.showSnackBar(
           context,
@@ -79,20 +72,17 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
         return;
       }
 
-      // Realizar autenticación biométrica
       final bool authenticated = await _auth.authenticate(
-        localizedReason:
-            'Registra tu huella para ${_nombresDedos[_huellaActual]}',
+        localizedReason: 'Coloca tu dedo para ${_nombresDedos[_huellaActual]}',
         options: const AuthenticationOptions(
-          biometricOnly: true, // Solo permite huella/face ID
-          useErrorDialogs: true,
+          biometricOnly: true,
           stickyAuth: true,
+          useErrorDialogs: true,
         ),
       );
 
       if (authenticated) {
-        // Simular procesamiento del registro
-        await Future.delayed(const Duration(milliseconds: 500));
+        await Future.delayed(const Duration(milliseconds: 600));
 
         setState(() {
           _huellasRegistradas[_huellaActual] = true;
@@ -100,11 +90,10 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
 
         Helpers.showSnackBar(
           context,
-          '✅ ${_nombresDedos[_huellaActual]} registrada exitosamente',
+          '✅ ${_nombresDedos[_huellaActual]} registrada correctamente',
           type: 'success',
         );
 
-        // Avanzar automáticamente a la siguiente huella
         if (_huellaActual < 2) {
           await Future.delayed(const Duration(milliseconds: 800));
           _siguienteHuella();
@@ -117,38 +106,27 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
         );
       }
     } catch (e) {
-      print('Error en autenticación: $e');
       Helpers.showSnackBar(context, 'Error: ${e.toString()}', type: 'error');
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
   void _siguienteHuella() {
-    if (_huellaActual < 2) {
-      setState(() {
-        _huellaActual++;
-      });
-    }
+    if (_huellaActual < 2) setState(() => _huellaActual++);
   }
 
   void _anteriorHuella() {
-    if (_huellaActual > 0) {
-      setState(() {
-        _huellaActual--;
-      });
-    }
+    if (_huellaActual > 0) setState(() => _huellaActual--);
   }
 
   void _finalizarRegistro() {
-    int totalRegistradas = _huellasRegistradas.where((h) => h).length;
-    widget.onHuellasRegistradas(totalRegistradas);
+    int total = _huellasRegistradas.where((h) => h).length;
+    widget.onHuellasRegistradas(total);
     Navigator.pop(context);
     Helpers.showSnackBar(
       context,
-      'Registro de huellas completado: $totalRegistradas/3',
+      'Registro de huellas completado: $total/3',
       type: 'success',
     );
   }
@@ -160,23 +138,33 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
     });
   }
 
+  // ✅ Nombre legible del tipo biométrico
+  String _getBiometricName(BiometricType type) {
+    switch (type) {
+      case BiometricType.face:
+        return 'Reconocimiento Facial';
+      case BiometricType.fingerprint:
+        return 'Sensor de Huella';
+      case BiometricType.iris:
+        return 'Reconocimiento de Iris';
+      default:
+        return 'Desconocido';
+    }
+  }
+
+  // ✅ Interfaz principal
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Registro de Huellas',
-          style: AppTextStyles.heading2Dark(
-            context,
-          ).copyWith(color: Colors.white),
-        ),
+        title: const Text('Registro de Huellas'),
         backgroundColor: AppColors.primary,
         actions: [
           if (_huellasRegistradas.any((h) => h))
             IconButton(
               icon: const Icon(Icons.done_all, color: Colors.white),
-              onPressed: _finalizarRegistro,
               tooltip: 'Finalizar registro',
+              onPressed: _finalizarRegistro,
             ),
         ],
       ),
@@ -185,7 +173,7 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Información del estudiante
+            // 🧑 Datos del estudiante
             Card(
               elevation: 2,
               child: ListTile(
@@ -198,111 +186,45 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
                 ),
                 title: Text(
                   '${widget.estudiante['apellidoPaterno']} ${widget.estudiante['apellidoMaterno']} ${widget.estudiante['nombres']}',
-                  style: AppTextStyles.heading3Dark(context),
                 ),
-                subtitle: Text(
-                  'CI: ${widget.estudiante['ci']}',
-                  style: AppTextStyles.bodyDark(context),
-                ),
+                subtitle: Text('CI: ${widget.estudiante['ci']}'),
               ),
             ),
-            SizedBox(height: AppSpacing.large),
+            const SizedBox(height: 20),
 
-            // Estado del sensor biométrico
-            if (!_biometricAvailable)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(AppRadius.small),
-                  border: Border.all(color: Colors.orange),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.warning, color: Colors.orange, size: 20),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Sensor biométrico no disponible",
-                            style: AppTextStyles.bodyDark(context).copyWith(
-                              fontWeight: FontWeight.w500,
-                              color: Colors.orange,
-                            ),
-                          ),
-                          if (_availableBiometrics.isEmpty)
-                            Text(
-                              "No se detectaron sensores de huella",
-                              style: AppTextStyles.bodyDark(
-                                context,
-                              ).copyWith(fontSize: 12, color: Colors.orange),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            else
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(AppRadius.small),
-                  border: Border.all(color: Colors.green),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.check_circle,
-                      color: Colors.green,
-                      size: 20,
-                    ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Sensor biométrico disponible",
-                            style: AppTextStyles.bodyDark(context).copyWith(
-                              fontWeight: FontWeight.w500,
-                              color: Colors.green,
-                            ),
-                          ),
-                          Text(
-                            "Sensores: ${_availableBiometrics.map((b) => _getBiometricName(b)).join(', ')}",
-                            style: AppTextStyles.bodyDark(
-                              context,
-                            ).copyWith(fontSize: 12, color: Colors.green),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            // 🔍 Estado del sensor
+            _biometricAvailable
+                ? _infoBox(
+                    color: Colors.green,
+                    icon: Icons.check_circle,
+                    title: "Sensor biométrico disponible",
+                    subtitle:
+                        "Detectado: ${_availableBiometrics.map(_getBiometricName).join(', ')}",
+                  )
+                : _infoBox(
+                    color: Colors.orange,
+                    icon: Icons.warning,
+                    title: "Sensor biométrico no disponible",
+                    subtitle: "No se detectaron sensores de huella",
+                  ),
 
-            // Progreso
+            const SizedBox(height: 10),
+
+            // 📈 Progreso
             Text(
               'Progreso: ${_huellasRegistradas.where((h) => h).length}/3 huellas registradas',
               style: AppTextStyles.heading2Dark(context),
             ),
-            SizedBox(height: AppSpacing.small),
+            const SizedBox(height: 8),
             LinearProgressIndicator(
               value: _huellasRegistradas.where((h) => h).length / 3,
               backgroundColor: Colors.grey.shade300,
               color: AppColors.primary,
             ),
-            SizedBox(height: AppSpacing.large),
 
-            // Huella actual
+            const SizedBox(height: 25),
+
+            // 🔵 Huella actual (icono central animado)
             Expanded(
               child: Center(
                 child: Column(
@@ -334,22 +256,19 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
                         ),
                       ),
                     ),
-                    SizedBox(height: AppSpacing.medium),
+                    const SizedBox(height: 16),
                     Text(
                       _nombresDedos[_huellaActual],
                       style: AppTextStyles.heading2Dark(context),
-                      textAlign: TextAlign.center,
                     ),
-                    SizedBox(height: AppSpacing.small),
+                    const SizedBox(height: 8),
                     Text(
                       _huellasRegistradas[_huellaActual]
-                          ? '✅ Huella registrada - Toca para reenrolar'
-                          : 'Toca el icono para registrar esta huella',
+                          ? '✅ Huella registrada. Toca para reenrolar.'
+                          : 'Toca el icono para registrar esta huella.',
                       style: AppTextStyles.bodyDark(context),
-                      textAlign: TextAlign.center,
                     ),
-                    SizedBox(height: AppSpacing.medium),
-
+                    const SizedBox(height: 20),
                     if (_isLoading)
                       Column(
                         children: [
@@ -358,65 +277,37 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
                               AppColors.primary,
                             ),
                           ),
-                          SizedBox(height: AppSpacing.small),
-                          Text(
-                            'Esperando huella...',
-                            style: AppTextStyles.bodyDark(context),
-                          ),
+                          const SizedBox(height: 10),
+                          const Text('Esperando huella...'),
                         ],
-                      )
-                    else
-                      ElevatedButton.icon(
-                        onPressed: _registrarHuellaActual,
-                        icon: const Icon(Icons.fingerprint),
-                        label: Text(
-                          _huellasRegistradas[_huellaActual]
-                              ? 'Reenrolar Huella'
-                              : 'Registrar Huella',
-                          style: AppTextStyles.bodyDark(context),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                        ),
                       ),
                   ],
                 ),
               ),
             ),
 
-            // Controles de navegación
+            // 🔙 Controles de navegación
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 ElevatedButton(
                   onPressed: _huellaActual > 0 ? _anteriorHuella : null,
-                  child: Text(
-                    'Anterior',
-                    style: AppTextStyles.bodyDark(context),
-                  ),
+                  child: const Text('Anterior'),
                 ),
                 ElevatedButton(
                   onPressed: _huellaActual < 2 ? _siguienteHuella : null,
-                  child: Text(
-                    'Siguiente',
-                    style: AppTextStyles.bodyDark(context),
-                  ),
+                  child: const Text('Siguiente'),
                 ),
               ],
             ),
+            const SizedBox(height: 20),
 
-            // Lista de huellas
-            SizedBox(height: AppSpacing.large),
+            // 🧾 Lista de huellas registradas
             Text(
               'Huellas registradas:',
               style: AppTextStyles.heading3Dark(context),
             ),
-            SizedBox(height: AppSpacing.small),
+            const SizedBox(height: 10),
             ..._nombresDedos.asMap().entries.map((entry) {
               int index = entry.key;
               String nombre = entry.value;
@@ -431,13 +322,13 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
                         ? Colors.green
                         : Colors.grey,
                   ),
-                  title: Text(nombre, style: AppTextStyles.bodyDark(context)),
+                  title: Text(nombre),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (_huellasRegistradas[index])
                         IconButton(
-                          icon: const Icon(Icons.refresh, size: 20),
+                          icon: const Icon(Icons.refresh),
                           onPressed: () => _reenrolarHuella(index),
                           tooltip: 'Reenrolar huella',
                           color: AppColors.primary,
@@ -450,11 +341,7 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
                       ),
                     ],
                   ),
-                  onTap: () {
-                    setState(() {
-                      _huellaActual = index;
-                    });
-                  },
+                  onTap: () => setState(() => _huellaActual = index),
                 ),
               );
             }),
@@ -464,16 +351,39 @@ class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
     );
   }
 
-  String _getBiometricName(BiometricType type) {
-    switch (type) {
-      case BiometricType.face:
-        return 'Reconocimiento Facial';
-      case BiometricType.fingerprint:
-        return 'Sensor de Huella';
-      case BiometricType.iris:
-        return 'Reconocimiento de Iris';
-      default:
-        return 'Biométrico';
-    }
+  Widget _infoBox({
+    required Color color,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(AppRadius.small),
+        border: Border.all(color: color),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(fontWeight: FontWeight.w600, color: color),
+                ),
+                Text(subtitle, style: TextStyle(fontSize: 12, color: color)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

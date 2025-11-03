@@ -10,7 +10,7 @@ class EstudiantesService {
   // Simulación de operaciones de base de datos
   static Future<List<Estudiante>> obtenerEstudiantes() async {
     await Future.delayed(const Duration(seconds: 1));
-    
+
     // Retornar lista vacía - los datos se manejan en el ViewModel
     return [];
   }

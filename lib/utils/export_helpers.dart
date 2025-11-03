@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:excel/excel.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
+// printing not required here
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -15,6 +15,10 @@ class ExportHelpers {
     required String turno,
     required String nivel,
     required String paralelo,
+    List<DateTime>? fechas,
+    DateTime? startDate,
+    DateTime? endDate,
+    String? turnoHorario,
     bool simple = true,
   }) async {
     try {
@@ -40,24 +44,27 @@ class ExportHelpers {
       ]);
       sheet.appendRow([TextCellValue('')]);
 
-      // Fechas específicas
-      List<String> fechas = [
-        '07/05',
-        '08/05',
-        '14/05',
-        '15/05',
-        '21/05',
-        '22/05',
-        '28/05',
-        '29/05',
-        '04/06',
-        '05/06',
-        '11/06',
-        '12/06',
-      ];
+      // Generar lista de fechas (lunes a viernes) según parámetros
+      List<DateTime> fechasDt = _buildFechasList(
+        fechas: fechas,
+        startDate: startDate,
+        endDate: endDate,
+      );
+
+      List<String> fechasStr = fechasDt.map((d) {
+        final dia = d.day.toString().padLeft(2, '0');
+        final mes = d.month.toString().padLeft(2, '0');
+        return '$dia/$mes';
+      }).toList();
 
       // ENCABEZADO DE LA TABLA
-      List<String> encabezados = ['NRO', 'ESTUDIANTES', ...fechas];
+      List<String> encabezados = ['NRO', 'ESTUDIANTES', ...fechasStr];
+
+      // Metadatos de exportación
+      sheet.appendRow([
+        TextCellValue('Exportado:'),
+        TextCellValue(_formatDateTime(DateTime.now())),
+      ]);
       sheet.appendRow(encabezados.map((s) => TextCellValue(s)).toList());
 
       // DATOS DE ESTUDIANTES
@@ -69,13 +76,15 @@ class ExportHelpers {
         List<String> fila = [
           '${i + 1}',
           nombreCompleto,
-          ..._generarAsistenciasAleatorias(fechas.length),
+          ..._generarAsistenciasAleatorias(fechasDt.length),
         ];
 
         sheet.appendRow(fila.map((s) => TextCellValue(s)).toList());
       }
 
-      final directory = await getExternalStorageDirectory();
+      final directory =
+          await getExternalStorageDirectory() ??
+          await getApplicationDocumentsDirectory();
       String fileName =
           'asistencia_${DateTime.now().millisecondsSinceEpoch}.xlsx';
       String filePath = '${directory?.path}/$fileName';
@@ -96,6 +105,10 @@ class ExportHelpers {
     required String turno,
     required String nivel,
     required String paralelo,
+    List<DateTime>? fechas,
+    DateTime? startDate,
+    DateTime? endDate,
+    String? turnoHorario,
     bool simple = true,
   }) async {
     try {
@@ -105,21 +118,18 @@ class ExportHelpers {
 
       final pdf = pw.Document();
 
-      // Fechas específicas
-      List<String> fechas = [
-        '07/05',
-        '08/05',
-        '14/05',
-        '15/05',
-        '21/05',
-        '22/05',
-        '28/05',
-        '29/05',
-        '04/06',
-        '05/06',
-        '11/06',
-        '12/06',
-      ];
+      // Generar lista de fechas (lunes a viernes) según parámetros
+      List<DateTime> fechasDt = _buildFechasList(
+        fechas: fechas,
+        startDate: startDate,
+        endDate: endDate,
+      );
+
+      List<String> fechasStr = fechasDt.map((d) {
+        final dia = d.day.toString().padLeft(2, '0');
+        final mes = d.month.toString().padLeft(2, '0');
+        return '$dia/$mes';
+      }).toList();
 
       pdf.addPage(
         pw.Page(
@@ -158,8 +168,10 @@ class ExportHelpers {
                     pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        pw.Text('CARRERA: Sistemas Informaticos'),
-                        pw.Text('TURNO: $turno (2do Bimestre)'),
+                        pw.Text('CARRERA: $institucion'),
+                        pw.Text(
+                          'TURNO: ${turno}${turnoHorario != null ? ' ($turnoHorario)' : ''}',
+                        ),
                       ],
                     ),
                     pw.Column(
@@ -167,7 +179,7 @@ class ExportHelpers {
                       children: [
                         pw.Text('CURSO: $nivel $paralelo'),
                         pw.Text(
-                          'Fecha: ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
+                          'Exportado: ${_formatDateTime(DateTime.now())}',
                         ),
                       ],
                     ),
@@ -189,7 +201,7 @@ class ExportHelpers {
                 pw.SizedBox(height: 10),
 
                 // TABLA DE ASISTENCIA
-                _buildTablaAsistencia(estudiantes, fechas),
+                _buildTablaAsistencia(estudiantes, fechasStr),
               ],
             );
           },
@@ -277,5 +289,50 @@ class ExportHelpers {
       status = await Permission.storage.request();
     }
     return status.isGranted;
+  }
+
+  // Construir lista de fechas laborales (lunes a viernes)
+  static List<DateTime> _buildFechasList({
+    List<DateTime>? fechas,
+    DateTime? startDate,
+    DateTime? endDate,
+    int maxFechas = 20,
+  }) {
+    if (fechas != null && fechas.isNotEmpty) return fechas;
+
+    DateTime hoy = DateTime.now();
+    DateTime inicio = startDate ?? DateTime(hoy.year, hoy.month, 1);
+    DateTime fin = endDate ?? hoy;
+
+    List<DateTime> result = [];
+    for (
+      DateTime d = inicio;
+      !d.isAfter(fin);
+      d = d.add(const Duration(days: 1))
+    ) {
+      if (d.weekday >= DateTime.monday && d.weekday <= DateTime.friday) {
+        result.add(d);
+      }
+      if (result.length >= maxFechas) break;
+    }
+
+    // Si no encontramos fechas (raro), devolver al menos hoy si es laboral
+    if (result.isEmpty) {
+      if (hoy.weekday >= DateTime.monday && hoy.weekday <= DateTime.friday) {
+        result.add(hoy);
+      }
+    }
+
+    return result;
+  }
+
+  static String _formatDateTime(DateTime dt) {
+    final dd = dt.day.toString().padLeft(2, '0');
+    final mm = dt.month.toString().padLeft(2, '0');
+    final yyyy = dt.year.toString();
+    final hh = dt.hour.toString().padLeft(2, '0');
+    final min = dt.minute.toString().padLeft(2, '0');
+    final ss = dt.second.toString().padLeft(2, '0');
+    return '$dd/$mm/$yyyy $hh:$min:$ss';
   }
 }

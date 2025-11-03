@@ -136,12 +136,24 @@ class DocentesViewModel extends ChangeNotifier {
         final matchesCarreraTurno =
             docente.carrera == _selectedCarrera &&
             docente.turno == _selectedTurno;
-
         return matchesSearch && matchesCarreraTurno;
       }).toList();
     }
     _sortDocentesAlphabetically();
     notifyListeners();
+  }
+
+  // Métodos para estadísticas
+  Map<String, int> getEstadisticasPorTurno() {
+    final docentesCarrera = _docentes
+        .where((d) => d.carrera == _selectedCarrera)
+        .toList();
+    return {
+      'MAÑANA': docentesCarrera.where((d) => d.turno == 'MAÑANA').length,
+      'NOCHE': docentesCarrera.where((d) => d.turno == 'NOCHE').length,
+      'AMBOS': docentesCarrera.where((d) => d.turno == 'AMBOS').length,
+      'TOTAL': docentesCarrera.length,
+    };
   }
 
   // Métodos CRUD
@@ -158,6 +170,9 @@ class DocentesViewModel extends ChangeNotifier {
     final index = _docentes.indexWhere((d) => d.id == docente.id);
     if (index != -1) {
       _docentes[index] = docente;
+      if (!_carreras.contains(docente.carrera)) {
+        _carreras.add(docente.carrera);
+      }
       _filterDocentesByCarreraAndTurno();
       notifyListeners();
     }
@@ -171,34 +186,45 @@ class DocentesViewModel extends ChangeNotifier {
 
   Docente? getDocenteById(int id) {
     try {
-      return _docentes.firstWhere((docente) => docente.id == id);
+      return _docentes.firstWhere((d) => d.id == id);
     } catch (e) {
       return null;
     }
   }
 
-  // Métodos para estadísticas
-  Map<String, int> getEstadisticasPorTurno() {
-    final docentesCarrera = _docentes
-        .where((d) => d.carrera == _selectedCarrera)
-        .toList();
-
-    return {
-      'MAÑANA': docentesCarrera.where((d) => d.turno == 'MAÑANA').length,
-      'NOCHE': docentesCarrera.where((d) => d.turno == 'NOCHE').length,
-      'AMBOS': docentesCarrera.where((d) => d.turno == 'AMBOS').length,
-      'TOTAL': docentesCarrera.length,
-    };
-  }
-
   // Método para generar nuevo ID
   int getNextId() {
-    return _docentes.isNotEmpty ? (_docentes.last.id + 1) : 1;
+    return _docentes.isNotEmpty ? _docentes.last.id + 1 : 1;
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+  // Método para formatear teléfono
+  String formatTelefono(String telefono) {
+    if (!telefono.startsWith('+591')) {
+      if (RegExp(r'^\d+$').hasMatch(telefono)) {
+        return '+591$telefono';
+      }
+    }
+    return telefono;
+  }
+
+  // Método para auto-completar email
+  String generateEmail(String nombres, String apellidoPaterno) {
+    final nombre = nombres.split(' ')[0].toLowerCase();
+    final apellido = apellidoPaterno.toLowerCase();
+    return '$nombre.$apellido@gmail.com';
+  }
+
+  // Método para obtener color del turno
+  Color getTurnoColor(String turno) {
+    switch (turno) {
+      case 'MAÑANA':
+        return Colors.orange;
+      case 'NOCHE':
+        return Colors.blue;
+      case 'AMBOS':
+        return Colors.purple;
+      default:
+        return _carreraColor;
+    }
   }
 }

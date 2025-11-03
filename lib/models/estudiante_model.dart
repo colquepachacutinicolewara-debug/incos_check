@@ -1,15 +1,12 @@
 // models/estudiante_model.dart
 class Estudiante {
-  final String id;
+  final int id;
   final String nombres;
   final String apellidoPaterno;
   final String apellidoMaterno;
   final String ci;
-  final String carrera;
-  final String curso;
-  final String? huellaId;
-  final bool activo;
-  final DateTime fechaRegistro;
+  final String fechaRegistro;
+  final int huellasRegistradas;
 
   Estudiante({
     required this.id,
@@ -17,14 +14,10 @@ class Estudiante {
     required this.apellidoPaterno,
     required this.apellidoMaterno,
     required this.ci,
-    required this.carrera,
-    required this.curso,
-    this.huellaId,
-    this.activo = true,
     required this.fechaRegistro,
+    required this.huellasRegistradas,
   });
 
-  // Convertir a Map para la base de datos
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -32,15 +25,11 @@ class Estudiante {
       'apellidoPaterno': apellidoPaterno,
       'apellidoMaterno': apellidoMaterno,
       'ci': ci,
-      'carrera': carrera,
-      'curso': curso,
-      'huellaId': huellaId,
-      'activo': activo ? 1 : 0,
-      'fechaRegistro': fechaRegistro.toIso8601String(),
+      'fechaRegistro': fechaRegistro,
+      'huellasRegistradas': huellasRegistradas,
     };
   }
 
-  // Crear desde Map
   factory Estudiante.fromMap(Map<String, dynamic> map) {
     return Estudiante(
       id: map['id'],
@@ -48,26 +37,19 @@ class Estudiante {
       apellidoPaterno: map['apellidoPaterno'],
       apellidoMaterno: map['apellidoMaterno'],
       ci: map['ci'],
-      carrera: map['carrera'],
-      curso: map['curso'],
-      huellaId: map['huellaId'],
-      activo: map['activo'] == 1,
-      fechaRegistro: DateTime.parse(map['fechaRegistro']),
+      fechaRegistro: map['fechaRegistro'],
+      huellasRegistradas: map['huellasRegistradas'],
     );
   }
 
-  // Copiar con nuevos valores
   Estudiante copyWith({
-    String? id,
+    int? id,
     String? nombres,
     String? apellidoPaterno,
     String? apellidoMaterno,
     String? ci,
-    String? carrera,
-    String? curso,
-    String? huellaId,
-    bool? activo,
-    DateTime? fechaRegistro,
+    String? fechaRegistro,
+    int? huellasRegistradas,
   }) {
     return Estudiante(
       id: id ?? this.id,
@@ -75,26 +57,11 @@ class Estudiante {
       apellidoPaterno: apellidoPaterno ?? this.apellidoPaterno,
       apellidoMaterno: apellidoMaterno ?? this.apellidoMaterno,
       ci: ci ?? this.ci,
-      carrera: carrera ?? this.carrera,
-      curso: curso ?? this.curso,
-      huellaId: huellaId ?? this.huellaId,
-      activo: activo ?? this.activo,
       fechaRegistro: fechaRegistro ?? this.fechaRegistro,
+      huellasRegistradas: huellasRegistradas ?? this.huellasRegistradas,
     );
   }
 
-  // Validar datos del estudiante
-  bool get isValid {
-    return nombres.isNotEmpty &&
-        apellidoPaterno.isNotEmpty &&
-        ci.isNotEmpty &&
-        carrera.isNotEmpty &&
-        curso.isNotEmpty;
-  }
-
-  // Nombre completo
   String get nombreCompleto => '$apellidoPaterno $apellidoMaterno $nombres';
-
-  // Apellidos completos
-  String get apellidosCompletos => '$apellidoPaterno $apellidoMaterno';
+  bool get tieneTodasLasHuellas => huellasRegistradas >= 3;
 }

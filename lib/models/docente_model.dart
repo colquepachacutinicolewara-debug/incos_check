@@ -1,5 +1,3 @@
-import 'package:incos_check/utils/validators.dart';
-
 class Docente {
   final int id;
   final String apellidoPaterno;
