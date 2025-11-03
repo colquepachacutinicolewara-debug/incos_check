@@ -35,10 +35,19 @@ class EstudiantesViewModel with ChangeNotifier {
 
     // Filtrar por búsqueda
     if (_searchQuery.isNotEmpty) {
-      filtered = filtered.where((e) =>
-          e.nombre.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          e.apellidos.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          e.ci.contains(_searchQuery)).toList();
+      filtered = filtered
+          .where(
+            (e) =>
+                e.nombres.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                e.apellidoPaterno.toLowerCase().contains(
+                  _searchQuery.toLowerCase(),
+                ) ||
+                e.apellidoMaterno.toLowerCase().contains(
+                  _searchQuery.toLowerCase(),
+                ) ||
+                e.ci.contains(_searchQuery),
+          )
+          .toList();
     }
 
     return filtered;
@@ -46,8 +55,9 @@ class EstudiantesViewModel with ChangeNotifier {
 
   // RFM3-003: Agregar estudiante
   Future<bool> agregarEstudiante({
-    required String nombre,
-    required String apellidos,
+    required String nombres,
+    required String apellidoPaterno,
+    required String apellidoMaterno,
     required String ci,
     required String carrera,
     required String curso,
@@ -57,8 +67,8 @@ class EstudiantesViewModel with ChangeNotifier {
 
     try {
       // Validar datos
-      if (nombre.isEmpty || apellidos.isEmpty || ci.isEmpty) {
-        _errorMessage = 'Todos los campos son obligatorios';
+      if (nombres.isEmpty || apellidoPaterno.isEmpty || ci.isEmpty) {
+        _errorMessage = 'Nombre, apellido paterno y CI son obligatorios';
         _setLoading(false);
         return false;
       }
@@ -73,8 +83,9 @@ class EstudiantesViewModel with ChangeNotifier {
       // Crear nuevo estudiante
       final nuevoEstudiante = Estudiante(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
-        nombre: nombre.trim(),
-        apellidos: apellidos.trim(),
+        nombres: nombres.trim(),
+        apellidoPaterno: apellidoPaterno.trim(),
+        apellidoMaterno: apellidoMaterno.trim(),
         ci: ci.trim(),
         carrera: carrera,
         curso: curso,
@@ -83,12 +94,11 @@ class EstudiantesViewModel with ChangeNotifier {
 
       // Agregar a la lista
       _estudiantes.add(nuevoEstudiante);
-      
+
       _setLoading(false);
       notifyListeners();
-      
-      return true;
 
+      return true;
     } catch (e) {
       _errorMessage = 'Error al agregar estudiante: $e';
       _setLoading(false);
@@ -99,8 +109,9 @@ class EstudiantesViewModel with ChangeNotifier {
   // RFM3-003: Editar estudiante
   Future<bool> editarEstudiante({
     required String id,
-    required String nombre,
-    required String apellidos,
+    required String nombres,
+    required String apellidoPaterno,
+    required String apellidoMaterno,
     required String ci,
     required String carrera,
     required String curso,
@@ -127,8 +138,9 @@ class EstudiantesViewModel with ChangeNotifier {
 
       // Actualizar estudiante
       _estudiantes[index] = _estudiantes[index].copyWith(
-        nombre: nombre.trim(),
-        apellidos: apellidos.trim(),
+        nombres: nombres.trim(),
+        apellidoPaterno: apellidoPaterno.trim(),
+        apellidoMaterno: apellidoMaterno.trim(),
         ci: ci.trim(),
         carrera: carrera,
         curso: curso,
@@ -137,9 +149,8 @@ class EstudiantesViewModel with ChangeNotifier {
 
       _setLoading(false);
       notifyListeners();
-      
-      return true;
 
+      return true;
     } catch (e) {
       _errorMessage = 'Error al editar estudiante: $e';
       _setLoading(false);
@@ -163,7 +174,8 @@ class EstudiantesViewModel with ChangeNotifier {
 
       // Verificar si tiene huella registrada
       if (_estudiantes[index].huellaId != null) {
-        _errorMessage = 'No se puede eliminar. El estudiante tiene huella registrada.';
+        _errorMessage =
+            'No se puede eliminar. El estudiante tiene huella registrada.';
         _setLoading(false);
         return false;
       }
@@ -173,9 +185,8 @@ class EstudiantesViewModel with ChangeNotifier {
 
       _setLoading(false);
       notifyListeners();
-      
-      return true;
 
+      return true;
     } catch (e) {
       _errorMessage = 'Error al eliminar estudiante: $e';
       _setLoading(false);
@@ -192,7 +203,6 @@ class EstudiantesViewModel with ChangeNotifier {
       _estudiantes[index] = _estudiantes[index].copyWith(activo: false);
       notifyListeners();
       return true;
-
     } catch (e) {
       _errorMessage = 'Error al desactivar estudiante: $e';
       return false;
@@ -208,7 +218,6 @@ class EstudiantesViewModel with ChangeNotifier {
       _estudiantes[index] = _estudiantes[index].copyWith(activo: true);
       notifyListeners();
       return true;
-
     } catch (e) {
       _errorMessage = 'Error al activar estudiante: $e';
       return false;
@@ -224,7 +233,6 @@ class EstudiantesViewModel with ChangeNotifier {
       _estudiantes[index] = _estudiantes[index].copyWith(huellaId: huellaId);
       notifyListeners();
       return true;
-
     } catch (e) {
       _errorMessage = 'Error al asociar huella: $e';
       return false;
@@ -240,7 +248,6 @@ class EstudiantesViewModel with ChangeNotifier {
       _estudiantes[index] = _estudiantes[index].copyWith(huellaId: null);
       notifyListeners();
       return true;
-
     } catch (e) {
       _errorMessage = 'Error al remover huella: $e';
       return false;
@@ -296,8 +303,9 @@ class EstudiantesViewModel with ChangeNotifier {
     _estudiantes = [
       Estudiante(
         id: '1',
-        nombre: 'Juan',
-        apellidos: 'Pérez García',
+        nombres: 'Juan Carlos',
+        apellidoPaterno: 'Pérez',
+        apellidoMaterno: 'García',
         ci: '1234567',
         carrera: 'Sistemas Informáticos',
         curso: '3ro "B"',
@@ -306,8 +314,9 @@ class EstudiantesViewModel with ChangeNotifier {
       ),
       Estudiante(
         id: '2',
-        nombre: 'María',
-        apellidos: 'López Fernández',
+        nombres: 'María Elena',
+        apellidoPaterno: 'López',
+        apellidoMaterno: 'Fernández',
         ci: '1234568',
         carrera: 'Sistemas Informáticos',
         curso: '3ro "B"',
@@ -316,8 +325,9 @@ class EstudiantesViewModel with ChangeNotifier {
       ),
       Estudiante(
         id: '3',
-        nombre: 'Carlos',
-        apellidos: 'Gómez Martínez',
+        nombres: 'Carlos Alberto',
+        apellidoPaterno: 'Gómez',
+        apellidoMaterno: 'Martínez',
         ci: '1234569',
         carrera: 'Sistemas Informáticos',
         curso: '3ro "B"',
@@ -326,8 +336,9 @@ class EstudiantesViewModel with ChangeNotifier {
       ),
       Estudiante(
         id: '4',
-        nombre: 'Ana',
-        apellidos: 'Rodríguez Vargas',
+        nombres: 'Ana María',
+        apellidoPaterno: 'Rodríguez',
+        apellidoMaterno: 'Vargas',
         ci: '1234570',
         carrera: 'Sistemas Informáticos',
         curso: '3ro "B"',

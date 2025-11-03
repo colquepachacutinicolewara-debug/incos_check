@@ -1,8 +1,13 @@
+// views/estudiantes/estudiantes_list_screen.dart
 import 'package:flutter/material.dart';
-import 'package:local_auth/local_auth.dart';
-import 'package:incos_check/utils/constants.dart';
-import 'package:incos_check/utils/validators.dart';
-import 'package:incos_check/utils/helpers.dart';
+import 'package:provider/provider.dart';
+import '../../viewmodels/estudiantes_viewmodel.dart';
+import '../../models/estudiante_model.dart';
+import '../../utils/constants.dart';
+import '../../utils/validators.dart';
+import '../../utils/helpers.dart';
+import '../../utils/export_helpers.dart'; // NUEVO IMPORT
+import '../../views/biometrico/registro_huella_screen.dart';
 
 class EstudiantesListScreen extends StatefulWidget {
   final String tipo;
@@ -25,209 +30,210 @@ class EstudiantesListScreen extends StatefulWidget {
 }
 
 class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
-  final List<Map<String, dynamic>> _estudiantes = [
-    {
-      'id': 1,
-      'nombres': 'Juan Carlos',
-      'apellidoPaterno': 'Pérez',
-      'apellidoMaterno': 'Gómez',
-      'ci': '1234567',
-      'fechaRegistro': '2024-01-15',
-      'huellasRegistradas': 3,
-    },
-    {
-      'id': 2,
-      'nombres': 'María Elena',
-      'apellidoPaterno': 'López',
-      'apellidoMaterno': 'Martínez',
-      'ci': '7654321',
-      'fechaRegistro': '2024-01-16',
-      'huellasRegistradas': 2,
-    },
-    {
-      'id': 3,
-      'nombres': 'Ana María',
-      'apellidoPaterno': 'García',
-      'apellidoMaterno': 'López',
-      'ci': '9876543',
-      'fechaRegistro': '2024-01-17',
-      'huellasRegistradas': 0,
-    },
-  ];
-
   final TextEditingController _searchController = TextEditingController();
-  List<Map<String, dynamic>> _estudiantesFiltrados = [];
 
   @override
   void initState() {
     super.initState();
-    _estudiantesFiltrados = _estudiantes;
-    _ordenarEstudiantes();
-    _searchController.addListener(_filtrarEstudiantes);
-  }
+    _searchController.addListener(_onSearchChanged);
 
-  void _ordenarEstudiantes() {
-    setState(() {
-      _estudiantes.sort((a, b) {
-        int comparacion = a['apellidoPaterno'].compareTo(b['apellidoPaterno']);
-        if (comparacion != 0) return comparacion;
-
-        comparacion = a['apellidoMaterno'].compareTo(b['apellidoMaterno']);
-        if (comparacion != 0) return comparacion;
-
-        return a['nombres'].compareTo(b['nombres']);
-      });
-      _estudiantesFiltrados = _estudiantes;
+    // Cargar datos iniciales
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final viewModel = Provider.of<EstudiantesViewModel>(
+        context,
+        listen: false,
+      );
+      viewModel.cargarDatosEjemplo();
     });
   }
 
-  void _filtrarEstudiantes() {
-    final query = _searchController.text.toLowerCase();
-    setState(() {
-      if (query.isEmpty) {
-        _estudiantesFiltrados = _estudiantes;
-      } else {
-        _estudiantesFiltrados = _estudiantes.where((estudiante) {
-          return estudiante['nombres'].toLowerCase().contains(query) ||
-              estudiante['apellidoPaterno'].toLowerCase().contains(query) ||
-              estudiante['apellidoMaterno'].toLowerCase().contains(query) ||
-              estudiante['ci'].contains(query);
-        }).toList();
-      }
-    });
+  void _onSearchChanged() {
+    final viewModel = Provider.of<EstudiantesViewModel>(context, listen: false);
+    viewModel.actualizarBusqueda(_searchController.text);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     Color carreraColor = _parseColor(widget.carrera['color']);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Paralelo ${widget.paralelo['nombre']} - Estudiantes',
-          style: AppTextStyles.heading2Dark(
-            context,
-          ).copyWith(color: Colors.white),
-        ),
-        backgroundColor: carreraColor,
-        actions: [
-          PopupMenuButton<String>(
-            onSelected: (value) => _handleExportAction(value),
-            itemBuilder: (BuildContext context) => [
-              PopupMenuItem(
-                value: 'excel_simple',
-                child: Text(
-                  'Exportar Lista Simple (Excel)',
-                  style: AppTextStyles.bodyDark(context),
-                ),
+    return ChangeNotifierProvider(
+      create: (context) => EstudiantesViewModel(),
+      child: Consumer<EstudiantesViewModel>(
+        builder: (context, viewModel, child) {
+          return Scaffold(
+            appBar: AppBar(
+              title: Text(
+                'Paralelo ${widget.paralelo['nombre']} - Estudiantes',
+                style: AppTextStyles.heading2Dark(
+                  context,
+                ).copyWith(color: Colors.white),
               ),
-              PopupMenuItem(
-                value: 'excel_completo',
-                child: Text(
-                  'Exportar Lista Completa (Excel)',
-                  style: AppTextStyles.bodyDark(context),
+              backgroundColor: carreraColor,
+              actions: [
+                PopupMenuButton<String>(
+                  onSelected: (value) => _handleExportAction(value, viewModel),
+                  itemBuilder: (BuildContext context) => [
+                    PopupMenuItem(
+                      value: 'excel_simple',
+                      child: Text(
+                        'Exportar Lista Simple (Excel)',
+                        style: AppTextStyles.bodyDark(context),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'excel_completo',
+                      child: Text(
+                        'Exportar Lista Completa (Excel)',
+                        style: AppTextStyles.bodyDark(context),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'pdf_simple',
+                      child: Text(
+                        'Exportar Lista Simple (PDF)',
+                        style: AppTextStyles.bodyDark(context),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'pdf_completo',
+                      child: Text(
+                        'Exportar Lista Completa (PDF)',
+                        style: AppTextStyles.bodyDark(context),
+                      ),
+                    ),
+                  ],
+                  icon: Icon(Icons.download, color: Colors.white),
                 ),
-              ),
-              PopupMenuItem(
-                value: 'pdf_simple',
-                child: Text(
-                  'Exportar Lista Simple (PDF)',
-                  style: AppTextStyles.bodyDark(context),
-                ),
-              ),
-              PopupMenuItem(
-                value: 'pdf_completo',
-                child: Text(
-                  'Exportar Lista Completa (PDF)',
-                  style: AppTextStyles.bodyDark(context),
-                ),
-              ),
-            ],
-            icon: Icon(Icons.download, color: Colors.white),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Barra de búsqueda
-          Padding(
-            padding: EdgeInsets.all(AppSpacing.medium),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                labelText: 'Buscar estudiante...',
-                labelStyle: AppTextStyles.bodyDark(context),
-                prefixIcon: Icon(Icons.search, color: AppColors.primary),
-                border: OutlineInputBorder(),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: Icon(Icons.clear, color: AppColors.primary),
-                        onPressed: () {
-                          _searchController.clear();
-                        },
-                      )
-                    : null,
-              ),
-              style: AppTextStyles.bodyDark(context),
-            ),
-          ),
-          // Contador de resultados
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: AppSpacing.medium),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${_estudiantesFiltrados.length} estudiante${_estudiantesFiltrados.length != 1 ? 's' : ''}',
-                  style: AppTextStyles.bodyDark(context).copyWith(
-                    color: AppColors.textSecondaryDark(context),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                if (_searchController.text.isNotEmpty)
-                  Text(
-                    'Búsqueda: "${_searchController.text}"',
-                    style: AppTextStyles.bodyDark(
-                      context,
-                    ).copyWith(color: Colors.blue[600], fontSize: 12),
-                  ),
               ],
             ),
-          ),
-          SizedBox(height: AppSpacing.small),
-          // Lista de estudiantes
-          Expanded(
-            child: _estudiantesFiltrados.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    padding: EdgeInsets.all(AppSpacing.medium),
-                    itemCount: _estudiantesFiltrados.length,
-                    itemBuilder: (context, index) {
-                      final estudiante = _estudiantesFiltrados[index];
-                      return _buildEstudianteCard(
-                        estudiante,
-                        index,
-                        carreraColor,
-                      );
-                    },
+            body: Column(
+              children: [
+                // Barra de búsqueda
+                Padding(
+                  padding: EdgeInsets.all(AppSpacing.medium),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      labelText: 'Buscar estudiante...',
+                      labelStyle: AppTextStyles.bodyDark(context),
+                      prefixIcon: Icon(Icons.search, color: AppColors.primary),
+                      border: OutlineInputBorder(),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(Icons.clear, color: AppColors.primary),
+                              onPressed: () {
+                                _searchController.clear();
+                              },
+                            )
+                          : null,
+                    ),
+                    style: AppTextStyles.bodyDark(context),
                   ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAgregarEstudianteDialog,
-        backgroundColor: carreraColor,
-        child: Icon(Icons.add, color: Colors.white),
+                ),
+
+                // Contador de resultados
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: AppSpacing.medium),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${viewModel.estudiantesFiltrados.length} estudiante${viewModel.estudiantesFiltrados.length != 1 ? 's' : ''}',
+                        style: AppTextStyles.bodyDark(context).copyWith(
+                          color: AppColors.textSecondaryDark(context),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (_searchController.text.isNotEmpty)
+                        Text(
+                          'Búsqueda: "${_searchController.text}"',
+                          style: AppTextStyles.bodyDark(
+                            context,
+                          ).copyWith(color: Colors.blue[600], fontSize: 12),
+                        ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: AppSpacing.small),
+
+                // Loading indicator
+                if (viewModel.isLoading)
+                  LinearProgressIndicator(
+                    backgroundColor: AppColors.primary.withOpacity(0.3),
+                    color: AppColors.primary,
+                  ),
+
+                // Mensaje de error
+                if (viewModel.errorMessage.isNotEmpty)
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(AppSpacing.medium),
+                    color: Colors.red[50],
+                    child: Row(
+                      children: [
+                        Icon(Icons.error, color: Colors.red),
+                        SizedBox(width: AppSpacing.small),
+                        Expanded(
+                          child: Text(
+                            viewModel.errorMessage,
+                            style: AppTextStyles.bodyDark(
+                              context,
+                            ).copyWith(color: Colors.red),
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.close),
+                          onPressed: () => viewModel.limpiarError(),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Lista de estudiantes
+                Expanded(
+                  child: viewModel.estudiantesFiltrados.isEmpty
+                      ? _buildEmptyState(viewModel)
+                      : ListView.builder(
+                          padding: EdgeInsets.all(AppSpacing.medium),
+                          itemCount: viewModel.estudiantesFiltrados.length,
+                          itemBuilder: (context, index) {
+                            final estudiante =
+                                viewModel.estudiantesFiltrados[index];
+                            return _buildEstudianteCard(
+                              estudiante,
+                              index,
+                              carreraColor,
+                              viewModel,
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+            floatingActionButton: FloatingActionButton(
+              onPressed: () => _showAgregarEstudianteDialog(viewModel),
+              backgroundColor: carreraColor,
+              child: Icon(Icons.add, color: Colors.white),
+            ),
+          );
+        },
       ),
     );
   }
 
   Widget _buildEstudianteCard(
-    Map<String, dynamic> estudiante,
+    Estudiante estudiante,
     int index,
     Color color,
+    EstudiantesViewModel viewModel,
   ) {
-    int huellasRegistradas = estudiante['huellasRegistradas'] ?? 0;
+    bool tieneHuella = estudiante.huellaId != null;
 
     return Card(
       elevation: 4,
@@ -236,23 +242,23 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
         leading: CircleAvatar(
           backgroundColor: color,
           child: Text(
-            estudiante['nombres'][0],
+            estudiante.nombres[0],
             style: TextStyle(color: Colors.white),
           ),
         ),
         title: Text(
-          '${estudiante['apellidoPaterno']} ${estudiante['apellidoMaterno']} ${estudiante['nombres']}',
+          estudiante.nombreCompleto,
           style: AppTextStyles.heading3Dark(context),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'CI: ${estudiante['ci']}',
+              'CI: ${estudiante.ci}',
               style: AppTextStyles.bodyDark(context),
             ),
             Text(
-              'Registro: ${estudiante['fechaRegistro']}',
+              'Registro: ${Helpers.formatDate(estudiante.fechaRegistro)}',
               style: AppTextStyles.bodyDark(context),
             ),
             Row(
@@ -260,34 +266,39 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
                 Icon(
                   Icons.fingerprint,
                   size: 14,
-                  color: huellasRegistradas == 3 ? Colors.green : Colors.orange,
+                  color: tieneHuella ? Colors.green : Colors.orange,
                 ),
                 SizedBox(width: 4),
                 Text(
-                  'Huellas: $huellasRegistradas/3',
+                  'Huella: ${tieneHuella ? 'Registrada' : 'No registrada'}',
                   style: AppTextStyles.bodyDark(context).copyWith(
-                    color: huellasRegistradas == 3
-                        ? Colors.green
-                        : Colors.orange,
+                    color: tieneHuella ? Colors.green : Colors.orange,
                     fontSize: 12,
                   ),
                 ),
               ],
             ),
+            if (!estudiante.activo)
+              Text(
+                'INACTIVO',
+                style: AppTextStyles.bodyDark(
+                  context,
+                ).copyWith(color: Colors.red, fontWeight: FontWeight.bold),
+              ),
           ],
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (huellasRegistradas < 3)
+            if (!tieneHuella)
               IconButton(
                 icon: Icon(Icons.fingerprint, color: Colors.blue),
-                onPressed: () => _registrarHuellas(estudiante, index),
+                onPressed: () => _registrarHuellas(estudiante, viewModel),
                 tooltip: 'Registrar Huellas',
               ),
             PopupMenuButton<String>(
               onSelected: (value) =>
-                  _handleMenuAction(value, estudiante, index),
+                  _handleMenuAction(value, estudiante, viewModel),
               itemBuilder: (BuildContext context) => [
                 PopupMenuItem(
                   value: 'edit',
@@ -303,11 +314,29 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
                     style: AppTextStyles.bodyDark(context),
                   ),
                 ),
+                if (estudiante.activo)
+                  PopupMenuItem(
+                    value: 'deactivate',
+                    child: Text(
+                      'Desactivar',
+                      style: AppTextStyles.bodyDark(context),
+                    ),
+                  )
+                else
+                  PopupMenuItem(
+                    value: 'activate',
+                    child: Text(
+                      'Activar',
+                      style: AppTextStyles.bodyDark(context),
+                    ),
+                  ),
                 PopupMenuItem(
                   value: 'delete',
                   child: Text(
                     'Eliminar',
-                    style: AppTextStyles.bodyDark(context),
+                    style: AppTextStyles.bodyDark(
+                      context,
+                    ).copyWith(color: Colors.red),
                   ),
                 ),
               ],
@@ -318,7 +347,7 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(EstudiantesViewModel viewModel) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -357,6 +386,11 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
                 style: AppTextStyles.bodyDark(context),
               ),
             ),
+          if (_searchController.text.isEmpty)
+            ElevatedButton(
+              onPressed: () => viewModel.cargarDatosEjemplo(),
+              child: Text('Cargar datos de ejemplo'),
+            ),
         ],
       ),
     );
@@ -364,139 +398,249 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
 
   void _handleMenuAction(
     String action,
-    Map<String, dynamic> estudiante,
-    int index,
+    Estudiante estudiante,
+    EstudiantesViewModel viewModel,
   ) {
     switch (action) {
       case 'edit':
-        _showEditarEstudianteDialog(estudiante, index);
+        _showEditarEstudianteDialog(estudiante, viewModel);
         break;
       case 'huellas':
-        _registrarHuellas(estudiante, index);
+        _registrarHuellas(estudiante, viewModel);
+        break;
+      case 'deactivate':
+        _desactivarEstudiante(estudiante, viewModel);
+        break;
+      case 'activate':
+        _activarEstudiante(estudiante, viewModel);
         break;
       case 'delete':
-        _showEliminarEstudianteDialog(estudiante, index);
+        _showEliminarEstudianteDialog(estudiante, viewModel);
         break;
     }
   }
 
-  void _handleExportAction(String action) {
+  void _handleExportAction(String action, EstudiantesViewModel viewModel) {
     switch (action) {
       case 'excel_simple':
-        _exportarExcel(simple: true);
+        _exportarExcel(viewModel, simple: true);
         break;
       case 'excel_completo':
-        _exportarExcel(simple: false);
+        _exportarExcel(viewModel, simple: false);
         break;
       case 'pdf_simple':
-        _exportarPDF(simple: true);
+        _exportarPDF(viewModel, simple: true);
         break;
       case 'pdf_completo':
-        _exportarPDF(simple: false);
+        _exportarPDF(viewModel, simple: false);
         break;
     }
   }
 
-  void _showAgregarEstudianteDialog() {
+  void _showAgregarEstudianteDialog(EstudiantesViewModel viewModel) {
     showDialog(
       context: context,
       builder: (context) => _EstudianteDialog(
         title: 'Agregar Estudiante',
-        onSave: (nombres, paterno, materno, ci) {
-          setState(() {
-            _estudiantes.add({
-              'id': DateTime.now().millisecondsSinceEpoch,
-              'nombres': nombres,
-              'apellidoPaterno': paterno,
-              'apellidoMaterno': materno,
-              'ci': ci,
-              'fechaRegistro': Helpers.formatDate(DateTime.now()),
-              'huellasRegistradas': 0,
-            });
-            _ordenarEstudiantes();
-          });
-          Helpers.showSnackBar(
-            context,
-            'Estudiante agregado exitosamente',
-            type: 'success',
+        onSave: (nombres, paterno, materno, ci) async {
+          final success = await viewModel.agregarEstudiante(
+            nombres: nombres,
+            apellidoPaterno: paterno,
+            apellidoMaterno: materno,
+            ci: ci,
+            carrera: widget.carrera['nombre'],
+            curso: widget.paralelo['nombre'],
           );
+
+          if (success) {
+            Helpers.showSnackBar(
+              context,
+              'Estudiante agregado exitosamente',
+              type: 'success',
+            );
+          } else {
+            Helpers.showSnackBar(
+              context,
+              viewModel.errorMessage,
+              type: 'error',
+            );
+          }
         },
       ),
     );
   }
 
-  void _showEditarEstudianteDialog(Map<String, dynamic> estudiante, int index) {
+  void _showEditarEstudianteDialog(
+    Estudiante estudiante,
+    EstudiantesViewModel viewModel,
+  ) {
     showDialog(
       context: context,
       builder: (context) => _EstudianteDialog(
         title: 'Modificar Estudiante',
-        nombresInicial: estudiante['nombres'],
-        paternoInicial: estudiante['apellidoPaterno'],
-        maternoInicial: estudiante['apellidoMaterno'],
-        ciInicial: estudiante['ci'],
-        onSave: (nombres, paterno, materno, ci) {
-          setState(() {
-            _estudiantes[index] = {
-              ...estudiante,
-              'nombres': nombres,
-              'apellidoPaterno': paterno,
-              'apellidoMaterno': materno,
-              'ci': ci,
-            };
-            _ordenarEstudiantes();
-          });
-          Helpers.showSnackBar(
-            context,
-            'Estudiante actualizado exitosamente',
-            type: 'success',
+        nombresInicial: estudiante.nombres,
+        paternoInicial: estudiante.apellidoPaterno,
+        maternoInicial: estudiante.apellidoMaterno,
+        ciInicial: estudiante.ci,
+        onSave: (nombres, paterno, materno, ci) async {
+          final success = await viewModel.editarEstudiante(
+            id: estudiante.id,
+            nombres: nombres,
+            apellidoPaterno: paterno,
+            apellidoMaterno: materno,
+            ci: ci,
+            carrera: estudiante.carrera,
+            curso: estudiante.curso,
           );
+
+          if (success) {
+            Helpers.showSnackBar(
+              context,
+              'Estudiante actualizado exitosamente',
+              type: 'success',
+            );
+          } else {
+            Helpers.showSnackBar(
+              context,
+              viewModel.errorMessage,
+              type: 'error',
+            );
+          }
         },
       ),
     );
   }
 
   void _showEliminarEstudianteDialog(
-    Map<String, dynamic> estudiante,
-    int index,
+    Estudiante estudiante,
+    EstudiantesViewModel viewModel,
   ) {
     Helpers.showConfirmationDialog(
       context,
       title: 'Eliminar Estudiante',
-      content:
-          '¿Estás seguro de eliminar a ${estudiante['nombres']} ${estudiante['apellidoPaterno']}?',
-    ).then((confirmed) {
+      content: '¿Estás seguro de eliminar a ${estudiante.nombreCompleto}?',
+    ).then((confirmed) async {
       if (confirmed) {
-        setState(() {
-          _estudiantes.removeAt(index);
-          _filtrarEstudiantes();
-        });
-        Helpers.showSnackBar(
-          context,
-          'Estudiante eliminado exitosamente',
-          type: 'success',
-        );
+        final success = await viewModel.eliminarEstudiante(estudiante.id);
+        if (success) {
+          Helpers.showSnackBar(
+            context,
+            'Estudiante eliminado exitosamente',
+            type: 'success',
+          );
+        } else {
+          Helpers.showSnackBar(context, viewModel.errorMessage, type: 'error');
+        }
       }
     });
   }
 
-  void _registrarHuellas(Map<String, dynamic> estudiante, int index) {
+  void _desactivarEstudiante(
+    Estudiante estudiante,
+    EstudiantesViewModel viewModel,
+  ) {
+    Helpers.showConfirmationDialog(
+      context,
+      title: 'Desactivar Estudiante',
+      content: '¿Estás seguro de desactivar a ${estudiante.nombreCompleto}?',
+    ).then((confirmed) async {
+      if (confirmed) {
+        final success = await viewModel.desactivarEstudiante(estudiante.id);
+        if (success) {
+          Helpers.showSnackBar(
+            context,
+            'Estudiante desactivado exitosamente',
+            type: 'success',
+          );
+        }
+      }
+    });
+  }
+
+  void _activarEstudiante(
+    Estudiante estudiante,
+    EstudiantesViewModel viewModel,
+  ) {
+    Helpers.showConfirmationDialog(
+      context,
+      title: 'Activar Estudiante',
+      content: '¿Estás seguro de activar a ${estudiante.nombreCompleto}?',
+    ).then((confirmed) async {
+      if (confirmed) {
+        final success = await viewModel.activarEstudiante(estudiante.id);
+        if (success) {
+          Helpers.showSnackBar(
+            context,
+            'Estudiante activado exitosamente',
+            type: 'success',
+          );
+        }
+      }
+    });
+  }
+
+  void _registrarHuellas(
+    Estudiante estudiante,
+    EstudiantesViewModel viewModel,
+  ) {
+    // Convertir Estudiante a Map para compatibilidad con tu pantalla de huellas
+    Map<String, dynamic> estudianteMap = {
+      'id': estudiante.id,
+      'nombres': estudiante.nombres,
+      'apellidoPaterno': estudiante.apellidoPaterno,
+      'apellidoMaterno': estudiante.apellidoMaterno,
+      'ci': estudiante.ci,
+      'carrera': estudiante.carrera,
+      'curso': estudiante.curso,
+    };
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => RegistroHuellasScreen(
-          estudiante: estudiante,
-          onHuellasRegistradas: (int huellasRegistradas) {
-            setState(() {
-              _estudiantes[index]['huellasRegistradas'] = huellasRegistradas;
-            });
+          estudiante: estudianteMap,
+          onHuellasRegistradas: (int huellasRegistradas) async {
+            // Solo asociar huella si se registraron las 3 huellas
+            if (huellasRegistradas == 3) {
+              String huellaId =
+                  'huella_${estudiante.id}_${DateTime.now().millisecondsSinceEpoch}';
+              final success = await viewModel.asociarHuella(
+                estudiante.id,
+                huellaId,
+              );
+
+              if (success) {
+                Helpers.showSnackBar(
+                  context,
+                  '¡3 huellas registradas exitosamente!',
+                  type: 'success',
+                );
+              } else {
+                Helpers.showSnackBar(
+                  context,
+                  'Error al guardar huellas: ${viewModel.errorMessage}',
+                  type: 'error',
+                );
+              }
+            } else {
+              Helpers.showSnackBar(
+                context,
+                'Se registraron $huellasRegistradas/3 huellas. Se requieren las 3 huellas para completar el registro.',
+                type: 'warning',
+              );
+            }
           },
         ),
       ),
     );
   }
 
-  void _exportarExcel({bool simple = true}) {
-    final estudiantesExportar = _estudiantesFiltrados;
+  // NUEVO MÉTODO ACTUALIZADO PARA EXPORTAR EXCEL
+  void _exportarExcel(
+    EstudiantesViewModel viewModel, {
+    bool simple = true,
+  }) async {
+    final estudiantesExportar = viewModel.estudiantesFiltrados;
     final tipo = simple ? 'simple' : 'completa';
 
     Helpers.showConfirmationDialog(
@@ -504,20 +648,55 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
       title: 'Exportar a Excel',
       content:
           '¿Exportar lista $tipo con ${estudiantesExportar.length} estudiante${estudiantesExportar.length != 1 ? 's' : ''} a Excel?',
-    ).then((confirmed) {
+    ).then((confirmed) async {
       if (confirmed) {
-        _realExportacionExcel(estudiantesExportar, simple);
-        Helpers.showSnackBar(
-          context,
-          'Lista $tipo exportada a Excel exitosamente',
-          type: 'success',
-        );
+        try {
+          // Convertir estudiantes a formato Map para exportación
+          List<Map<String, dynamic>> estudiantesMap = estudiantesExportar.map((
+            e,
+          ) {
+            return {
+              'nombres': e.nombres,
+              'apellidoPaterno': e.apellidoPaterno,
+              'apellidoMaterno': e.apellidoMaterno,
+              'ci': e.ci,
+              'fechaRegistro': Helpers.formatDate(e.fechaRegistro),
+              'huellaId': e.huellaId,
+            };
+          }).toList();
+
+          // Exportar usando el nuevo helper
+          String filePath = await ExportHelpers.exportToExcel(
+            estudiantes: estudiantesMap,
+            institucion: widget.carrera['nombre'],
+            turno: widget.turno['nombre'],
+            nivel: widget.nivel['nombre'],
+            paralelo: widget.paralelo['nombre'],
+            simple: simple,
+          );
+
+          Helpers.showSnackBar(
+            context,
+            '✅ Lista $tipo exportada exitosamente\nArchivo: ${filePath.split('/').last}',
+            type: 'success',
+          );
+        } catch (e) {
+          Helpers.showSnackBar(
+            context,
+            '❌ Error al exportar: $e',
+            type: 'error',
+          );
+        }
       }
     });
   }
 
-  void _exportarPDF({bool simple = true}) {
-    final estudiantesExportar = _estudiantesFiltrados;
+  // NUEVO MÉTODO ACTUALIZADO PARA EXPORTAR PDF
+  void _exportarPDF(
+    EstudiantesViewModel viewModel, {
+    bool simple = true,
+  }) async {
+    final estudiantesExportar = viewModel.estudiantesFiltrados;
     final tipo = simple ? 'simple' : 'completa';
 
     Helpers.showConfirmationDialog(
@@ -525,22 +704,52 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
       title: 'Exportar a PDF',
       content:
           '¿Exportar lista $tipo con ${estudiantesExportar.length} estudiante${estudiantesExportar.length != 1 ? 's' : ''} a PDF?',
-    ).then((confirmed) {
+    ).then((confirmed) async {
       if (confirmed) {
-        _realExportacionPDF(estudiantesExportar, simple);
-        Helpers.showSnackBar(
-          context,
-          'Lista $tipo exportada a PDF exitosamente',
-          type: 'success',
-        );
+        try {
+          // Convertir estudiantes a formato Map para exportación
+          List<Map<String, dynamic>> estudiantesMap = estudiantesExportar.map((
+            e,
+          ) {
+            return {
+              'nombres': e.nombres,
+              'apellidoPaterno': e.apellidoPaterno,
+              'apellidoMaterno': e.apellidoMaterno,
+              'ci': e.ci,
+              'fechaRegistro': Helpers.formatDate(e.fechaRegistro),
+              'huellaId': e.huellaId,
+            };
+          }).toList();
+
+          // Exportar usando el nuevo helper
+          String filePath = await ExportHelpers.exportToPDF(
+            estudiantes: estudiantesMap,
+            institucion: widget.carrera['nombre'],
+            turno: widget.turno['nombre'],
+            nivel: widget.nivel['nombre'],
+            paralelo: widget.paralelo['nombre'],
+            simple: simple,
+          );
+
+          Helpers.showSnackBar(
+            context,
+            '✅ Lista $tipo exportada exitosamente\nArchivo: ${filePath.split('/').last}',
+            type: 'success',
+          );
+        } catch (e) {
+          Helpers.showSnackBar(
+            context,
+            '❌ Error al exportar: $e',
+            type: 'error',
+          );
+        }
       }
     });
   }
 
-  void _realExportacionExcel(
-    List<Map<String, dynamic>> estudiantes,
-    bool simple,
-  ) {
+  // ELIMINAR estos métodos antiguos (ya no se necesitan)
+  /*
+  void _realExportacionExcel(List<Estudiante> estudiantes, bool simple) {
     print('=== EXPORTACIÓN REAL EXCEL ${simple ? 'SIMPLE' : 'COMPLETA'} ===');
     print('Institución: ${widget.carrera['nombre']}');
     print('Turno: ${widget.turno['nombre']}');
@@ -552,24 +761,19 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
     if (simple) {
       print('--- LISTA SIMPLE ---');
       for (var estudiante in estudiantes) {
-        print(
-          '${estudiante['apellidoPaterno']} ${estudiante['apellidoMaterno']} ${estudiante['nombres']}',
-        );
+        print(estudiante.nombreCompleto);
       }
     } else {
       print('--- LISTA COMPLETA ---');
       for (var estudiante in estudiantes) {
         print(
-          '${estudiante['apellidoPaterno']} | ${estudiante['apellidoMaterno']} | ${estudiante['nombres']} | CI: ${estudiante['ci']} | Registro: ${estudiante['fechaRegistro']} | Huellas: ${estudiante['huellasRegistradas']}/3',
+          '${estudiante.apellidoPaterno} | ${estudiante.apellidoMaterno} | ${estudiante.nombres} | CI: ${estudiante.ci} | Registro: ${Helpers.formatDate(estudiante.fechaRegistro)} | Huella: ${estudiante.huellaId != null ? 'Sí' : 'No'}',
         );
       }
     }
   }
 
-  void _realExportacionPDF(
-    List<Map<String, dynamic>> estudiantes,
-    bool simple,
-  ) {
+  void _realExportacionPDF(List<Estudiante> estudiantes, bool simple) {
     print('=== EXPORTACIÓN REAL PDF ${simple ? 'SIMPLE' : 'COMPLETA'} ===');
     print('Institución: ${widget.carrera['nombre']}');
     print('Turno: ${widget.turno['nombre']}');
@@ -581,22 +785,19 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
     if (simple) {
       print('--- LISTA SIMPLE ---');
       for (var estudiante in estudiantes) {
-        print(
-          '• ${estudiante['apellidoPaterno']} ${estudiante['apellidoMaterno']} ${estudiante['nombres']}',
-        );
+        print('• ${estudiante.nombreCompleto}');
       }
     } else {
       print('--- LISTA COMPLETA ---');
       for (var estudiante in estudiantes) {
+        print('• ${estudiante.nombreCompleto}');
         print(
-          '• ${estudiante['apellidoPaterno']} ${estudiante['apellidoMaterno']} ${estudiante['nombres']}',
-        );
-        print(
-          '  CI: ${estudiante['ci']} | Fecha Registro: ${estudiante['fechaRegistro']} | Huellas: ${estudiante['huellasRegistradas']}/3',
+          '  CI: ${estudiante.ci} | Fecha Registro: ${Helpers.formatDate(estudiante.fechaRegistro)} | Huella: ${estudiante.huellaId != null ? 'Registrada' : 'No registrada'}',
         );
       }
     }
   }
+  */
 
   Color _parseColor(String colorString) {
     try {
@@ -604,289 +805,6 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
     } catch (e) {
       return AppColors.primary;
     }
-  }
-}
-
-// =============================================
-// PANTALLA DE REGISTRO DE HUELLAS
-// =============================================
-class RegistroHuellasScreen extends StatefulWidget {
-  final Map<String, dynamic> estudiante;
-  final Function(int) onHuellasRegistradas;
-
-  const RegistroHuellasScreen({
-    super.key,
-    required this.estudiante,
-    required this.onHuellasRegistradas,
-  });
-
-  @override
-  State<RegistroHuellasScreen> createState() => _RegistroHuellasScreenState();
-}
-
-class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
-  final List<bool> _huellasRegistradas = [false, false, false];
-  int _huellaActual = 0;
-  final LocalAuthentication _localAuth = LocalAuthentication();
-  bool _biometricAvailable = false;
-
-  final List<String> _nombresDedos = [
-    'Pulgar - Mano Derecha',
-    'Índice - Mano Derecha',
-    'Medio - Mano Derecha',
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _checkBiometricSupport();
-  }
-
-  Future<void> _checkBiometricSupport() async {
-    try {
-      final bool canCheckBiometrics = await _localAuth.canCheckBiometrics;
-      final available = await _localAuth.getAvailableBiometrics();
-      setState(() {
-        _biometricAvailable = canCheckBiometrics && available.isNotEmpty;
-      });
-    } catch (e) {
-      setState(() {
-        _biometricAvailable = false;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Registro de Huellas',
-          style: AppTextStyles.heading2Dark(
-            context,
-          ).copyWith(color: Colors.white),
-        ),
-        backgroundColor: AppColors.primary,
-      ),
-      body: SingleChildScrollView(
-        padding: MediaQuery.of(context).viewInsets,
-        child: Padding(
-          padding: EdgeInsets.all(AppSpacing.medium),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-            // Información del estudiante
-            Card(
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: AppColors.primary,
-                  child: Text(
-                    widget.estudiante['nombres'][0],
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-                title: Text(
-                  '${widget.estudiante['apellidoPaterno']} ${widget.estudiante['apellidoMaterno']} ${widget.estudiante['nombres']}',
-                  style: AppTextStyles.heading3Dark(context),
-                ),
-                subtitle: Text(
-                  'CI: ${widget.estudiante['ci']}',
-                  style: AppTextStyles.bodyDark(context),
-                ),
-              ),
-            ),
-            SizedBox(height: AppSpacing.large),
-
-            // Progreso
-            Text(
-              'Progreso: ${_huellasRegistradas.where((h) => h).length}/3 huellas registradas',
-              style: AppTextStyles.heading2Dark(context),
-            ),
-            SizedBox(height: AppSpacing.small),
-            LinearProgressIndicator(
-              value: _huellasRegistradas.where((h) => h).length / 3,
-              backgroundColor: AppColors.textSecondaryDark(context),
-              color: AppColors.primary,
-            ),
-            SizedBox(height: AppSpacing.large),
-
-            // Huella actual
-            Center(
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.fingerprint,
-                    size: 120,
-                    color: _huellasRegistradas[_huellaActual]
-                        ? Colors.green
-                        : AppColors.primary,
-                  ),
-                  SizedBox(height: AppSpacing.medium),
-                  Text(
-                    _nombresDedos[_huellaActual],
-                    style: AppTextStyles.heading2Dark(context),
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: AppSpacing.small),
-                  Text(
-                    _huellasRegistradas[_huellaActual]
-                        ? '✅ Huella registrada'
-                        : 'Presiona el botón para registrar esta huella',
-                    style: AppTextStyles.bodyDark(context),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: AppSpacing.xlarge),
-
-            // Controles de navegación
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                ElevatedButton(
-                  onPressed: _huellaActual > 0 ? _anteriorHuella : null,
-                  child: Text(
-                    'Anterior',
-                    style: AppTextStyles.bodyDark(context),
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: _huellasRegistradas[_huellaActual]
-                      ? _siguienteHuella
-                      : _registrarHuellaActual,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                  ),
-                  child: Text(
-                    _huellasRegistradas[_huellaActual]
-                        ? 'Siguiente'
-                        : 'Registrar Huella',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              ],
-            ),
-
-            // Lista de huellas
-            SizedBox(height: AppSpacing.large),
-            Text(
-              'Huellas registradas:',
-              style: AppTextStyles.heading3Dark(context),
-            ),
-            SizedBox(height: AppSpacing.small),
-            ..._nombresDedos.asMap().entries.map((entry) {
-              int index = entry.key;
-              String nombre = entry.value;
-              return ListTile(
-                leading: Icon(
-                  _huellasRegistradas[index]
-                      ? Icons.check_circle
-                      : Icons.radio_button_unchecked,
-                  color: _huellasRegistradas[index]
-                      ? Colors.green
-                      : AppColors.textSecondaryDark(context),
-                ),
-                title: Text(nombre, style: AppTextStyles.bodyDark(context)),
-                trailing: _huellasRegistradas[index]
-                    ? Icon(Icons.check, color: Colors.green)
-                    : null,
-              );
-            }),
-          ],
-        ),
-    ),
-    ),
-      floatingActionButton: _huellasRegistradas.every((h) => h)
-          ? FloatingActionButton.extended(
-              onPressed: _finalizarRegistro,
-              backgroundColor: Colors.green,
-              icon: Icon(Icons.done_all, color: Colors.white),
-              label: Text(
-                'Finalizar Registro',
-                style: TextStyle(color: Colors.white),
-              ),
-            )
-          : null,
-    );
-  }
-
-  Future<void> _registrarHuellaActual() async {
-    if (!_biometricAvailable) {
-      Helpers.showSnackBar(
-        context,
-        'El dispositivo no soporta autenticación biométrica',
-        type: 'error',
-      );
-      return;
-    }
-
-    try {
-      final bool autenticado = await _localAuth.authenticate(
-        localizedReason:
-            'Autentica tu identidad para registrar ${_nombresDedos[_huellaActual]}',
-        options: const AuthenticationOptions(
-          biometricOnly: true,
-          useErrorDialogs: true,
-          stickyAuth: true,
-        ),
-      );
-
-      if (autenticado) {
-        setState(() {
-          _huellasRegistradas[_huellaActual] = true;
-        });
-
-        Helpers.showSnackBar(
-          context,
-          'Huella ${_nombresDedos[_huellaActual]} registrada exitosamente',
-          type: 'success',
-        );
-
-        if (_huellaActual == 2) {
-          _finalizarRegistro();
-        }
-      } else {
-        Helpers.showSnackBar(
-          context,
-          'Huella no reconocida',
-          type: 'error',
-        );
-      }
-    } catch (e) {
-      Helpers.showSnackBar(
-        context,
-        'Error de autenticación: ${e.toString()}',
-        type: 'error',
-      );
-    }
-  }
-
-  void _siguienteHuella() {
-    if (_huellaActual < 2) {
-      setState(() {
-        _huellaActual++;
-      });
-    }
-  }
-
-  void _anteriorHuella() {
-    if (_huellaActual > 0) {
-      setState(() {
-        _huellaActual--;
-      });
-    }
-  }
-
-  void _finalizarRegistro() {
-    int totalRegistradas = _huellasRegistradas.where((h) => h).length;
-    widget.onHuellasRegistradas(totalRegistradas);
-    Navigator.pop(context);
-    Helpers.showSnackBar(
-      context,
-      'Registro de huellas completado: $totalRegistradas/3',
-      type: 'success',
-    );
   }
 }
 
@@ -933,8 +851,6 @@ class _EstudianteDialogState extends State<_EstudianteDialog> {
 
   @override
   Widget build(BuildContext context) {
-    // Use SingleChildScrollView + viewInsets so the dialog scrolls when the
-    // keyboard appears (prevents Bottom overflow by X pixels).
     return Dialog(
       insetPadding: EdgeInsets.all(AppSpacing.medium),
       child: SingleChildScrollView(
@@ -942,7 +858,6 @@ class _EstudianteDialogState extends State<_EstudianteDialog> {
         child: ConstrainedBox(
           constraints: BoxConstraints(
             maxWidth: MediaQuery.of(context).size.width * 0.95,
-            // Limit height so dialog becomes scrollable on small screens
             maxHeight: MediaQuery.of(context).size.height * 0.85,
           ),
           child: Padding(

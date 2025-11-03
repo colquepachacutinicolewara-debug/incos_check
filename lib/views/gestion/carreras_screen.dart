@@ -1,21 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:incos_check/utils/constants.dart';
 import 'docentes_screen.dart';
 import 'turnos_screen.dart';
-import '../../views/gestion/programas/programas_screen.dart'; // Importar ProgramasScreen
+import '../../views/gestion/programas/programas_screen.dart';
+import '../../viewmodels/carreras_viewmodel.dart';
+import '../../models/carrera_model.dart';
 
 class CarrerasScreen extends StatefulWidget {
   final String tipo;
   final String carreraSeleccionada;
   final Function(List<String>)? onCarrerasActualizadas;
-  final bool mostrarInformacionCarreras; // Nuevo parámetro
+  final bool mostrarInformacionCarreras;
 
   const CarrerasScreen({
     super.key,
     required this.tipo,
     required this.carreraSeleccionada,
     this.onCarrerasActualizadas,
-    this.mostrarInformacionCarreras = false, // Por defecto false
+    this.mostrarInformacionCarreras = false,
   });
 
   @override
@@ -23,101 +26,99 @@ class CarrerasScreen extends StatefulWidget {
 }
 
 class _CarrerasScreenState extends State<CarrerasScreen> {
-  List<Map<String, dynamic>> _carreras = [
-    {
-      'id': 1,
-      'nombre': 'Sistemas Informáticos',
-      'color': '#1565C0',
-      'icon': Icons.computer,
-      'activa': true,
-    },
-  ];
-
-  // Método para notificar cambios
-  void _notificarCambiosCarreras() {
-    if (widget.onCarrerasActualizadas != null) {
-      List<String> nombresCarreras = _carreras
-          .where((carrera) => carrera['activa'] == true)
-          .map((carrera) => carrera['nombre'] as String)
-          .toList();
-      widget.onCarrerasActualizadas!(nombresCarreras);
-    }
-  }
-
   @override
   void initState() {
     super.initState();
-    _notificarCambiosCarreras(); // Notificar al iniciar
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _notificarCambiosCarreras();
+    });
+  }
+
+  void _notificarCambiosCarreras() {
+    if (widget.onCarrerasActualizadas != null) {
+      final viewModel = context.read<CarrerasViewModel>();
+      widget.onCarrerasActualizadas!(viewModel.nombresCarrerasActivas);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // SI ES PARA MOSTRAR INFORMACIÓN DE CARRERAS, MOSTRAR ProgramasScreen
-    if (widget.mostrarInformacionCarreras) {
-      return ProgramasScreen(); // Tu pantalla existente con información
-    }
+    return ChangeNotifierProvider(
+      create: (context) => CarrerasViewModel(),
+      child: Consumer<CarrerasViewModel>(
+        builder: (context, viewModel, child) {
+          // Notificar cambios cuando se actualice el ViewModel
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _notificarCambiosCarreras();
+          });
 
-    // SI NO, MOSTRAR LA GESTIÓN NORMAL DE CARRERAS (TU FUNCIONALIDAD ORIGINAL)
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Carreras - ${widget.tipo}',
-          style: AppTextStyles.heading2Dark(
-            context,
-          ).copyWith(color: Colors.white),
-        ),
-        backgroundColor: AppColors.secondary,
-      ),
-      body: _carreras.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.school,
-                    size: 64,
-                    color: AppColors.textSecondaryDark(context),
-                  ),
-                  SizedBox(height: AppSpacing.medium),
-                  Text(
-                    'No hay carreras registradas',
-                    style: AppTextStyles.bodyDark(
-                      context,
-                    ).copyWith(color: AppColors.textSecondaryDark(context)),
-                  ),
-                  Text(
-                    'Presiona el botón + para agregar una carrera',
-                    style: AppTextStyles.bodyDark(context).copyWith(
-                      fontSize: 12,
-                      color: AppColors.textSecondaryDark(context),
-                    ),
-                  ),
-                ],
+          if (widget.mostrarInformacionCarreras) {
+            return ProgramasScreen();
+          }
+
+          return Scaffold(
+            appBar: AppBar(
+              title: Text(
+                'Carreras - ${widget.tipo}',
+                style: AppTextStyles.heading2Dark(
+                  context,
+                ).copyWith(color: Colors.white),
               ),
-            )
-          : ListView.builder(
-              padding: EdgeInsets.all(AppSpacing.medium),
-              itemCount: _carreras.length + 1, // +1 para el card de Programas
-              itemBuilder: (context, index) {
-                // Si es el último índice, mostrar el card de Programas
-                if (index == _carreras.length) {
-                  return _buildProgramasCard(context);
-                }
-
-                // Si no, mostrar las carreras normales
-                final carrera = _carreras[index];
-                return _buildCarreraCard(carrera, context);
-              },
+              backgroundColor: AppColors.secondary,
             ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAgregarCarreraDialog,
-        backgroundColor: AppColors.primary,
-        child: Icon(Icons.add, color: Colors.white),
+            body: viewModel.carreras.isEmpty
+                ? _buildEmptyState()
+                : ListView.builder(
+                    padding: EdgeInsets.all(AppSpacing.medium),
+                    itemCount: viewModel.carreras.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index == viewModel.carreras.length) {
+                        return _buildProgramasCard(context);
+                      }
+                      final carrera = viewModel.carreras[index];
+                      return _buildCarreraCard(carrera, context, viewModel);
+                    },
+                  ),
+            floatingActionButton: FloatingActionButton(
+              onPressed: () => _showAgregarCarreraDialog(context, viewModel),
+              backgroundColor: AppColors.primary,
+              child: Icon(Icons.add, color: Colors.white),
+            ),
+          );
+        },
       ),
     );
   }
 
-  // NUEVO MÉTODO: Card fijo para Programas - CORREGIDO PARA MODO OSCURO/CLARO
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.school,
+            size: 64,
+            color: AppColors.textSecondaryDark(context),
+          ),
+          SizedBox(height: AppSpacing.medium),
+          Text(
+            'No hay carreras registradas',
+            style: AppTextStyles.bodyDark(
+              context,
+            ).copyWith(color: AppColors.textSecondaryDark(context)),
+          ),
+          Text(
+            'Presiona el botón + para agregar una carrera',
+            style: AppTextStyles.bodyDark(context).copyWith(
+              fontSize: 12,
+              color: AppColors.textSecondaryDark(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildProgramasCard(BuildContext context) {
     bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
@@ -179,9 +180,13 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
     );
   }
 
-  Widget _buildCarreraCard(Map<String, dynamic> carrera, BuildContext context) {
-    Color color = _parseColor(carrera['color']);
-    bool isActiva = carrera['activa'] ?? false;
+  Widget _buildCarreraCard(
+    CarreraModel carrera,
+    BuildContext context,
+    CarrerasViewModel viewModel,
+  ) {
+    Color color = CarrerasViewModel.parseColor(carrera.color);
+    bool isActiva = carrera.activa;
 
     return Card(
       elevation: 4,
@@ -194,7 +199,7 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
         child: ListTile(
           leading: CircleAvatar(
             backgroundColor: isActiva ? color : Colors.grey,
-            child: Icon(carrera['icon'], color: Colors.white),
+            child: Icon(carrera.icon, color: Colors.white),
           ),
           title: Container(
             height: 60,
@@ -206,7 +211,7 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        carrera['nombre'],
+                        carrera.nombre,
                         style: AppTextStyles.heading3Dark(context).copyWith(
                           color: isActiva
                               ? _getTextColor(context)
@@ -239,7 +244,8 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
             ),
           ),
           trailing: PopupMenuButton<String>(
-            onSelected: (value) => _handleMenuAction(value, carrera),
+            onSelected: (value) =>
+                _handleMenuAction(value, carrera, viewModel, context),
             itemBuilder: (BuildContext context) => [
               PopupMenuItem(
                 value: 'edit',
@@ -253,7 +259,7 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
               PopupMenuItem(
                 value: 'toggle_active',
                 child: Text(
-                  carrera['activa'] ? 'Desactivar' : 'Activar',
+                  carrera.activa ? 'Desactivar' : 'Activar',
                   style: AppTextStyles.bodyDark(
                     context,
                   ).copyWith(color: _getTextColor(context)),
@@ -276,15 +282,18 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => DocentesScreen(carrera: carrera),
+                        builder: (context) =>
+                            DocentesScreen(carrera: carrera.toMap()),
                       ),
                     );
                   } else {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            TurnosScreen(tipo: widget.tipo, carrera: carrera),
+                        builder: (context) => TurnosScreen(
+                          tipo: widget.tipo,
+                          carrera: carrera.toMap(),
+                        ),
                       ),
                     );
                   }
@@ -295,75 +304,55 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
     );
   }
 
-  Color _getTextColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.white
-        : Colors.black;
-  }
-
-  Color _getSecondaryTextColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.white70
-        : Colors.black87;
-  }
-
-  Color _getCardColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade800
-        : Colors.white;
-  }
-
-  void _handleMenuAction(String action, Map<String, dynamic> carrera) {
+  void _handleMenuAction(
+    String action,
+    CarreraModel carrera,
+    CarrerasViewModel viewModel,
+    BuildContext context,
+  ) {
     switch (action) {
       case 'edit':
-        _showEditarCarreraDialog(carrera);
+        _showEditarCarreraDialog(carrera, context, viewModel);
         break;
       case 'toggle_active':
-        _toggleActivarCarrera(carrera);
+        _toggleActivarCarrera(carrera, viewModel, context);
         break;
       case 'delete':
-        _showEliminarCarreraDialog(carrera);
+        _showEliminarCarreraDialog(carrera, viewModel, context);
         break;
     }
   }
 
-  void _toggleActivarCarrera(Map<String, dynamic> carrera) {
-    setState(() {
-      carrera['activa'] = !(carrera['activa'] ?? false);
-    });
-
-    _notificarCambiosCarreras(); // ← NOTIFICAR CAMBIO
+  void _toggleActivarCarrera(
+    CarreraModel carrera,
+    CarrerasViewModel viewModel,
+    BuildContext context,
+  ) {
+    viewModel.toggleActivarCarrera(carrera.id);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '${carrera['nombre']} ${carrera['activa'] ? 'activada' : 'desactivada'}',
+          '${carrera.nombre} ${!carrera.activa ? 'activada' : 'desactivada'}',
           style: AppTextStyles.bodyDark(context).copyWith(color: Colors.white),
         ),
-        backgroundColor: carrera['activa']
+        backgroundColor: !carrera.activa
             ? AppColors.success
             : AppColors.warning,
       ),
     );
   }
 
-  void _showAgregarCarreraDialog() {
+  void _showAgregarCarreraDialog(
+    BuildContext context,
+    CarrerasViewModel viewModel,
+  ) {
     showDialog(
       context: context,
       builder: (context) => _CarreraDialog(
         title: 'Agregar Carrera',
         onSave: (nombre, color, icono) {
-          setState(() {
-            _carreras.add({
-              'id': DateTime.now().millisecondsSinceEpoch,
-              'nombre': nombre,
-              'color': color,
-              'icon': icono,
-              'activa': true,
-            });
-          });
-
-          _notificarCambiosCarreras(); // ← NOTIFICAR CAMBIO
+          viewModel.agregarCarrera(nombre, color, icono);
 
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -382,22 +371,20 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
     );
   }
 
-  void _showEditarCarreraDialog(Map<String, dynamic> carrera) {
+  void _showEditarCarreraDialog(
+    CarreraModel carrera,
+    BuildContext context,
+    CarrerasViewModel viewModel,
+  ) {
     showDialog(
       context: context,
       builder: (context) => _CarreraDialog(
         title: 'Modificar Carrera',
-        nombreInicial: carrera['nombre'],
-        colorInicial: carrera['color'],
-        iconoInicial: carrera['icon'],
+        nombreInicial: carrera.nombre,
+        colorInicial: carrera.color,
+        iconoInicial: carrera.icon,
         onSave: (nombre, color, icono) {
-          setState(() {
-            carrera['nombre'] = nombre;
-            carrera['color'] = color;
-            carrera['icon'] = icono;
-          });
-
-          _notificarCambiosCarreras(); // ← NOTIFICAR CAMBIO
+          viewModel.editarCarrera(carrera.id, nombre, color, icono);
 
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -416,7 +403,11 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
     );
   }
 
-  void _showEliminarCarreraDialog(Map<String, dynamic> carrera) {
+  void _showEliminarCarreraDialog(
+    CarreraModel carrera,
+    CarrerasViewModel viewModel,
+    BuildContext context,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -428,7 +419,7 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
           ).copyWith(color: _getTextColor(context)),
         ),
         content: Text(
-          '¿Estás seguro de eliminar la carrera "${carrera['nombre']}"? Esta acción no se puede deshacer.',
+          '¿Estás seguro de eliminar la carrera "${carrera.nombre}"? Esta acción no se puede deshacer.',
           style: AppTextStyles.bodyDark(
             context,
           ).copyWith(color: _getTextColor(context)),
@@ -445,15 +436,10 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
           ),
           TextButton(
             onPressed: () {
-              String nombreCarrera = carrera['nombre'];
-              setState(() {
-                _carreras.removeWhere((c) => c['id'] == carrera['id']);
-              });
-
-              _notificarCambiosCarreras(); // ← NOTIFICAR CAMBIO
+              final nombreCarrera = carrera.nombre;
+              viewModel.eliminarCarrera(carrera.id);
 
               Navigator.pop(context);
-
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
@@ -478,16 +464,20 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
     );
   }
 
-  Color _parseColor(String colorString) {
-    try {
-      return Color(int.parse(colorString.replaceAll('#', '0xFF')));
-    } catch (e) {
-      return AppColors.primary;
-    }
+  Color _getTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+  }
+
+  Color _getSecondaryTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white70
+        : Colors.black87;
   }
 }
 
-// Diálogo para agregar/modificar carreras - CORREGIDO PARA MODO CLARO/OSCURO
+// Diálogo para agregar/modificar carreras (se mantiene igual)
 class _CarreraDialog extends StatefulWidget {
   final String title;
   final String? nombreInicial;
@@ -633,7 +623,6 @@ class _CarreraDialogState extends State<_CarreraDialog> {
     final coloresBase = _carrerasPredefinidas
         .map((c) => {'nombre': c['nombre'], 'color': c['color']})
         .toList();
-
     return _mostrarMasColores ? [...coloresBase, ..._masColores] : coloresBase;
   }
 
@@ -641,7 +630,6 @@ class _CarreraDialogState extends State<_CarreraDialog> {
     final iconosBase = _carrerasPredefinidas
         .map((c) => {'icon': c['icon'], 'nombre': c['nombre']})
         .toList();
-
     return _mostrarMasIconos
         ? [...iconosBase, ..._iconosDisponibles, ..._masIconos]
         : [...iconosBase, ..._iconosDisponibles];
@@ -665,6 +653,14 @@ class _CarreraDialogState extends State<_CarreraDialog> {
     return Theme.of(context).brightness == Brightness.dark
         ? Colors.white70
         : Colors.black87;
+  }
+
+  Color _parseColor(String colorString) {
+    try {
+      return Color(int.parse(colorString.replaceAll('#', '0xFF')));
+    } catch (e) {
+      return AppColors.primary;
+    }
   }
 
   @override
@@ -954,25 +950,14 @@ class _CarreraDialogState extends State<_CarreraDialog> {
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white, // Color del texto
+            foregroundColor: Colors.white,
           ),
           child: Text(
             'Guardar',
-            style: TextStyle(
-              color: Colors.white, // Texto siempre blanco para contraste
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
         ),
       ],
     );
-  }
-
-  Color _parseColor(String colorString) {
-    try {
-      return Color(int.parse(colorString.replaceAll('#', '0xFF')));
-    } catch (e) {
-      return AppColors.primary;
-    }
   }
 }

@@ -28,18 +28,4 @@ class Paralelo {
       estudiantes: List<Map<String, dynamic>>.from(map['estudiantes'] ?? []),
     );
   }
-
-  Paralelo copyWith({
-    String? id,
-    String? nombre,
-    bool? activo,
-    List<Map<String, dynamic>>? estudiantes,
-  }) {
-    return Paralelo(
-      id: id ?? this.id,
-      nombre: nombre ?? this.nombre,
-      activo: activo ?? this.activo,
-      estudiantes: estudiantes ?? this.estudiantes,
-    );
-  }
 }

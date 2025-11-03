@@ -1,190 +1,233 @@
 import 'package:flutter/material.dart';
+import 'package:incos_check/utils/constants.dart';
 import 'package:incos_check/utils/data_manager.dart';
-import '../models/paralelo_model.dart';
 
 class ParalelosViewModel extends ChangeNotifier {
   final DataManager _dataManager = DataManager();
-  List<Paralelo> _paralelos = [];
+  List<Map<String, dynamic>> _paralelos = [];
   final TextEditingController _nombreController = TextEditingController();
   final TextEditingController _editarNombreController = TextEditingController();
 
-  List<Paralelo> get paralelos => _paralelos;
+  List<Map<String, dynamic>> get paralelos => _paralelos;
   TextEditingController get nombreController => _nombreController;
   TextEditingController get editarNombreController => _editarNombreController;
 
-  String _tipo = '';
-  Map<String, dynamic> _carrera = {};
-  Map<String, dynamic> _turno = {};
-  Map<String, dynamic> _nivel = {};
-
-  void inicializarDatos({
-    required String tipo,
-    required Map<String, dynamic> carrera,
-    required Map<String, dynamic> turno,
-    required Map<String, dynamic> nivel,
-  }) {
-    _tipo = tipo;
-    _carrera = carrera;
-    _turno = turno;
-    _nivel = nivel;
-
-    _inicializarYcargarParalelos();
+  // Funciones para obtener colores según el tema
+  Color getBackgroundColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade900
+        : AppColors.background;
   }
 
-  void _inicializarYcargarParalelos() {
-    _dataManager.inicializarCarrera(
-      _carrera['id'].toString(),
-      _carrera['nombre'],
-      _carrera['color'],
+  Color getCardColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : Colors.white;
+  }
+
+  Color getTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+  }
+
+  Color getSecondaryTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white70
+        : Colors.black87;
+  }
+
+  Color getBorderColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade600
+        : Colors.grey.shade300;
+  }
+
+  Color getInfoBackgroundColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.blue.shade900.withOpacity(0.3)
+        : Colors.blue.shade50;
+  }
+
+  Color getInfoTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.blue.shade200
+        : Colors.blue.shade800;
+  }
+
+  void inicializarYcargarParalelos(
+    String carreraId,
+    String carreraNombre,
+    String carreraColor,
+    String nivelId,
+    String turnoId,
+  ) {
+    // INICIALIZAR SIEMPRE la carrera en DataManager
+    _dataManager.inicializarCarrera(carreraId, carreraNombre, carreraColor);
+
+    // Cargar paralelos desde DataManager
+    _cargarParalelosDataManager(carreraId, turnoId, nivelId);
+  }
+
+  void _cargarParalelosDataManager(
+    String carreraId,
+    String turnoId,
+    String nivelId,
+  ) {
+    final paralelosDataManager = _dataManager.getParalelos(
+      carreraId,
+      turnoId,
+      nivelId,
     );
 
-    final bool esSistemasTerceroNoche =
-        _carrera['nombre'].toUpperCase().contains('SISTEMAS') &&
-        _nivel['nombre'] == 'Tercero' &&
-        _turno['nombre'] == 'Noche';
-
-    if (esSistemasTerceroNoche) {
-      _cargarParaleloEjemploSistemas();
-    } else {
-      _cargarParalelosDataManager();
-    }
-  }
-
-  void _cargarParaleloEjemploSistemas() {
-    _paralelos = [
-      Paralelo(
-        id: 'sistemas_noche_tercero_B',
-        nombre: 'B',
-        activo: true,
-        estudiantes: [
-          {
-            'id': 1,
-            'nombres': 'Juan Carlos',
-            'apellidoPaterno': 'Pérez',
-            'apellidoMaterno': 'Gómez',
-            'ci': '1234567',
-            'fechaRegistro': '2024-01-15',
-            'huellasRegistradas': 3,
-          },
-          {
-            'id': 2,
-            'nombres': 'María Elena',
-            'apellidoPaterno': 'López',
-            'apellidoMaterno': 'Martínez',
-            'ci': '7654321',
-            'fechaRegistro': '2024-01-16',
-            'huellasRegistradas': 2,
-          },
-        ],
-      ),
-    ];
+    _paralelos = paralelosDataManager;
     notifyListeners();
   }
 
-  void _cargarParalelosDataManager() {
-    final paralelosData = _dataManager.getParalelos(
-      _carrera['id'].toString(),
-      _turno['id'].toString(),
-      _nivel['id'].toString(),
-    );
-
-    _paralelos = paralelosData.map((map) => Paralelo.fromMap(map)).toList();
-    notifyListeners();
-  }
-
-  bool get esCarreraDeEjemplo {
-    return _carrera['nombre'].toUpperCase().contains('SISTEMAS') &&
-        _nivel['nombre'] == 'Tercero' &&
-        _turno['nombre'] == 'Noche';
-  }
-
-  bool esParaleloEjemplo(Paralelo paralelo) {
-    return esCarreraDeEjemplo && paralelo.id == 'sistemas_noche_tercero_B';
-  }
-
-  void agregarParalelo(String nombre) {
-    bool existe = _paralelos.any((p) => p.nombre == nombre);
+  void agregarParalelo(
+    String nombre,
+    String carreraId,
+    String turnoId,
+    String nivelId,
+    BuildContext context,
+  ) {
+    // Verificar si ya existe un paralelo con ese nombre
+    bool existe = _paralelos.any((p) => p['nombre'] == nombre);
 
     if (existe) {
-      throw Exception('Ya existe un paralelo con la letra $nombre');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ya existe un paralelo con la letra $nombre'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
     }
 
-    final nuevoParalelo = Paralelo(
-      id: '${_carrera['id']}_${_turno['id']}_${_nivel['id']}_$nombre',
-      nombre: nombre,
-      activo: true,
-      estudiantes: [],
-    );
+    // Crear nuevo paralelo con ID único
+    Map<String, dynamic> nuevoParalelo = {
+      'id': '${carreraId}_${turnoId}_${nivelId}_$nombre',
+      'nombre': nombre,
+      'activo': true,
+      'estudiantes': [],
+    };
 
-    _dataManager.agregarParalelo(
-      _carrera['id'].toString(),
-      _turno['id'].toString(),
-      _nivel['id'].toString(),
-      nuevoParalelo.toMap(),
-    );
+    // Guardar en DataManager
+    _dataManager.agregarParalelo(carreraId, turnoId, nivelId, nuevoParalelo);
 
     _paralelos.add(nuevoParalelo);
-    _paralelos.sort((a, b) => a.nombre.compareTo(b.nombre));
+    // Ordenar paralelos alfabéticamente
+    _paralelos.sort((a, b) => a['nombre'].compareTo(b['nombre']));
     notifyListeners();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Paralelo $nombre agregado correctamente'),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
 
-  void cambiarEstadoParalelo(Paralelo paralelo, bool nuevoEstado) {
-    final index = _paralelos.indexWhere((p) => p.id == paralelo.id);
-    if (index != -1) {
-      _paralelos[index] = paralelo.copyWith(activo: nuevoEstado);
+  void cambiarEstadoParalelo(
+    Map<String, dynamic> paralelo,
+    bool nuevoEstado,
+    String carreraId,
+    String turnoId,
+    String nivelId,
+  ) {
+    paralelo['activo'] = nuevoEstado;
+    notifyListeners();
 
-      _dataManager.actualizarParalelo(
-        _carrera['id'].toString(),
-        _turno['id'].toString(),
-        _nivel['id'].toString(),
-        paralelo.id,
-        _paralelos[index].toMap(),
-      );
-      notifyListeners();
-    }
+    // Actualizar en DataManager
+    _dataManager.actualizarParalelo(
+      carreraId,
+      turnoId,
+      nivelId,
+      paralelo['id'].toString(),
+      paralelo,
+    );
   }
 
-  void editarParalelo(Paralelo paralelo, String nuevoNombre) {
+  void editarParalelo(
+    Map<String, dynamic> paralelo,
+    String nuevoNombre,
+    String carreraId,
+    String turnoId,
+    String nivelId,
+    BuildContext context,
+  ) {
+    // Verificar si ya existe otro paralelo con ese nombre (excluyendo el actual)
     bool existe = _paralelos.any(
-      (p) => p.nombre == nuevoNombre && p.id != paralelo.id,
+      (p) => p['nombre'] == nuevoNombre && p['id'] != paralelo['id'],
     );
 
     if (existe) {
-      throw Exception('Ya existe un paralelo con la letra $nuevoNombre');
-    }
-
-    final index = _paralelos.indexWhere((p) => p.id == paralelo.id);
-    if (index != -1) {
-      _paralelos[index] = paralelo.copyWith(nombre: nuevoNombre);
-      _paralelos.sort((a, b) => a.nombre.compareTo(b.nombre));
-
-      _dataManager.actualizarParalelo(
-        _carrera['id'].toString(),
-        _turno['id'].toString(),
-        _nivel['id'].toString(),
-        paralelo.id,
-        _paralelos[index].toMap(),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ya existe un paralelo con la letra $nuevoNombre'),
+          backgroundColor: Colors.orange,
+        ),
       );
-      notifyListeners();
+      return;
+    }
+
+    paralelo['nombre'] = nuevoNombre;
+    // Reordenar después de editar
+    _paralelos.sort((a, b) => a['nombre'].compareTo(b['nombre']));
+    notifyListeners();
+
+    // Actualizar en DataManager
+    _dataManager.actualizarParalelo(
+      carreraId,
+      turnoId,
+      nivelId,
+      paralelo['id'].toString(),
+      paralelo,
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Paralelo actualizado a $nuevoNombre'),
+        backgroundColor: Colors.blue,
+      ),
+    );
+  }
+
+  void eliminarParalelo(
+    Map<String, dynamic> paralelo,
+    String carreraId,
+    String turnoId,
+    String nivelId,
+    BuildContext context,
+  ) {
+    String nombreEliminado = paralelo['nombre'];
+
+    // Eliminar del DataManager
+    _dataManager.eliminarParalelo(
+      carreraId,
+      turnoId,
+      nivelId,
+      paralelo['id'].toString(),
+    );
+
+    _paralelos.removeWhere((p) => p['id'] == paralelo['id']);
+    notifyListeners();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Paralelo $nombreEliminado eliminado'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  Color parseColor(String colorString) {
+    try {
+      return Color(int.parse(colorString.replaceAll('#', '0xFF')));
+    } catch (e) {
+      return AppColors.primary;
     }
   }
-
-  void eliminarParalelo(Paralelo paralelo) {
-    _paralelos.removeWhere((p) => p.id == paralelo.id);
-
-    _dataManager.eliminarParalelo(
-      _carrera['id'].toString(),
-      _turno['id'].toString(),
-      _nivel['id'].toString(),
-      paralelo.id,
-    );
-    notifyListeners();
-  }
-
-  Map<String, dynamic> get carrera => _carrera;
-  Map<String, dynamic> get turno => _turno;
-  Map<String, dynamic> get nivel => _nivel;
-  String get tipo => _tipo;
 
   @override
   void dispose() {

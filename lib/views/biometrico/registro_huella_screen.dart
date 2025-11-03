@@ -1,7 +1,8 @@
+// views/biometrico/registro_huellas_screen.dart
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
-import 'package:incos_check/utils/constants.dart';
-import 'package:incos_check/utils/helpers.dart';
+import '../../utils/constants.dart';
+import '../../utils/helpers.dart';
 
 class RegistroHuellasScreen extends StatefulWidget {
   final Map<String, dynamic> estudiante;

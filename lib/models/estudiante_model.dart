@@ -1,8 +1,9 @@
 // models/estudiante_model.dart
 class Estudiante {
   final String id;
-  final String nombre;
-  final String apellidos;
+  final String nombres;
+  final String apellidoPaterno;
+  final String apellidoMaterno;
   final String ci;
   final String carrera;
   final String curso;
@@ -12,8 +13,9 @@ class Estudiante {
 
   Estudiante({
     required this.id,
-    required this.nombre,
-    required this.apellidos,
+    required this.nombres,
+    required this.apellidoPaterno,
+    required this.apellidoMaterno,
     required this.ci,
     required this.carrera,
     required this.curso,
@@ -26,8 +28,9 @@ class Estudiante {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'nombre': nombre,
-      'apellidos': apellidos,
+      'nombres': nombres,
+      'apellidoPaterno': apellidoPaterno,
+      'apellidoMaterno': apellidoMaterno,
       'ci': ci,
       'carrera': carrera,
       'curso': curso,
@@ -41,8 +44,9 @@ class Estudiante {
   factory Estudiante.fromMap(Map<String, dynamic> map) {
     return Estudiante(
       id: map['id'],
-      nombre: map['nombre'],
-      apellidos: map['apellidos'],
+      nombres: map['nombres'],
+      apellidoPaterno: map['apellidoPaterno'],
+      apellidoMaterno: map['apellidoMaterno'],
       ci: map['ci'],
       carrera: map['carrera'],
       curso: map['curso'],
@@ -55,8 +59,9 @@ class Estudiante {
   // Copiar con nuevos valores
   Estudiante copyWith({
     String? id,
-    String? nombre,
-    String? apellidos,
+    String? nombres,
+    String? apellidoPaterno,
+    String? apellidoMaterno,
     String? ci,
     String? carrera,
     String? curso,
@@ -66,8 +71,9 @@ class Estudiante {
   }) {
     return Estudiante(
       id: id ?? this.id,
-      nombre: nombre ?? this.nombre,
-      apellidos: apellidos ?? this.apellidos,
+      nombres: nombres ?? this.nombres,
+      apellidoPaterno: apellidoPaterno ?? this.apellidoPaterno,
+      apellidoMaterno: apellidoMaterno ?? this.apellidoMaterno,
       ci: ci ?? this.ci,
       carrera: carrera ?? this.carrera,
       curso: curso ?? this.curso,
@@ -79,13 +85,16 @@ class Estudiante {
 
   // Validar datos del estudiante
   bool get isValid {
-    return nombre.isNotEmpty && 
-           apellidos.isNotEmpty && 
-           ci.isNotEmpty && 
-           carrera.isNotEmpty && 
-           curso.isNotEmpty;
+    return nombres.isNotEmpty &&
+        apellidoPaterno.isNotEmpty &&
+        ci.isNotEmpty &&
+        carrera.isNotEmpty &&
+        curso.isNotEmpty;
   }
 
   // Nombre completo
-  String get nombreCompleto => '$nombre $apellidos';
+  String get nombreCompleto => '$apellidoPaterno $apellidoMaterno $nombres';
+
+  // Apellidos completos
+  String get apellidosCompletos => '$apellidoPaterno $apellidoMaterno';
 }
