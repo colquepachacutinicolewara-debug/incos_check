@@ -97,8 +97,14 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
             )
           : ListView.builder(
               padding: EdgeInsets.all(AppSpacing.medium),
-              itemCount: _carreras.length,
+              itemCount: _carreras.length + 1, // +1 para el card de Programas
               itemBuilder: (context, index) {
+                // Si es el último índice, mostrar el card de Programas
+                if (index == _carreras.length) {
+                  return _buildProgramasCard(context);
+                }
+
+                // Si no, mostrar las carreras normales
                 final carrera = _carreras[index];
                 return _buildCarreraCard(carrera, context);
               },
@@ -107,6 +113,68 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
         onPressed: _showAgregarCarreraDialog,
         backgroundColor: AppColors.primary,
         child: Icon(Icons.add, color: Colors.white),
+      ),
+    );
+  }
+
+  // NUEVO MÉTODO: Card fijo para Programas - CORREGIDO PARA MODO OSCURO/CLARO
+  Widget _buildProgramasCard(BuildContext context) {
+    bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    return Card(
+      elevation: 4,
+      margin: EdgeInsets.only(
+        bottom: AppSpacing.medium,
+        top: AppSpacing.medium,
+      ),
+      color: isDarkMode ? Colors.grey.shade800 : Colors.white,
+      child: Container(
+        height: 100,
+        child: ListTile(
+          leading: Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: AppColors.info.withOpacity(isDarkMode ? 0.2 : 0.1),
+              borderRadius: BorderRadius.circular(30),
+            ),
+            child: Icon(Icons.info, color: AppColors.info, size: 30),
+          ),
+          title: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Programas de Estudio',
+                style: AppTextStyles.heading3Dark(context).copyWith(
+                  color: _getTextColor(context),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Información completa de todas las carreras del INCOs El Alto',
+                style: AppTextStyles.bodyDark(context).copyWith(
+                  color: _getSecondaryTextColor(context),
+                  fontSize: 12,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+          trailing: Icon(
+            Icons.arrow_forward_ios,
+            color: AppColors.info,
+            size: 20,
+          ),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ProgramasScreen()),
+            );
+          },
+        ),
       ),
     );
   }
@@ -231,6 +299,18 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
     return Theme.of(context).brightness == Brightness.dark
         ? Colors.white
         : Colors.black;
+  }
+
+  Color _getSecondaryTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white70
+        : Colors.black87;
+  }
+
+  Color _getCardColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : Colors.white;
   }
 
   void _handleMenuAction(String action, Map<String, dynamic> carrera) {
@@ -407,7 +487,7 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
   }
 }
 
-// Diálogo para agregar/modificar carreras
+// Diálogo para agregar/modificar carreras - CORREGIDO PARA MODO CLARO/OSCURO
 class _CarreraDialog extends StatefulWidget {
   final String title;
   final String? nombreInicial;
@@ -589,6 +669,8 @@ class _CarreraDialogState extends State<_CarreraDialog> {
 
   @override
   Widget build(BuildContext context) {
+    bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return AlertDialog(
       backgroundColor: Theme.of(context).cardColor,
       title: Text(
@@ -636,8 +718,7 @@ class _CarreraDialogState extends State<_CarreraDialog> {
                         _seleccionarCarreraPredefinida(carrera);
                       }
                     },
-                    backgroundColor:
-                        Theme.of(context).brightness == Brightness.dark
+                    backgroundColor: isDarkMode
                         ? Colors.grey.shade800
                         : Colors.grey.shade100,
                     selectedColor: _parseColor(
@@ -775,7 +856,7 @@ class _CarreraDialogState extends State<_CarreraDialog> {
                     decoration: BoxDecoration(
                       color: _iconoSeleccionado == iconInfo['icon']
                           ? _parseColor(_colorController.text).withOpacity(0.2)
-                          : Theme.of(context).brightness == Brightness.dark
+                          : isDarkMode
                           ? Colors.grey.shade800
                           : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(24),
@@ -790,7 +871,7 @@ class _CarreraDialogState extends State<_CarreraDialog> {
                       iconInfo['icon'],
                       color: _iconoSeleccionado == iconInfo['icon']
                           ? _parseColor(_colorController.text)
-                          : Theme.of(context).brightness == Brightness.dark
+                          : isDarkMode
                           ? Colors.grey.shade400
                           : Colors.grey.shade600,
                       size: 20,
@@ -805,12 +886,10 @@ class _CarreraDialogState extends State<_CarreraDialog> {
             Container(
               padding: EdgeInsets.all(AppSpacing.medium),
               decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.grey.shade800
-                    : Colors.grey.shade50,
+                color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade50,
                 borderRadius: BorderRadius.circular(AppRadius.medium),
                 border: Border.all(
-                  color: Theme.of(context).brightness == Brightness.dark
+                  color: isDarkMode
                       ? Colors.grey.shade600
                       : Colors.grey.shade300,
                 ),
@@ -873,11 +952,16 @@ class _CarreraDialogState extends State<_CarreraDialog> {
               );
             }
           },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white, // Color del texto
+          ),
           child: Text(
             'Guardar',
-            style: AppTextStyles.bodyDark(
-              context,
-            ).copyWith(color: Colors.white),
+            style: TextStyle(
+              color: Colors.white, // Texto siempre blanco para contraste
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ],

@@ -74,55 +74,80 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
   @override
   void initState() {
     super.initState();
-    _cargarParalelos();
+    _inicializarYcargarParalelos();
   }
 
-  void _cargarParalelos() {
-    // Para SISTEMAS INFORMÁTICOS - TERCERO - NOCHE, mostrar paralelo B
-    if (widget.carrera['nombre'].toUpperCase().contains('SISTEMAS') &&
-        widget.nivel['nombre'] == 'Tercero' &&
-        widget.turno['nombre'] == 'Noche') {
-      setState(() {
-        _paralelos = [
-          {
-            'id': 'sistemas_noche_tercero_B',
-            'nombre': 'B',
-            'activo': true,
-            'estudiantes': [
-              {
-                'id': 1,
-                'nombres': 'Juan Carlos',
-                'apellidoPaterno': 'Pérez',
-                'apellidoMaterno': 'Gómez',
-                'ci': '1234567',
-                'fechaRegistro': '2024-01-15',
-                'huellasRegistradas': 3,
-              },
-              {
-                'id': 2,
-                'nombres': 'María Elena',
-                'apellidoPaterno': 'López',
-                'apellidoMaterno': 'Martínez',
-                'ci': '7654321',
-                'fechaRegistro': '2024-01-16',
-                'huellasRegistradas': 2,
-              },
-            ],
-          },
-        ];
-      });
-    } else {
-      // Para otras carreras, obtener del DataManager
-      final paralelosDataManager = _dataManager.getParalelos(
-        widget.carrera['id'].toString(),
-        widget.turno['id'].toString(),
-        widget.nivel['id'].toString(),
-      );
+  void _inicializarYcargarParalelos() {
+    // INICIALIZAR SIEMPRE la carrera en DataManager
+    _dataManager.inicializarCarrera(
+      widget.carrera['id'].toString(),
+      widget.carrera['nombre'],
+      widget.carrera['color'],
+    );
 
-      setState(() {
-        _paralelos = paralelosDataManager;
-      });
+    // SOLO cargar datos de ejemplo para Sistemas Informáticos - Tercero - Noche
+    final bool esSistemasTerceroNoche =
+        widget.carrera['nombre'].toUpperCase().contains('SISTEMAS') &&
+        widget.nivel['nombre'] == 'Tercero' &&
+        widget.turno['nombre'] == 'Noche';
+
+    if (esSistemasTerceroNoche) {
+      _cargarParaleloEjemploSistemas();
+    } else {
+      _cargarParalelosDataManager();
     }
+  }
+
+  void _cargarParaleloEjemploSistemas() {
+    // Datos de ejemplo SOLO para mostrar
+    setState(() {
+      _paralelos = [
+        {
+          'id': 'sistemas_noche_tercero_B',
+          'nombre': 'B',
+          'activo': true,
+          'estudiantes': [
+            {
+              'id': 1,
+              'nombres': 'Juan Carlos',
+              'apellidoPaterno': 'Pérez',
+              'apellidoMaterno': 'Gómez',
+              'ci': '1234567',
+              'fechaRegistro': '2024-01-15',
+              'huellasRegistradas': 3,
+            },
+            {
+              'id': 2,
+              'nombres': 'María Elena',
+              'apellidoPaterno': 'López',
+              'apellidoMaterno': 'Martínez',
+              'ci': '7654321',
+              'fechaRegistro': '2024-01-16',
+              'huellasRegistradas': 2,
+            },
+          ],
+        },
+      ];
+    });
+  }
+
+  void _cargarParalelosDataManager() {
+    // Para TODAS las demás carreras, usar DataManager
+    final paralelosDataManager = _dataManager.getParalelos(
+      widget.carrera['id'].toString(),
+      widget.turno['id'].toString(),
+      widget.nivel['id'].toString(),
+    );
+
+    setState(() {
+      _paralelos = paralelosDataManager;
+    });
+  }
+
+  bool get _esCarreraDeEjemplo {
+    return widget.carrera['nombre'].toUpperCase().contains('SISTEMAS') &&
+        widget.nivel['nombre'] == 'Tercero' &&
+        widget.turno['nombre'] == 'Noche';
   }
 
   @override
@@ -158,7 +183,9 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
                   ),
                   SizedBox(height: 8),
                   Text(
-                    'Presiona el botón + para agregar el primer paralelo',
+                    _esCarreraDeEjemplo
+                        ? 'Esta es una vista de ejemplo con datos demostrativos'
+                        : 'Presiona el botón + para agregar el primer paralelo',
                     style: TextStyle(color: _getSecondaryTextColor(context)),
                     textAlign: TextAlign.center,
                   ),
@@ -187,6 +214,8 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
     Color color,
   ) {
     bool isActive = paralelo['activo'] ?? true;
+    bool esEjemplo =
+        _esCarreraDeEjemplo && paralelo['id'] == 'sistemas_noche_tercero_B';
 
     return Card(
       elevation: 4,
@@ -204,47 +233,83 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
             ),
           ),
         ),
-        title: Text(
-          'Paralelo ${paralelo['nombre']}',
-          style: AppTextStyles.heading3.copyWith(
-            color: isActive ? _getTextColor(context) : Colors.grey,
-          ),
+        title: Row(
+          children: [
+            Text(
+              'Paralelo ${paralelo['nombre']}',
+              style: AppTextStyles.heading3.copyWith(
+                color: isActive ? _getTextColor(context) : Colors.grey,
+              ),
+            ),
+            if (esEjemplo) ...[
+              SizedBox(width: 8),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'Ejemplo',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.orange,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
-        subtitle: Text(
-          isActive ? 'Activo' : 'Inactivo',
-          style: TextStyle(color: isActive ? Colors.green : Colors.red),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isActive ? 'Activo' : 'Inactivo',
+              style: TextStyle(color: isActive ? Colors.green : Colors.red),
+            ),
+            if (esEjemplo)
+              Text(
+                'Datos de demostración',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: _getSecondaryTextColor(context),
+                ),
+              ),
+          ],
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Switch(
               value: isActive,
-              onChanged: (value) {
-                setState(() {
-                  paralelo['activo'] = value;
-                });
-              },
+              onChanged: esEjemplo
+                  ? null
+                  : (value) {
+                      _cambiarEstadoParalelo(paralelo, value);
+                    },
               activeColor: color,
             ),
-            PopupMenuButton<String>(
-              onSelected: (value) => _handleMenuAction(value, paralelo),
-              itemBuilder: (BuildContext context) => [
-                PopupMenuItem(
-                  value: 'edit',
-                  child: Text(
-                    'Modificar',
-                    style: TextStyle(color: _getTextColor(context)),
+            if (!esEjemplo)
+              PopupMenuButton<String>(
+                onSelected: (value) => _handleMenuAction(value, paralelo),
+                itemBuilder: (BuildContext context) => [
+                  PopupMenuItem(
+                    value: 'edit',
+                    child: Text(
+                      'Modificar',
+                      style: TextStyle(color: _getTextColor(context)),
+                    ),
                   ),
-                ),
-                PopupMenuItem(
-                  value: 'delete',
-                  child: Text(
-                    'Eliminar',
-                    style: TextStyle(color: _getTextColor(context)),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Text(
+                      'Eliminar',
+                      style: TextStyle(color: _getTextColor(context)),
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
           ],
         ),
         onTap: () {
@@ -381,21 +446,25 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
       return;
     }
 
+    // Crear nuevo paralelo con ID único
+    Map<String, dynamic> nuevoParalelo = {
+      'id':
+          '${widget.carrera['id']}_${widget.turno['id']}_${widget.nivel['id']}_$nombre',
+      'nombre': nombre,
+      'activo': true,
+      'estudiantes': [],
+    };
+
+    // Guardar en DataManager
+    _dataManager.agregarParalelo(
+      widget.carrera['id'].toString(),
+      widget.turno['id'].toString(),
+      widget.nivel['id'].toString(),
+      nuevoParalelo,
+    );
+
     setState(() {
-      int nuevoId = _paralelos.isNotEmpty
-          ? _paralelos
-                    .map((p) => p['id'] as int)
-                    .reduce((a, b) => a > b ? a : b) +
-                1
-          : 1;
-
-      _paralelos.add({
-        'id': nuevoId,
-        'nombre': nombre,
-        'activo': true,
-        'estudiantes': [],
-      });
-
+      _paralelos.add(nuevoParalelo);
       // Ordenar paralelos alfabéticamente
       _paralelos.sort((a, b) => a['nombre'].compareTo(b['nombre']));
     });
@@ -405,6 +474,21 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
         content: Text('Paralelo $nombre agregado correctamente'),
         backgroundColor: Colors.green,
       ),
+    );
+  }
+
+  void _cambiarEstadoParalelo(Map<String, dynamic> paralelo, bool nuevoEstado) {
+    setState(() {
+      paralelo['activo'] = nuevoEstado;
+    });
+
+    // Actualizar en DataManager
+    _dataManager.actualizarParalelo(
+      widget.carrera['id'].toString(),
+      widget.turno['id'].toString(),
+      widget.nivel['id'].toString(),
+      paralelo['id'].toString(),
+      paralelo,
     );
   }
 
@@ -514,12 +598,22 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
       return;
     }
 
+    String nombreAnterior = paralelo['nombre'];
+
     setState(() {
       paralelo['nombre'] = nuevoNombre;
-
       // Reordenar después de editar
       _paralelos.sort((a, b) => a['nombre'].compareTo(b['nombre']));
     });
+
+    // Actualizar en DataManager
+    _dataManager.actualizarParalelo(
+      widget.carrera['id'].toString(),
+      widget.turno['id'].toString(),
+      widget.nivel['id'].toString(),
+      paralelo['id'].toString(),
+      paralelo,
+    );
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -552,22 +646,35 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
           ),
           TextButton(
             onPressed: () {
-              String nombreEliminado = paralelo['nombre'];
-              setState(() {
-                _paralelos.removeWhere((p) => p['id'] == paralelo['id']);
-              });
+              _eliminarParalelo(paralelo);
               Navigator.pop(context);
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Paralelo $nombreEliminado eliminado'),
-                  backgroundColor: Colors.red,
-                ),
-              );
             },
             child: Text('Eliminar', style: TextStyle(color: Colors.red)),
           ),
         ],
+      ),
+    );
+  }
+
+  void _eliminarParalelo(Map<String, dynamic> paralelo) {
+    String nombreEliminado = paralelo['nombre'];
+
+    // Eliminar del DataManager
+    _dataManager.eliminarParalelo(
+      widget.carrera['id'].toString(),
+      widget.turno['id'].toString(),
+      widget.nivel['id'].toString(),
+      paralelo['id'].toString(),
+    );
+
+    setState(() {
+      _paralelos.removeWhere((p) => p['id'] == paralelo['id']);
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Paralelo $nombreEliminado eliminado'),
+        backgroundColor: Colors.red,
       ),
     );
   }

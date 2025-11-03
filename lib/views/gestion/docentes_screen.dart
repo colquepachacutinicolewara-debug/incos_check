@@ -94,17 +94,24 @@ class _DocentesScreenState extends State<DocentesScreen> {
   void initState() {
     super.initState();
     _carreraColor = _parseColor(widget.carrera['color']);
-
-    // Inicializar con la carrera actual
     _selectedCarrera = widget.carrera['nombre'] as String;
 
-    // Si la carrera actual no está en la lista, agregarla
+    // Limpiar duplicados existentes
+    _limpiarCarrerasDuplicadas();
+
+    // Asegurar que la carrera actual esté en la lista
     if (!_carreras.contains(_selectedCarrera)) {
       _carreras.add(_selectedCarrera);
     }
 
     _filteredDocentes = _docentes;
     _filterDocentesByCarreraAndTurno();
+  }
+
+  void _limpiarCarrerasDuplicadas() {
+    setState(() {
+      _carreras = _carreras.toSet().toList(); // Elimina duplicados
+    });
   }
 
   // Método para cargar carreras desde almacenamiento (simulado)
@@ -195,58 +202,95 @@ class _DocentesScreenState extends State<DocentesScreen> {
   void _showDocenteDetails(Map<String, dynamic> docente) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => Dialog(
         backgroundColor: _getCardColor(context),
-        title: Text(
-          'Detalles del Docente',
-          style: AppTextStyles.heading2.copyWith(color: _carreraColor),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildDetailRow('CI:', docente['ci'] as String, context),
-              _buildDetailRow(
-                'Apellido Paterno:',
-                docente['apellidoPaterno'] as String,
-                context,
-              ),
-              _buildDetailRow(
-                'Apellido Materno:',
-                docente['apellidoMaterno'] as String,
-                context,
-              ),
-              _buildDetailRow(
-                'Nombres:',
-                docente['nombres'] as String,
-                context,
-              ),
-              _buildDetailRow(
-                'Carrera:',
-                docente['carrera'] as String,
-                context,
-              ),
-              _buildDetailRow('Turno:', docente['turno'] as String, context),
-              _buildDetailRow('Email:', docente['email'] as String, context),
-              _buildDetailRow(
-                'Teléfono:',
-                docente['telefono'] as String,
-                context,
-              ),
-              _buildDetailRow('Estado:', docente['estado'] as String, context),
-            ],
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.8,
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cerrar',
-              style: AppTextStyles.body.copyWith(color: _getTextColor(context)),
+          child: Padding(
+            padding: EdgeInsets.all(AppSpacing.medium),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Detalles del Docente',
+                  style: AppTextStyles.heading2.copyWith(color: _carreraColor),
+                ),
+                SizedBox(height: AppSpacing.medium),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildDetailRow(
+                          'CI:',
+                          docente['ci'] as String,
+                          context,
+                        ),
+                        _buildDetailRow(
+                          'Apellido Paterno:',
+                          docente['apellidoPaterno'] as String,
+                          context,
+                        ),
+                        _buildDetailRow(
+                          'Apellido Materno:',
+                          docente['apellidoMaterno'] as String,
+                          context,
+                        ),
+                        _buildDetailRow(
+                          'Nombres:',
+                          docente['nombres'] as String,
+                          context,
+                        ),
+                        _buildDetailRow(
+                          'Carrera:',
+                          docente['carrera'] as String,
+                          context,
+                        ),
+                        _buildDetailRow(
+                          'Turno:',
+                          docente['turno'] as String,
+                          context,
+                        ),
+                        _buildDetailRow(
+                          'Email:',
+                          docente['email'] as String,
+                          context,
+                        ),
+                        _buildDetailRow(
+                          'Teléfono:',
+                          docente['telefono'] as String,
+                          context,
+                        ),
+                        _buildDetailRow(
+                          'Estado:',
+                          docente['estado'] as String,
+                          context,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                SizedBox(height: AppSpacing.medium),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      'Cerrar',
+                      style: AppTextStyles.body.copyWith(
+                        color: _getTextColor(context),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -788,7 +832,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
           'estado': estado,
         });
 
-        // Agregar la carrera a la lista si es nueva
+        // CORREGIDO: Verificar que la carrera no exista antes de agregarla
         if (!_carreras.contains(carrera)) {
           _carreras.add(carrera);
         }
@@ -853,15 +897,18 @@ class _DocentesScreenState extends State<DocentesScreen> {
 
   Widget _buildDetailRow(String label, String value, BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: AppTextStyles.body.copyWith(
-              fontWeight: FontWeight.bold,
-              color: _getTextColor(context),
+          SizedBox(
+            width: 120, // Ancho fijo para las etiquetas
+            child: Text(
+              label,
+              style: AppTextStyles.body.copyWith(
+                fontWeight: FontWeight.bold,
+                color: _getTextColor(context),
+              ),
             ),
           ),
           SizedBox(width: 8),

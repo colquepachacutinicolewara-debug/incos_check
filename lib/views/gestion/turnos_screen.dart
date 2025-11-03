@@ -44,18 +44,25 @@ class _TurnosScreenState extends State<TurnosScreen> {
   @override
   void initState() {
     super.initState();
-    // Inicializar la carrera SIEMPRE VACÍA
-    _dataManager.inicializarCarrera(
-      widget.carrera['id'].toString(),
-      widget.carrera['nombre'],
-      widget.carrera['color'],
-    );
+    _inicializarCarrera();
+  }
 
-    // Obtener los turnos de esta carrera específica
-    _turnos = _dataManager.getTurnos(widget.carrera['id'].toString());
+  void _inicializarCarrera() {
+    final carreraId = widget.carrera['id'].toString();
 
-    // NO agregar turnos por defecto automáticamente
-    // Las nuevas carreras deben comenzar VACÍAS
+    // SOLUCIÓN: Obtener los turnos primero para verificar si la carrera existe
+    _turnos = _dataManager.getTurnos(carreraId);
+
+    // Si no hay turnos, significa que es una carrera nueva y debemos inicializarla
+    if (_turnos.isEmpty) {
+      _dataManager.inicializarCarrera(
+        carreraId,
+        widget.carrera['nombre'],
+        widget.carrera['color'],
+      );
+      // Volver a cargar los turnos (ahora debería estar inicializada)
+      _turnos = _dataManager.getTurnos(carreraId);
+    }
   }
 
   @override
@@ -186,29 +193,51 @@ class _TurnosScreenState extends State<TurnosScreen> {
           itemBuilder: (BuildContext context) => [
             PopupMenuItem(
               value: 'edit',
-              child: Text(
-                'Modificar',
-                style: AppTextStyles.bodyDark(
-                  context,
-                ).copyWith(color: _getTextColor(context)),
+              child: Row(
+                children: [
+                  Icon(Icons.edit, size: 20, color: _getTextColor(context)),
+                  SizedBox(width: 8),
+                  Text(
+                    'Modificar',
+                    style: AppTextStyles.bodyDark(
+                      context,
+                    ).copyWith(color: _getTextColor(context)),
+                  ),
+                ],
               ),
             ),
             PopupMenuItem(
               value: 'toggle_active',
-              child: Text(
-                turno['activo'] ? 'Desactivar' : 'Activar',
-                style: AppTextStyles.bodyDark(
-                  context,
-                ).copyWith(color: _getTextColor(context)),
+              child: Row(
+                children: [
+                  Icon(
+                    turno['activo'] ? Icons.toggle_off : Icons.toggle_on,
+                    size: 20,
+                    color: _getTextColor(context),
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    turno['activo'] ? 'Desactivar' : 'Activar',
+                    style: AppTextStyles.bodyDark(
+                      context,
+                    ).copyWith(color: _getTextColor(context)),
+                  ),
+                ],
               ),
             ),
             PopupMenuItem(
               value: 'delete',
-              child: Text(
-                'Eliminar',
-                style: AppTextStyles.bodyDark(
-                  context,
-                ).copyWith(color: _getTextColor(context)),
+              child: Row(
+                children: [
+                  Icon(Icons.delete, size: 20, color: Colors.red),
+                  SizedBox(width: 8),
+                  Text(
+                    'Eliminar',
+                    style: AppTextStyles.bodyDark(
+                      context,
+                    ).copyWith(color: Colors.red),
+                  ),
+                ],
               ),
             ),
           ],

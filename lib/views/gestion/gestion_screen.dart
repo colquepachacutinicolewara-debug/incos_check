@@ -3,8 +3,9 @@ import 'package:incos_check/utils/constants.dart';
 import 'package:incos_check/utils/helpers.dart';
 import 'carreras_screen.dart';
 import 'turnos_screen.dart';
-import '../../views/gestion/materias_screen.dart'; // Importar MateriasScreen directamente
+import '../../views/gestion/materias_screen.dart';
 import '../../views/gestion/programas/programas_screen.dart';
+import 'docentes_screen.dart'; // Importar DocentesScreen directamente
 
 class GestionScreen extends StatefulWidget {
   const GestionScreen({super.key});
@@ -199,7 +200,9 @@ class _GestionScreenState extends State<GestionScreen> {
                   'Docentes',
                   Icons.person,
                   UserThemeColors.docente,
-                  () => _navigateToCarreras(context, 'Docentes'),
+                  () => _navigateToDocentes(
+                    context,
+                  ), // MODIFICADO: Llamada directa
                 ),
               ],
             ),
@@ -285,17 +288,15 @@ class _GestionScreenState extends State<GestionScreen> {
     });
   }
 
-  // Navegación a CarrerasScreen para Cursos y Docentes
-  void _navigateToCarreras(BuildContext context, String tipo) {
+  // NUEVO MÉTODO: Navegación DIRECTA a DocentesScreen
+  void _navigateToDocentes(BuildContext context) {
+    final carreraConfig = _getCarreraConfig(_carreraSeleccionada);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => CarrerasScreen(
-            tipo: tipo,
-            carreraSeleccionada: _carreraSeleccionada,
-            onCarrerasActualizadas: _actualizarCarreras,
-          ),
+          builder: (context) => DocentesScreen(carrera: carreraConfig),
         ),
       );
     });
