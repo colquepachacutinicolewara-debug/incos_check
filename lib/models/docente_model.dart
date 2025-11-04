@@ -1,5 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class Docente {
-  final int id;
+  final String id;
   final String apellidoPaterno;
   final String apellidoMaterno;
   final String nombres;
@@ -9,6 +11,8 @@ class Docente {
   final String email;
   final String telefono;
   final String estado;
+  final DateTime fechaCreacion;
+  final DateTime fechaActualizacion;
 
   Docente({
     required this.id,
@@ -21,8 +25,46 @@ class Docente {
     required this.email,
     required this.telefono,
     required this.estado,
+    required this.fechaCreacion,
+    required this.fechaActualizacion,
   });
 
+  // Crear Docente desde Firestore
+  factory Docente.fromFirestore(String docId, Map<String, dynamic> data) {
+    return Docente(
+      id: docId,
+      apellidoPaterno: data['apellidoPaterno'] ?? '',
+      apellidoMaterno: data['apellidoMaterno'] ?? '',
+      nombres: data['nombres'] ?? '',
+      ci: data['ci'] ?? '',
+      carrera: data['carrera'] ?? '',
+      turno: data['turno'] ?? 'MAÑANA',
+      email: data['email'] ?? '',
+      telefono: data['telefono'] ?? '',
+      estado: data['estado'] ?? 'Activo',
+      fechaCreacion: (data['fechaCreacion'] as Timestamp).toDate(),
+      fechaActualizacion: (data['fechaActualizacion'] as Timestamp).toDate(),
+    );
+  }
+
+  // Convertir a Map para Firestore
+  Map<String, dynamic> toFirestore() {
+    return {
+      'apellidoPaterno': apellidoPaterno,
+      'apellidoMaterno': apellidoMaterno,
+      'nombres': nombres,
+      'ci': ci,
+      'carrera': carrera,
+      'turno': turno,
+      'email': email,
+      'telefono': telefono,
+      'estado': estado,
+      'fechaCreacion': Timestamp.fromDate(fechaCreacion),
+      'fechaActualizacion': Timestamp.fromDate(fechaActualizacion),
+    };
+  }
+
+  // Para compatibilidad con tu UI existente
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -38,23 +80,37 @@ class Docente {
     };
   }
 
-  factory Docente.fromMap(Map<String, dynamic> map) {
+  // Para crear nuevos docentes
+  factory Docente.createNew({
+    required String apellidoPaterno,
+    required String apellidoMaterno,
+    required String nombres,
+    required String ci,
+    required String carrera,
+    required String turno,
+    required String email,
+    required String telefono,
+    required String estado,
+  }) {
+    final now = DateTime.now();
     return Docente(
-      id: map['id'] as int,
-      apellidoPaterno: map['apellidoPaterno'] as String,
-      apellidoMaterno: map['apellidoMaterno'] as String,
-      nombres: map['nombres'] as String,
-      ci: map['ci'] as String,
-      carrera: map['carrera'] as String,
-      turno: map['turno'] as String,
-      email: map['email'] as String,
-      telefono: map['telefono'] as String,
-      estado: map['estado'] as String,
+      id: '', // Firestore generará el ID
+      apellidoPaterno: apellidoPaterno,
+      apellidoMaterno: apellidoMaterno,
+      nombres: nombres,
+      ci: ci,
+      carrera: carrera,
+      turno: turno,
+      email: email,
+      telefono: telefono,
+      estado: estado,
+      fechaCreacion: now,
+      fechaActualizacion: now,
     );
   }
 
   Docente copyWith({
-    int? id,
+    String? id,
     String? apellidoPaterno,
     String? apellidoMaterno,
     String? nombres,
@@ -76,6 +132,13 @@ class Docente {
       email: email ?? this.email,
       telefono: telefono ?? this.telefono,
       estado: estado ?? this.estado,
+      fechaCreacion: fechaCreacion,
+      fechaActualizacion: DateTime.now(),
     );
+  }
+
+  @override
+  String toString() {
+    return 'Docente(id: $id, nombre: $nombres $apellidoPaterno, carrera: $carrera)';
   }
 }

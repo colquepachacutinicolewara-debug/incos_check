@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/dashboard_viewmodel.dart';
+import '../../viewmodels/carreras_viewmodel.dart';
 import '../../utils/constants.dart';
 import '../../views/gestion/gestion_screen.dart';
 import '../../views/asistencia/asistencia_screen.dart';
@@ -8,8 +9,26 @@ import '../../views/inicio/inicio_screen.dart';
 import '../../views/reportes/reportes_screen.dart';
 import '../../views/configuracion/configuracion_screen.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Inicializar datos cuando se monta el screen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final dashboardVM = context.read<DashboardViewModel>();
+      final carrerasVM = context.read<CarrerasViewModel>();
+
+      dashboardVM.loadDashboardData();
+      // Los streams de carreras se inicializan automáticamente en el ViewModel
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,12 +49,33 @@ class DashboardScreen extends StatelessWidget {
   Widget _buildBody(BuildContext context) {
     final dashboardVM = Provider.of<DashboardViewModel>(context);
 
+    // Mostrar loading si está cargando
+    if (dashboardVM.loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    // Mostrar error si hay error
+    if (dashboardVM.error.isNotEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('Error: ${dashboardVM.error}'),
+            ElevatedButton(
+              onPressed: () => dashboardVM.loadDashboardData(),
+              child: const Text('Reintentar'),
+            ),
+          ],
+        ),
+      );
+    }
+
     final List<Widget> pages = [
       GestionScreen(), // 0 - Gestión
       AsistenciaScreen(), // 1 - Asistencia
-      InicioScreen(), // 2 - Inicio (botón central)
+      InicioScreen(), // 2 - Inicio
       ReportesScreen(), // 3 - Reportes
-      ConfiguracionScreen(), // 4 - Configuración/Perfil
+      ConfiguracionScreen(), // 4 - Configuración
     ];
 
     return pages[dashboardVM.selectedIndex];
@@ -43,6 +83,7 @@ class DashboardScreen extends StatelessWidget {
 
   Drawer _buildDrawer(BuildContext context) {
     final dashboardVM = Provider.of<DashboardViewModel>(context);
+    final carrerasVM = Provider.of<CarrerasViewModel>(context);
     final theme = Theme.of(context);
 
     return Drawer(
@@ -76,7 +117,6 @@ class DashboardScreen extends StatelessWidget {
               ),
               _buildDrawerItem(context, Icons.home, "Inicio", 2, dashboardVM),
 
-              // Gestión Académica como expansible
               _buildExpansionDrawerItem(
                 context,
                 Icons.school,
@@ -110,7 +150,6 @@ class DashboardScreen extends StatelessWidget {
                 ],
               ),
 
-              // Asistencia como expansible
               _buildExpansionDrawerItem(
                 context,
                 Icons.event_note,
@@ -157,7 +196,7 @@ class DashboardScreen extends StatelessWidget {
                   ),
                 ),
                 onTap: () {
-                  // TODO: Implementar logout
+                  _showLogoutDialog(context);
                 },
               ),
               const SizedBox(height: AppSpacing.medium),
@@ -168,7 +207,6 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // MÉTODO PARA CREAR ITEMS EXPANSIBLES
   Widget _buildExpansionDrawerItem(
     BuildContext context,
     IconData icon,
@@ -191,7 +229,6 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // MÉTODO PARA ITEMS HIJOS DEL EXPANSIBLE
   Widget _buildSubDrawerItem(
     BuildContext context,
     IconData icon,
@@ -218,29 +255,21 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // MÉTODO PARA NAVEGAR A LAS SUB-PANTALLAS DE GESTIÓN
   void _navigateToGestionSubScreen(BuildContext context, String tipo) {
     final dashboardVM = Provider.of<DashboardViewModel>(context, listen: false);
-
-    // Cambiar al índice de Gestión (0) y navegar
     dashboardVM.changeIndex(0);
 
-    // Aquí puedes agregar lógica adicional si necesitas pasar el tipo a GestionScreen
-    // Por ahora solo navega a GestionScreen y muestra la pantalla principal de gestión
+    // Puedes pasar el tipo de gestión si es necesario
+    // Por ejemplo, usando un Provider adicional o Navigator
   }
 
-  // NUEVO MÉTODO: PARA NAVEGAR A LAS SUB-PANTALLAS DE ASISTENCIA
   void _navigateToAsistenciaSubScreen(BuildContext context, String tipo) {
     final dashboardVM = Provider.of<DashboardViewModel>(context, listen: false);
-
-    // Cambiar al índice de Asistencia (1) y navegar
     dashboardVM.changeIndex(1);
 
-    // Aquí puedes agregar lógica adicional si necesitas pasar el tipo a AsistenciaScreen
-    // Por ejemplo, podrías usar un Provider o Navigator para indicar qué sub-pantalla mostrar
+    // Puedes pasar el tipo de asistencia si es necesario
   }
 
-  // MÉTODO ORIGINAL (sin cambios)
   ListTile _buildDrawerItem(
     BuildContext context,
     IconData icon,
@@ -271,7 +300,6 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // EL RESTO DEL CÓDIGO PERMANECE EXACTAMENTE IGUAL
   Widget _buildResponsiveBottomNavigationBar(BuildContext context) {
     final dashboardVM = Provider.of<DashboardViewModel>(context);
     final screenWidth = MediaQuery.of(context).size.width;
@@ -663,6 +691,53 @@ class DashboardScreen extends StatelessWidget {
     return Theme.of(context).brightness == Brightness.dark
         ? Colors.red.shade400
         : AppColors.error;
+  }
+
+  // Método para mostrar diálogo de logout
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Cerrar Sesión'),
+          content: const Text('¿Estás seguro de que quieres cerrar sesión?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _performLogout(context);
+              },
+              child: const Text(
+                'Cerrar Sesión',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Método para realizar logout
+  void _performLogout(BuildContext context) {
+    // TODO: Implementar lógica de logout
+    // Por ejemplo:
+    // - Limpiar datos de sesión
+    // - Navegar a la pantalla de login
+    // - Reiniciar estados
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Sesión cerrada correctamente'),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
 }
 

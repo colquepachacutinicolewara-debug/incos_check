@@ -6,7 +6,9 @@ import '../repositories/data_repository.dart';
 class CarrerasViewModel with ChangeNotifier {
   final DataRepository _repository;
 
-  CarrerasViewModel(this._repository);
+  CarrerasViewModel(this._repository) {
+    initializeCarrerasStream(); // Inicializar automáticamente
+  }
 
   List<CarreraModel> _carreras = [];
   bool _loading = false;
@@ -27,10 +29,12 @@ class CarrerasViewModel with ChangeNotifier {
     _carrerasStream?.listen(
       (snapshot) {
         _carreras = _parseCarrerasFromSnapshot(snapshot);
+        _error = ''; // Limpiar error si hay éxito
         notifyListeners();
       },
       onError: (error) {
         _error = 'Error al cargar carreras: $error';
+        _loading = false;
         notifyListeners();
       },
     );
@@ -38,10 +42,15 @@ class CarrerasViewModel with ChangeNotifier {
 
   // Parsear carreras desde Firestore
   List<CarreraModel> _parseCarrerasFromSnapshot(QuerySnapshot snapshot) {
-    return snapshot.docs.map((doc) {
-      final data = doc.data() as Map<String, dynamic>;
-      return CarreraModel.fromFirestore(doc.id, data);
-    }).toList();
+    try {
+      return snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return CarreraModel.fromFirestore(doc.id, data);
+      }).toList();
+    } catch (e) {
+      _error = 'Error al procesar datos: $e';
+      return [];
+    }
   }
 
   // Agregar carrera
@@ -61,11 +70,14 @@ class CarrerasViewModel with ChangeNotifier {
         'iconCode': icono.codePoint,
         'activa': true,
         'fechaCreacion': FieldValue.serverTimestamp(),
+        'fechaActualizacion': FieldValue.serverTimestamp(),
       };
 
       await _repository.addCarrera(nuevaCarrera);
+      _error = ''; // Limpiar error si hay éxito
     } catch (e) {
       _error = 'Error al agregar carrera: $e';
+      rethrow;
     } finally {
       _loading = false;
       notifyListeners();
@@ -92,24 +104,30 @@ class CarrerasViewModel with ChangeNotifier {
       };
 
       await _repository.updateCarrera(id, datosActualizados);
+      _error = ''; // Limpiar error si hay éxito
     } catch (e) {
       _error = 'Error al editar carrera: $e';
+      rethrow;
     } finally {
       _loading = false;
       notifyListeners();
     }
   }
 
-  // Activar/desactivar carrera
-  Future<void> toggleActivarCarrera(String id, bool activa) async {
+  // Activar/desactivar carrera - CORREGIDO
+  Future<void> toggleActivarCarrera(String id) async {
     try {
-      await _repository.updateCarrera(id, {
-        'activa': !activa,
-        'fechaActualizacion': FieldValue.serverTimestamp(),
-      });
+      final carrera = obtenerCarreraPorId(id);
+      if (carrera != null) {
+        await _repository.updateCarrera(id, {
+          'activa': !carrera.activa,
+          'fechaActualizacion': FieldValue.serverTimestamp(),
+        });
+      }
     } catch (e) {
       _error = 'Error al cambiar estado de carrera: $e';
       notifyListeners();
+      rethrow;
     }
   }
 
@@ -121,8 +139,10 @@ class CarrerasViewModel with ChangeNotifier {
 
     try {
       await _repository.deleteCarrera(id);
+      _error = ''; // Limpiar error si hay éxito
     } catch (e) {
       _error = 'Error al eliminar carrera: $e';
+      rethrow;
     } finally {
       _loading = false;
       notifyListeners();
@@ -153,6 +173,26 @@ class CarrerasViewModel with ChangeNotifier {
   }
 
   static IconData getIconFromCode(int codePoint) {
-    return IconData(codePoint, fontFamily: 'MaterialIcons');
+    try {
+      return IconData(
+        codePoint,
+        fontFamily: 'MaterialIcons',
+        fontPackage: null,
+      );
+    } catch (e) {
+      return Icons.school;
+    }
+  }
+
+  // Limpiar error
+  void clearError() {
+    _error = '';
+    notifyListeners();
+  }
+
+  // Disposer para limpiar recursos
+  void dispose() {
+    _carrerasStream = null;
+    super.dispose();
   }
 }

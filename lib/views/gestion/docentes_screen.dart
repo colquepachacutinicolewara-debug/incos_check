@@ -4,6 +4,7 @@ import '../../viewmodels/docente_viewmodel.dart';
 import '../../models/docente_model.dart';
 import 'package:incos_check/utils/constants.dart';
 import 'package:incos_check/utils/validators.dart';
+import '../../repositories/data_repository.dart';
 
 class DocentesScreen extends StatefulWidget {
   final Map<String, dynamic> carrera;
@@ -15,53 +16,541 @@ class DocentesScreen extends StatefulWidget {
 }
 
 class _DocentesScreenState extends State<DocentesScreen> {
-  late DocentesViewModel _viewModel;
-
   @override
-  void initState() {
-    super.initState();
-    _viewModel = DocentesViewModel();
-    _viewModel.initialize(widget.carrera);
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (context) {
+        final repository = context.read<DataRepository>();
+        final viewModel = DocentesViewModel(repository);
+        viewModel.initialize(widget.carrera);
+        return viewModel;
+      },
+      child: Consumer<DocentesViewModel>(
+        builder: (context, viewModel, child) {
+          return _buildScaffold(context, viewModel);
+        },
+      ),
+    );
   }
 
-  // Métodos para adaptación al modo oscuro
-  Color _getBackgroundColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade900
-        : Colors.white;
+  Widget _buildScaffold(BuildContext context, DocentesViewModel viewModel) {
+    return Scaffold(
+      backgroundColor: _getBackgroundColor(context),
+      appBar: AppBar(
+        title: Text(
+          'Docentes - ${viewModel.selectedCarrera}',
+          style: AppTextStyles.heading2.copyWith(color: Colors.white),
+        ),
+        backgroundColor: viewModel.carreraColor,
+        iconTheme: IconThemeData(color: Colors.white),
+        actions: [
+          if (viewModel.syncing)
+            Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: Icon(Icons.cloud_sync, color: Colors.white),
+            ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showAddEditDocenteDialog(context, viewModel),
+        backgroundColor: viewModel.carreraColor,
+        child: Icon(Icons.add, color: Colors.white),
+      ),
+      body: _buildBody(context, viewModel),
+    );
   }
 
-  Color _getCardColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade800
-        : Colors.white;
+  Widget _buildBody(BuildContext context, DocentesViewModel viewModel) {
+    if (viewModel.loading && viewModel.docentes.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text(
+              'Cargando docentes...',
+              style: TextStyle(color: _getTextColor(context)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (viewModel.error.isNotEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error, size: 64, color: Colors.red),
+            SizedBox(height: AppSpacing.medium),
+            Text(
+              'Error: ${viewModel.error}',
+              style: AppTextStyles.body.copyWith(color: _getTextColor(context)),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: AppSpacing.medium),
+            ElevatedButton(
+              onPressed: () => viewModel.reload(),
+              child: Text('Reintentar'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        // Selector de Carrera
+        Padding(
+          padding: EdgeInsets.all(AppSpacing.medium),
+          child: DropdownButtonFormField<String>(
+            value: viewModel.selectedCarrera,
+            dropdownColor: _getCardColor(context),
+            style: TextStyle(color: _getTextColor(context)),
+            decoration: InputDecoration(
+              labelText: 'Carrera',
+              labelStyle: TextStyle(color: _getTextColor(context)),
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: _getBorderColor(context)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: _getBorderColor(context)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: viewModel.carreraColor),
+              ),
+              prefixIcon: Icon(Icons.school, color: viewModel.carreraColor),
+              filled: true,
+              fillColor: _getInputFillColor(context),
+            ),
+            items: viewModel.carreras.map((carrera) {
+              return DropdownMenuItem(
+                value: carrera,
+                child: Text(
+                  carrera,
+                  style: TextStyle(color: _getTextColor(context)),
+                ),
+              );
+            }).toList(),
+            onChanged: (value) {
+              viewModel.selectedCarrera = value!;
+              viewModel.selectedTurno = 'MAÑANA';
+            },
+          ),
+        ),
+
+        // Tarjetas de Turnos
+        _buildTurnosCards(context, viewModel),
+
+        // Resumen de la selección actual
+        _buildResumenSeleccion(context, viewModel),
+
+        // Barra de búsqueda
+        _buildSearchBar(context, viewModel),
+
+        SizedBox(height: AppSpacing.medium),
+
+        // Lista de docentes
+        _buildDocentesList(context, viewModel),
+      ],
+    );
   }
 
-  Color _getTextColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.white
-        : Colors.black;
+  Widget _buildTurnosCards(BuildContext context, DocentesViewModel viewModel) {
+    final estadisticas = viewModel.getEstadisticasPorTurno();
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: AppSpacing.medium),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Seleccione un turno:',
+            style: AppTextStyles.body.copyWith(
+              fontWeight: FontWeight.bold,
+              color: _getTextColor(context),
+            ),
+          ),
+          SizedBox(height: AppSpacing.small),
+          Row(
+            children: [
+              _buildTurnoCard(
+                context,
+                'MAÑANA',
+                estadisticas['MAÑANA']!,
+                Icons.wb_sunny,
+                Colors.orange,
+                viewModel,
+              ),
+              SizedBox(width: AppSpacing.small),
+              _buildTurnoCard(
+                context,
+                'NOCHE',
+                estadisticas['NOCHE']!,
+                Icons.nights_stay,
+                Colors.blue,
+                viewModel,
+              ),
+              SizedBox(width: AppSpacing.small),
+              _buildTurnoCard(
+                context,
+                'AMBOS',
+                estadisticas['AMBOS']!,
+                Icons.all_inclusive,
+                Colors.purple,
+                viewModel,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
-  Color _getSecondaryTextColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.white70
-        : Colors.black87;
+  Widget _buildTurnoCard(
+    BuildContext context,
+    String turno,
+    int cantidad,
+    IconData icon,
+    Color color,
+    DocentesViewModel viewModel,
+  ) {
+    final isSelected = viewModel.selectedTurno == turno;
+
+    return Expanded(
+      child: Card(
+        color: isSelected ? color.withOpacity(0.2) : _getCardColor(context),
+        elevation: 2,
+        child: InkWell(
+          onTap: () => viewModel.selectedTurno = turno,
+          child: Padding(
+            padding: EdgeInsets.all(AppSpacing.medium),
+            child: Column(
+              children: [
+                Icon(
+                  icon,
+                  color: isSelected ? color : _getSecondaryTextColor(context),
+                ),
+                SizedBox(height: AppSpacing.small),
+                Text(
+                  turno,
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: isSelected ? color : _getTextColor(context),
+                  ),
+                ),
+                Text(
+                  '$cantidad docentes',
+                  style: AppTextStyles.body.copyWith(
+                    fontSize: 12,
+                    color: _getSecondaryTextColor(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
-  Color _getBorderColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade600
-        : Colors.grey.shade300;
+  Widget _buildResumenSeleccion(
+    BuildContext context,
+    DocentesViewModel viewModel,
+  ) {
+    final estadisticas = viewModel.getEstadisticasPorTurno();
+
+    return Padding(
+      padding: EdgeInsets.all(AppSpacing.medium),
+      child: Container(
+        padding: EdgeInsets.all(AppSpacing.medium),
+        decoration: BoxDecoration(
+          color: viewModel.carreraColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(AppRadius.medium),
+          border: Border.all(color: viewModel.carreraColor.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  viewModel.selectedCarrera,
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: viewModel.carreraColor,
+                  ),
+                ),
+                Text(
+                  'Turno: ${viewModel.selectedTurno}',
+                  style: AppTextStyles.body.copyWith(
+                    fontSize: 12,
+                    color: _getSecondaryTextColor(context),
+                  ),
+                ),
+              ],
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  'Total: ${estadisticas['TOTAL']} docentes',
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: _getTextColor(context),
+                  ),
+                ),
+                Text(
+                  'Mostrando: ${viewModel.filteredDocentes.length}',
+                  style: AppTextStyles.body.copyWith(
+                    fontSize: 12,
+                    color: _getSecondaryTextColor(context),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
-  Color _getInputFillColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade800
-        : AppColors.background;
+  Widget _buildSearchBar(BuildContext context, DocentesViewModel viewModel) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: AppSpacing.medium),
+      child: TextFormField(
+        controller: viewModel.searchController,
+        style: TextStyle(color: _getTextColor(context)),
+        decoration: InputDecoration(
+          labelText: 'Buscar docente...',
+          labelStyle: TextStyle(color: _getTextColor(context)),
+          prefixIcon: Icon(Icons.search, color: viewModel.carreraColor),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppRadius.small),
+            borderSide: BorderSide(color: _getBorderColor(context)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppRadius.small),
+            borderSide: BorderSide(color: _getBorderColor(context)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppRadius.small),
+            borderSide: BorderSide(color: viewModel.carreraColor),
+          ),
+          filled: true,
+          fillColor: _getInputFillColor(context),
+        ),
+        onChanged: viewModel.filterDocentes,
+      ),
+    );
   }
 
-  void _showDocenteDetails(Docente docente) {
+  Widget _buildDocentesList(BuildContext context, DocentesViewModel viewModel) {
+    if (viewModel.loading) {
+      return Expanded(child: Center(child: CircularProgressIndicator()));
+    }
+
+    if (viewModel.filteredDocentes.isEmpty) {
+      return Expanded(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.people_outline,
+                size: 64,
+                color: _getSecondaryTextColor(context),
+              ),
+              SizedBox(height: AppSpacing.medium),
+              Text(
+                'No hay docentes en ${viewModel.selectedCarrera}',
+                style: AppTextStyles.body.copyWith(
+                  color: _getSecondaryTextColor(context),
+                ),
+              ),
+              Text(
+                'Turno: ${viewModel.selectedTurno}',
+                style: AppTextStyles.body.copyWith(
+                  fontSize: 12,
+                  color: _getSecondaryTextColor(context),
+                ),
+              ),
+              SizedBox(height: AppSpacing.medium),
+              ElevatedButton(
+                onPressed: () => _showAddEditDocenteDialog(context, viewModel),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: viewModel.carreraColor,
+                ),
+                child: Text(
+                  'Agregar Primer Docente',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Expanded(
+      child: ListView.builder(
+        itemCount: viewModel.filteredDocentes.length,
+        itemBuilder: (context, index) {
+          final docente = viewModel.filteredDocentes[index];
+          return _buildDocenteCard(context, docente, viewModel);
+        },
+      ),
+    );
+  }
+
+  Widget _buildDocenteCard(
+    BuildContext context,
+    Docente docente,
+    DocentesViewModel viewModel,
+  ) {
+    return Card(
+      color: _getCardColor(context),
+      margin: EdgeInsets.symmetric(
+        horizontal: AppSpacing.medium,
+        vertical: AppSpacing.small,
+      ),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: viewModel.carreraColor,
+          child: Text(
+            docente.apellidoPaterno.isNotEmpty &&
+                    docente.apellidoMaterno.isNotEmpty
+                ? '${docente.apellidoPaterno[0]}${docente.apellidoMaterno[0]}'
+                : 'DN',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+        ),
+        title: Text(
+          docente.nombres,
+          style: AppTextStyles.body.copyWith(
+            fontWeight: FontWeight.bold,
+            color: _getTextColor(context),
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${docente.apellidoPaterno} ${docente.apellidoMaterno}',
+              style: AppTextStyles.body.copyWith(color: _getTextColor(context)),
+            ),
+            SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(
+                  Icons.credit_card,
+                  size: 12,
+                  color: _getSecondaryTextColor(context),
+                ),
+                SizedBox(width: 4),
+                Text(
+                  'CI: ${docente.ci}',
+                  style: AppTextStyles.body.copyWith(
+                    fontSize: 12,
+                    color: _getSecondaryTextColor(context),
+                  ),
+                ),
+                SizedBox(width: 12),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: viewModel
+                        .getTurnoColor(docente.turno)
+                        .withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    docente.turno,
+                    style: AppTextStyles.body.copyWith(
+                      fontSize: 10,
+                      color: viewModel.getTurnoColor(docente.turno),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        trailing: PopupMenuButton<String>(
+          icon: Icon(Icons.more_vert, color: viewModel.carreraColor),
+          onSelected: (value) =>
+              _handleMenuAction(value, docente, viewModel, context),
+          itemBuilder: (BuildContext context) => [
+            PopupMenuItem(
+              value: 'ver',
+              child: Row(
+                children: [
+                  Icon(Icons.visibility, color: viewModel.carreraColor),
+                  SizedBox(width: 8),
+                  Text(
+                    'Ver Información',
+                    style: TextStyle(color: _getTextColor(context)),
+                  ),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: 'editar',
+              child: Row(
+                children: [
+                  Icon(Icons.edit, color: viewModel.carreraColor),
+                  SizedBox(width: 8),
+                  Text(
+                    'Modificar',
+                    style: TextStyle(color: _getTextColor(context)),
+                  ),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: 'eliminar',
+              child: Row(
+                children: [
+                  Icon(Icons.delete, color: AppColors.error),
+                  SizedBox(width: 8),
+                  Text('Eliminar', style: TextStyle(color: AppColors.error)),
+                ],
+              ),
+            ),
+          ],
+        ),
+        onTap: () => _showDocenteDetails(context, docente, viewModel),
+      ),
+    );
+  }
+
+  void _handleMenuAction(
+    String action,
+    Docente docente,
+    DocentesViewModel viewModel,
+    BuildContext context,
+  ) {
+    switch (action) {
+      case 'ver':
+        _showDocenteDetails(context, docente, viewModel);
+        break;
+      case 'editar':
+        _showAddEditDocenteDialog(context, viewModel, docente: docente);
+        break;
+      case 'eliminar':
+        _confirmDeleteDocente(context, docente.id, viewModel);
+        break;
+    }
+  }
+
+  void _showDocenteDetails(
+    BuildContext context,
+    Docente docente,
+    DocentesViewModel viewModel,
+  ) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -79,7 +568,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
                 Text(
                   'Detalles del Docente',
                   style: AppTextStyles.heading2.copyWith(
-                    color: _viewModel.carreraColor,
+                    color: viewModel.carreraColor,
                   ),
                 ),
                 SizedBox(height: AppSpacing.medium),
@@ -131,60 +620,11 @@ class _DocentesScreenState extends State<DocentesScreen> {
     );
   }
 
-  void _showMenuOptions(Docente docente) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: _getCardColor(context),
-      builder: (context) => Container(
-        padding: EdgeInsets.all(AppSpacing.medium),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: Icon(Icons.visibility, color: _viewModel.carreraColor),
-              title: Text(
-                'Ver Información',
-                style: TextStyle(color: _getTextColor(context)),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _showDocenteDetails(docente);
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.edit, color: _viewModel.carreraColor),
-              title: Text(
-                'Modificar',
-                style: TextStyle(color: _getTextColor(context)),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _showAddEditDocenteDialog(docente: docente);
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.delete, color: AppColors.error),
-              title: Text('Eliminar', style: TextStyle(color: AppColors.error)),
-              onTap: () {
-                Navigator.pop(context);
-                _confirmDeleteDocente(docente.id);
-              },
-            ),
-            SizedBox(height: AppSpacing.small),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Cancelar',
-                style: TextStyle(color: _getTextColor(context)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showAddEditDocenteDialog({Docente? docente}) {
+  void _showAddEditDocenteDialog(
+    BuildContext context,
+    DocentesViewModel viewModel, {
+    Docente? docente,
+  }) {
     final bool isEditing = docente != null;
 
     TextEditingController ciController = TextEditingController(
@@ -206,18 +646,17 @@ class _DocentesScreenState extends State<DocentesScreen> {
       text: docente?.telefono ?? '',
     );
 
-    String selectedCarrera = docente?.carrera ?? _viewModel.selectedCarrera;
+    String selectedCarrera = docente?.carrera ?? viewModel.selectedCarrera;
     String selectedTurno = docente?.turno ?? 'MAÑANA';
     String selectedEstado = docente?.estado ?? Estados.activo;
 
     final formKey = GlobalKey<FormState>();
 
-    // Auto-completar email cuando se llenen los nombres
     void autoCompletarEmail() {
       if (apellidoPaternoController.text.isNotEmpty &&
           nombresController.text.isNotEmpty &&
           emailController.text.isEmpty) {
-        emailController.text = _viewModel.generateEmail(
+        emailController.text = viewModel.generateEmail(
           nombresController.text,
           apellidoPaternoController.text,
         );
@@ -232,7 +671,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
           title: Text(
             isEditing ? 'Modificar Docente' : 'Agregar Docente',
             style: AppTextStyles.heading2.copyWith(
-              color: _viewModel.carreraColor,
+              color: viewModel.carreraColor,
             ),
           ),
           content: SingleChildScrollView(
@@ -255,7 +694,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
                         borderSide: BorderSide(color: _getBorderColor(context)),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: _viewModel.carreraColor),
+                        borderSide: BorderSide(color: viewModel.carreraColor),
                       ),
                       hintText: 'Solo números (6-10 dígitos)',
                       hintStyle: TextStyle(
@@ -284,7 +723,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
                         borderSide: BorderSide(color: _getBorderColor(context)),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: _viewModel.carreraColor),
+                        borderSide: BorderSide(color: viewModel.carreraColor),
                       ),
                       hintText: 'Solo letras',
                       hintStyle: TextStyle(
@@ -322,7 +761,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
                         borderSide: BorderSide(color: _getBorderColor(context)),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: _viewModel.carreraColor),
+                        borderSide: BorderSide(color: viewModel.carreraColor),
                       ),
                       hintText: 'Solo letras',
                       hintStyle: TextStyle(
@@ -359,7 +798,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
                         borderSide: BorderSide(color: _getBorderColor(context)),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: _viewModel.carreraColor),
+                        borderSide: BorderSide(color: viewModel.carreraColor),
                       ),
                       hintText: 'Solo letras',
                       hintStyle: TextStyle(
@@ -398,13 +837,13 @@ class _DocentesScreenState extends State<DocentesScreen> {
                         borderSide: BorderSide(color: _getBorderColor(context)),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: _viewModel.carreraColor),
+                        borderSide: BorderSide(color: viewModel.carreraColor),
                       ),
                       errorStyle: TextStyle(color: AppColors.error),
                       filled: true,
                       fillColor: _getInputFillColor(context),
                     ),
-                    items: _viewModel.carreras.map((carrera) {
+                    items: viewModel.carreras.map((carrera) {
                       return DropdownMenuItem(
                         value: carrera,
                         child: Text(
@@ -438,13 +877,13 @@ class _DocentesScreenState extends State<DocentesScreen> {
                         borderSide: BorderSide(color: _getBorderColor(context)),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: _viewModel.carreraColor),
+                        borderSide: BorderSide(color: viewModel.carreraColor),
                       ),
                       errorStyle: TextStyle(color: AppColors.error),
                       filled: true,
                       fillColor: _getInputFillColor(context),
                     ),
-                    items: _viewModel.turnos.map((turno) {
+                    items: viewModel.turnos.map((turno) {
                       return DropdownMenuItem(
                         value: turno,
                         child: Text(
@@ -477,14 +916,14 @@ class _DocentesScreenState extends State<DocentesScreen> {
                         borderSide: BorderSide(color: _getBorderColor(context)),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: _viewModel.carreraColor),
+                        borderSide: BorderSide(color: viewModel.carreraColor),
                       ),
                       hintText: 'ejemplo@gmail.com',
                       hintStyle: TextStyle(
                         color: _getSecondaryTextColor(context),
                       ),
                       suffixIcon: IconButton(
-                        icon: Icon(Icons.email, color: _viewModel.carreraColor),
+                        icon: Icon(Icons.email, color: viewModel.carreraColor),
                         onPressed: autoCompletarEmail,
                       ),
                       errorStyle: TextStyle(color: AppColors.error),
@@ -510,7 +949,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
                         borderSide: BorderSide(color: _getBorderColor(context)),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: _viewModel.carreraColor),
+                        borderSide: BorderSide(color: viewModel.carreraColor),
                       ),
                       hintText: '70012345',
                       prefixText: '+591 ',
@@ -542,7 +981,7 @@ class _DocentesScreenState extends State<DocentesScreen> {
                         borderSide: BorderSide(color: _getBorderColor(context)),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: _viewModel.carreraColor),
+                        borderSide: BorderSide(color: viewModel.carreraColor),
                       ),
                       errorStyle: TextStyle(color: AppColors.error),
                       filled: true,
@@ -580,51 +1019,75 @@ class _DocentesScreenState extends State<DocentesScreen> {
               ),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 if (formKey.currentState!.validate()) {
-                  final telefonoFormateado = _viewModel.formatTelefono(
+                  final telefonoFormateado = viewModel.formatTelefono(
                     telefonoController.text,
                   );
 
-                  final nuevoDocente = Docente(
-                    id: isEditing ? docente!.id : _viewModel.getNextId(),
-                    ci: ciController.text,
-                    apellidoPaterno: apellidoPaternoController.text
-                        .trim()
-                        .toUpperCase(),
-                    apellidoMaterno: apellidoMaternoController.text
-                        .trim()
-                        .toUpperCase(),
-                    nombres: nombresController.text.trim().toUpperCase(),
-                    carrera: selectedCarrera,
-                    turno: selectedTurno,
-                    email: emailController.text.trim(),
-                    telefono: telefonoFormateado,
-                    estado: selectedEstado,
-                  );
+                  try {
+                    if (isEditing) {
+                      final docenteActualizado = docente!.copyWith(
+                        apellidoPaterno: apellidoPaternoController.text
+                            .trim()
+                            .toUpperCase(),
+                        apellidoMaterno: apellidoMaternoController.text
+                            .trim()
+                            .toUpperCase(),
+                        nombres: nombresController.text.trim().toUpperCase(),
+                        ci: ciController.text,
+                        carrera: selectedCarrera,
+                        turno: selectedTurno,
+                        email: emailController.text.trim(),
+                        telefono: telefonoFormateado,
+                        estado: selectedEstado,
+                      );
+                      await viewModel.updateDocente(docenteActualizado);
 
-                  if (isEditing) {
-                    _viewModel.updateDocente(nuevoDocente);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('✅ Docente actualizado correctamente'),
+                          backgroundColor: AppColors.success,
+                        ),
+                      );
+                    } else {
+                      final nuevoDocente = Docente.createNew(
+                        apellidoPaterno: apellidoPaternoController.text
+                            .trim()
+                            .toUpperCase(),
+                        apellidoMaterno: apellidoMaternoController.text
+                            .trim()
+                            .toUpperCase(),
+                        nombres: nombresController.text.trim().toUpperCase(),
+                        ci: ciController.text,
+                        carrera: selectedCarrera,
+                        turno: selectedTurno,
+                        email: emailController.text.trim(),
+                        telefono: telefonoFormateado,
+                        estado: selectedEstado,
+                      );
+                      await viewModel.addDocente(nuevoDocente);
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('✅ Docente agregado correctamente'),
+                          backgroundColor: AppColors.success,
+                        ),
+                      );
+                    }
+                    Navigator.pop(context);
+                  } catch (e) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Docente actualizado'),
-                        backgroundColor: AppColors.success,
-                      ),
-                    );
-                  } else {
-                    _viewModel.addDocente(nuevoDocente);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Docente agregado'),
-                        backgroundColor: AppColors.success,
+                        content: Text('❌ Error: $e'),
+                        backgroundColor: AppColors.error,
                       ),
                     );
                   }
-                  Navigator.pop(context);
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: _viewModel.carreraColor,
+                backgroundColor: viewModel.carreraColor,
               ),
               child: Text(
                 isEditing ? 'Actualizar' : 'Guardar',
@@ -637,7 +1100,11 @@ class _DocentesScreenState extends State<DocentesScreen> {
     );
   }
 
-  void _confirmDeleteDocente(int id) {
+  void _confirmDeleteDocente(
+    BuildContext context,
+    String id,
+    DocentesViewModel viewModel,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -659,15 +1126,25 @@ class _DocentesScreenState extends State<DocentesScreen> {
             ),
           ),
           TextButton(
-            onPressed: () {
-              _viewModel.deleteDocente(id);
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Docente eliminado'),
-                  backgroundColor: AppColors.error,
-                ),
-              );
+            onPressed: () async {
+              try {
+                await viewModel.deleteDocente(id);
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('✅ Docente eliminado correctamente'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+              } catch (e) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('❌ Error al eliminar: $e'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+              }
             },
             child: Text('Eliminar', style: TextStyle(color: AppColors.error)),
           ),
@@ -706,477 +1183,40 @@ class _DocentesScreenState extends State<DocentesScreen> {
     );
   }
 
-  // Widget para mostrar las tarjetas de turnos
-  Widget _buildTurnosCards(DocentesViewModel viewModel) {
-    final estadisticas = viewModel.getEstadisticasPorTurno();
-
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: AppSpacing.medium),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Seleccione un turno:',
-            style: AppTextStyles.body.copyWith(
-              fontWeight: FontWeight.bold,
-              color: _getTextColor(context),
-            ),
-          ),
-          SizedBox(height: AppSpacing.small),
-          Row(
-            children: [
-              _buildTurnoCard(
-                'MAÑANA',
-                estadisticas['MAÑANA']!,
-                Icons.wb_sunny,
-                Colors.orange,
-                viewModel,
-              ),
-              SizedBox(width: AppSpacing.small),
-              _buildTurnoCard(
-                'NOCHE',
-                estadisticas['NOCHE']!,
-                Icons.nights_stay,
-                Colors.blue,
-                viewModel,
-              ),
-              SizedBox(width: AppSpacing.small),
-              _buildTurnoCard(
-                'AMBOS',
-                estadisticas['AMBOS']!,
-                Icons.all_inclusive,
-                Colors.purple,
-                viewModel,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+  // Métodos para modo oscuro
+  Color _getBackgroundColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade900
+        : Colors.white;
   }
 
-  Widget _buildTurnoCard(
-    String turno,
-    int cantidad,
-    IconData icon,
-    Color color,
-    DocentesViewModel viewModel,
-  ) {
-    final isSelected = viewModel.selectedTurno == turno;
-
-    return Expanded(
-      child: Card(
-        color: isSelected ? color.withOpacity(0.2) : _getCardColor(context),
-        elevation: 2,
-        child: InkWell(
-          onTap: () => viewModel.selectedTurno = turno,
-          child: Padding(
-            padding: EdgeInsets.all(AppSpacing.medium),
-            child: Column(
-              children: [
-                Icon(
-                  icon,
-                  color: isSelected ? color : _getSecondaryTextColor(context),
-                ),
-                SizedBox(height: AppSpacing.small),
-                Text(
-                  turno,
-                  style: AppTextStyles.body.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: isSelected ? color : _getTextColor(context),
-                  ),
-                ),
-                Text(
-                  '$cantidad docentes',
-                  style: AppTextStyles.body.copyWith(
-                    fontSize: 12,
-                    color: _getSecondaryTextColor(context),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+  Color _getCardColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : Colors.white;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider.value(
-      value: _viewModel,
-      child: Consumer<DocentesViewModel>(
-        builder: (context, viewModel, child) {
-          final estadisticas = viewModel.getEstadisticasPorTurno();
+  Color _getTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+  }
 
-          return Scaffold(
-            backgroundColor: _getBackgroundColor(context),
-            appBar: AppBar(
-              title: Text(
-                'Docentes - ${viewModel.selectedCarrera}',
-                style: AppTextStyles.heading2.copyWith(color: Colors.white),
-              ),
-              backgroundColor: viewModel.carreraColor,
-              iconTheme: IconThemeData(color: Colors.white),
-            ),
-            floatingActionButton: FloatingActionButton(
-              onPressed: () => _showAddEditDocenteDialog(),
-              backgroundColor: viewModel.carreraColor,
-              child: Icon(Icons.add, color: Colors.white),
-            ),
-            body: Column(
-              children: [
-                // Selector de Carrera
-                Padding(
-                  padding: EdgeInsets.all(AppSpacing.medium),
-                  child: DropdownButtonFormField<String>(
-                    value: viewModel.selectedCarrera,
-                    dropdownColor: _getCardColor(context),
-                    style: TextStyle(color: _getTextColor(context)),
-                    decoration: InputDecoration(
-                      labelText: 'Carrera',
-                      labelStyle: TextStyle(color: _getTextColor(context)),
-                      border: OutlineInputBorder(
-                        borderSide: BorderSide(color: _getBorderColor(context)),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: _getBorderColor(context)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: viewModel.carreraColor),
-                      ),
-                      prefixIcon: Icon(
-                        Icons.school,
-                        color: viewModel.carreraColor,
-                      ),
-                      filled: true,
-                      fillColor: _getInputFillColor(context),
-                    ),
-                    items: viewModel.carreras.map((carrera) {
-                      return DropdownMenuItem(
-                        value: carrera,
-                        child: Text(
-                          carrera,
-                          style: TextStyle(color: _getTextColor(context)),
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      viewModel.selectedCarrera = value!;
-                      viewModel.selectedTurno = 'MAÑANA';
-                    },
-                  ),
-                ),
+  Color _getSecondaryTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white70
+        : Colors.black87;
+  }
 
-                // Tarjetas de Turnos
-                _buildTurnosCards(viewModel),
+  Color _getBorderColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade600
+        : Colors.grey.shade300;
+  }
 
-                // Resumen de la selección actual
-                Padding(
-                  padding: EdgeInsets.all(AppSpacing.medium),
-                  child: Container(
-                    padding: EdgeInsets.all(AppSpacing.medium),
-                    decoration: BoxDecoration(
-                      color: viewModel.carreraColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(AppRadius.medium),
-                      border: Border.all(
-                        color: viewModel.carreraColor.withOpacity(0.3),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              viewModel.selectedCarrera,
-                              style: AppTextStyles.body.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: viewModel.carreraColor,
-                              ),
-                            ),
-                            Text(
-                              'Turno: ${viewModel.selectedTurno}',
-                              style: AppTextStyles.body.copyWith(
-                                fontSize: 12,
-                                color: _getSecondaryTextColor(context),
-                              ),
-                            ),
-                          ],
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              'Total: ${estadisticas['TOTAL']} docentes',
-                              style: AppTextStyles.body.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: _getTextColor(context),
-                              ),
-                            ),
-                            Text(
-                              'Mostrando: ${viewModel.filteredDocentes.length}',
-                              style: AppTextStyles.body.copyWith(
-                                fontSize: 12,
-                                color: _getSecondaryTextColor(context),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Barra de búsqueda
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: AppSpacing.medium),
-                  child: TextFormField(
-                    controller: viewModel.searchController,
-                    style: TextStyle(color: _getTextColor(context)),
-                    decoration: InputDecoration(
-                      labelText: 'Buscar docente...',
-                      labelStyle: TextStyle(color: _getTextColor(context)),
-                      prefixIcon: Icon(
-                        Icons.search,
-                        color: viewModel.carreraColor,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.small),
-                        borderSide: BorderSide(color: _getBorderColor(context)),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.small),
-                        borderSide: BorderSide(color: _getBorderColor(context)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.small),
-                        borderSide: BorderSide(color: viewModel.carreraColor),
-                      ),
-                      filled: true,
-                      fillColor: _getInputFillColor(context),
-                    ),
-                    onChanged: viewModel.filterDocentes,
-                  ),
-                ),
-
-                SizedBox(height: AppSpacing.medium),
-
-                // Lista de docentes
-                Expanded(
-                  child: viewModel.filteredDocentes.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.people_outline,
-                                size: 64,
-                                color: _getSecondaryTextColor(context),
-                              ),
-                              SizedBox(height: AppSpacing.medium),
-                              Text(
-                                'No hay docentes en ${viewModel.selectedCarrera}',
-                                style: AppTextStyles.body.copyWith(
-                                  color: _getSecondaryTextColor(context),
-                                ),
-                              ),
-                              Text(
-                                'Turno: ${viewModel.selectedTurno}',
-                                style: AppTextStyles.body.copyWith(
-                                  fontSize: 12,
-                                  color: _getSecondaryTextColor(context),
-                                ),
-                              ),
-                              SizedBox(height: AppSpacing.medium),
-                              ElevatedButton(
-                                onPressed: () => _showAddEditDocenteDialog(),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: viewModel.carreraColor,
-                                ),
-                                child: Text(
-                                  'Agregar Primer Docente',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          itemCount: viewModel.filteredDocentes.length,
-                          itemBuilder: (context, index) {
-                            final docente = viewModel.filteredDocentes[index];
-                            return Card(
-                              color: _getCardColor(context),
-                              margin: EdgeInsets.symmetric(
-                                horizontal: AppSpacing.medium,
-                                vertical: AppSpacing.small,
-                              ),
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: viewModel.carreraColor,
-                                  child: Text(
-                                    '${docente.apellidoPaterno[0]}${docente.apellidoMaterno[0]}',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                title: Text(
-                                  docente.nombres,
-                                  style: AppTextStyles.body.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: _getTextColor(context),
-                                  ),
-                                ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      '${docente.apellidoPaterno} ${docente.apellidoMaterno}',
-                                      style: AppTextStyles.body.copyWith(
-                                        color: _getTextColor(context),
-                                      ),
-                                    ),
-                                    SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.credit_card,
-                                          size: 12,
-                                          color: _getSecondaryTextColor(
-                                            context,
-                                          ),
-                                        ),
-                                        SizedBox(width: 4),
-                                        Text(
-                                          'CI: ${docente.ci}',
-                                          style: AppTextStyles.body.copyWith(
-                                            fontSize: 12,
-                                            color: _getSecondaryTextColor(
-                                              context,
-                                            ),
-                                          ),
-                                        ),
-                                        SizedBox(width: 12),
-                                        Container(
-                                          padding: EdgeInsets.symmetric(
-                                            horizontal: 6,
-                                            vertical: 2,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: viewModel
-                                                .getTurnoColor(docente.turno)
-                                                .withOpacity(0.2),
-                                            borderRadius: BorderRadius.circular(
-                                              4,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            docente.turno,
-                                            style: AppTextStyles.body.copyWith(
-                                              fontSize: 10,
-                                              color: viewModel.getTurnoColor(
-                                                docente.turno,
-                                              ),
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                                trailing: PopupMenuButton<String>(
-                                  icon: Icon(
-                                    Icons.more_vert,
-                                    color: viewModel.carreraColor,
-                                  ),
-                                  onSelected: (value) {
-                                    switch (value) {
-                                      case 'ver':
-                                        _showDocenteDetails(docente);
-                                        break;
-                                      case 'editar':
-                                        _showAddEditDocenteDialog(
-                                          docente: docente,
-                                        );
-                                        break;
-                                      case 'eliminar':
-                                        _confirmDeleteDocente(docente.id);
-                                        break;
-                                    }
-                                  },
-                                  itemBuilder: (BuildContext context) => [
-                                    PopupMenuItem(
-                                      value: 'ver',
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            Icons.visibility,
-                                            color: viewModel.carreraColor,
-                                          ),
-                                          SizedBox(width: 8),
-                                          Text(
-                                            'Ver Información',
-                                            style: TextStyle(
-                                              color: _getTextColor(context),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'editar',
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            Icons.edit,
-                                            color: viewModel.carreraColor,
-                                          ),
-                                          SizedBox(width: 8),
-                                          Text(
-                                            'Modificar',
-                                            style: TextStyle(
-                                              color: _getTextColor(context),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'eliminar',
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            Icons.delete,
-                                            color: AppColors.error,
-                                          ),
-                                          SizedBox(width: 8),
-                                          Text(
-                                            'Eliminar',
-                                            style: TextStyle(
-                                              color: AppColors.error,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                onTap: () => _showDocenteDetails(docente),
-                              ),
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
+  Color _getInputFillColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : AppColors.background;
   }
 }

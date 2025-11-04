@@ -1,47 +1,34 @@
 import 'package:flutter/material.dart';
-import 'package:incos_check/models/docente_model.dart';
-import 'package:incos_check/utils/constants.dart';
-import 'package:incos_check/utils/validators.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/docente_model.dart';
+import '../repositories/data_repository.dart';
+import '../utils/constants.dart';
+import '../utils/validators.dart';
 
 class DocentesViewModel extends ChangeNotifier {
+  final DataRepository _repository;
+
   // Lista de turnos disponibles
   final List<String> _turnos = ['MAÑANA', 'NOCHE', 'AMBOS'];
 
-  // Datos de ejemplo
-  List<Docente> _docentes = [
-    Docente(
-      id: 1,
-      apellidoPaterno: 'FERNANDEZ',
-      apellidoMaterno: 'GARCIA',
-      nombres: 'MARIA ELENA',
-      ci: '6543210',
-      carrera: 'SISTEMAS INFORMÁTICOS',
-      turno: 'MAÑANA',
-      email: 'mfernandez@gmail.com',
-      telefono: '+59170012345',
-      estado: Estados.activo,
-    ),
-    Docente(
-      id: 2,
-      apellidoPaterno: 'BUSTOS',
-      apellidoMaterno: 'MARTINEZ',
-      nombres: 'CARLOS ALBERTO',
-      ci: '6543211',
-      carrera: 'SISTEMAS INFORMÁTICOS',
-      turno: 'NOCHE',
-      email: 'cbustos@gmail.com',
-      telefono: '+59170012346',
-      estado: Estados.activo,
-    ),
-  ];
-
-  // Lista de carreras disponibles
-  List<String> _carreras = ['SISTEMAS INFORMÁTICOS'];
+  // Datos REALES desde Firestore
+  List<Docente> _docentes = [];
+  List<String> _carreras = [];
   List<Docente> _filteredDocentes = [];
   String _selectedCarrera = '';
   String _selectedTurno = 'MAÑANA';
   Color _carreraColor = AppColors.primary;
   final TextEditingController _searchController = TextEditingController();
+
+  // Estados
+  bool _loading = false;
+  bool _syncing = false;
+  String _error = '';
+  Stream<QuerySnapshot>? _docentesStream;
+
+  DocentesViewModel(this._repository) {
+    _initializeFirestore();
+  }
 
   // Getters
   List<String> get turnos => _turnos;
@@ -52,6 +39,9 @@ class DocentesViewModel extends ChangeNotifier {
   String get selectedTurno => _selectedTurno;
   Color get carreraColor => _carreraColor;
   TextEditingController get searchController => _searchController;
+  bool get loading => _loading;
+  bool get syncing => _syncing;
+  String get error => _error;
 
   // Setters
   set selectedCarrera(String value) {
@@ -71,24 +61,65 @@ class DocentesViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Métodos de inicialización
+  // INICIALIZAR FIRESTORE (CONEXIÓN REAL)
+  void _initializeFirestore() {
+    _loading = true;
+    notifyListeners();
+
+    _docentesStream = _repository.getDocentesStream();
+    _docentesStream?.listen(
+      (QuerySnapshot snapshot) {
+        _docentes = _parseDocentesFromSnapshot(snapshot);
+        _updateCarrerasFromDocentes();
+        _filterDocentesByCarreraAndTurno();
+        _loading = false;
+        _error = '';
+        notifyListeners();
+      },
+      onError: (error) {
+        _loading = false;
+        _error = 'Error cargando docentes: $error';
+        notifyListeners();
+      },
+    );
+  }
+
+  // Parsear docentes desde Firestore
+  List<Docente> _parseDocentesFromSnapshot(QuerySnapshot snapshot) {
+    return snapshot.docs.map((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      return Docente.fromFirestore(doc.id, data);
+    }).toList();
+  }
+
+  // Actualizar lista de carreras desde docentes
+  void _updateCarrerasFromDocentes() {
+    final carrerasSet = <String>{};
+    for (final docente in _docentes) {
+      if (docente.carrera.isNotEmpty) {
+        carrerasSet.add(docente.carrera);
+      }
+    }
+    _carreras = carrerasSet.toList()..sort();
+
+    // Si no hay carrera seleccionada, usar la primera disponible
+    if (_selectedCarrera.isEmpty && _carreras.isNotEmpty) {
+      _selectedCarrera = _carreras.first;
+    }
+  }
+
+  // MÉTODOS DE INICIALIZACIÓN
   void initialize(Map<String, dynamic> carrera) {
     _carreraColor = _parseColor(carrera['color']);
     _selectedCarrera = carrera['nombre'] as String;
 
-    _limpiarCarrerasDuplicadas();
-
+    // Agregar la carrera actual si no existe
     if (!_carreras.contains(_selectedCarrera)) {
       _carreras.add(_selectedCarrera);
+      _carreras.sort();
     }
 
-    _filteredDocentes = _docentes;
     _filterDocentesByCarreraAndTurno();
-  }
-
-  void _limpiarCarrerasDuplicadas() {
-    _carreras = _carreras.toSet().toList();
-    notifyListeners();
   }
 
   Color _parseColor(String colorString) {
@@ -99,7 +130,7 @@ class DocentesViewModel extends ChangeNotifier {
     }
   }
 
-  // Métodos de filtrado y búsqueda
+  // FILTRADO Y BÚSQUEDA
   void _filterDocentesByCarreraAndTurno() {
     _filteredDocentes = _docentes.where((docente) {
       return docente.carrera == _selectedCarrera &&
@@ -143,7 +174,7 @@ class DocentesViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Métodos para estadísticas
+  // ESTADÍSTICAS
   Map<String, int> getEstadisticasPorTurno() {
     final docentesCarrera = _docentes
         .where((d) => d.carrera == _selectedCarrera)
@@ -156,35 +187,62 @@ class DocentesViewModel extends ChangeNotifier {
     };
   }
 
-  // Métodos CRUD
-  void addDocente(Docente docente) {
-    _docentes.add(docente);
-    if (!_carreras.contains(docente.carrera)) {
-      _carreras.add(docente.carrera);
-    }
-    _filterDocentesByCarreraAndTurno();
+  // CRUD CON FIRESTORE (PERSISTENCIA REAL)
+  Future<void> addDocente(Docente docente) async {
+    _loading = true;
+    _error = '';
     notifyListeners();
-  }
 
-  void updateDocente(Docente docente) {
-    final index = _docentes.indexWhere((d) => d.id == docente.id);
-    if (index != -1) {
-      _docentes[index] = docente;
-      if (!_carreras.contains(docente.carrera)) {
-        _carreras.add(docente.carrera);
-      }
-      _filterDocentesByCarreraAndTurno();
+    try {
+      final docenteData = docente.toFirestore();
+      await _repository.addDocente(docenteData);
+      _error = '';
+    } catch (e) {
+      _error = 'Error agregando docente: $e';
+      rethrow;
+    } finally {
+      _loading = false;
       notifyListeners();
     }
   }
 
-  void deleteDocente(int id) {
-    _docentes.removeWhere((d) => d.id == id);
-    _filterDocentesByCarreraAndTurno();
+  Future<void> updateDocente(Docente docente) async {
+    _loading = true;
+    _error = '';
     notifyListeners();
+
+    try {
+      final docenteData = docente.toFirestore();
+      await _repository.updateDocente(docente.id, docenteData);
+      _error = '';
+    } catch (e) {
+      _error = 'Error actualizando docente: $e';
+      rethrow;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
   }
 
-  Docente? getDocenteById(int id) {
+  Future<void> deleteDocente(String id) async {
+    _loading = true;
+    _error = '';
+    notifyListeners();
+
+    try {
+      await _repository.deleteDocente(id);
+      _error = '';
+    } catch (e) {
+      _error = 'Error eliminando docente: $e';
+      rethrow;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  // MÉTODOS AUXILIARES
+  Docente? getDocenteById(String id) {
     try {
       return _docentes.firstWhere((d) => d.id == id);
     } catch (e) {
@@ -192,12 +250,6 @@ class DocentesViewModel extends ChangeNotifier {
     }
   }
 
-  // Método para generar nuevo ID
-  int getNextId() {
-    return _docentes.isNotEmpty ? _docentes.last.id + 1 : 1;
-  }
-
-  // Método para formatear teléfono
   String formatTelefono(String telefono) {
     if (!telefono.startsWith('+591')) {
       if (RegExp(r'^\d+$').hasMatch(telefono)) {
@@ -207,14 +259,12 @@ class DocentesViewModel extends ChangeNotifier {
     return telefono;
   }
 
-  // Método para auto-completar email
   String generateEmail(String nombres, String apellidoPaterno) {
     final nombre = nombres.split(' ')[0].toLowerCase();
     final apellido = apellidoPaterno.toLowerCase();
     return '$nombre.$apellido@gmail.com';
   }
 
-  // Método para obtener color del turno
   Color getTurnoColor(String turno) {
     switch (turno) {
       case 'MAÑANA':
@@ -226,5 +276,15 @@ class DocentesViewModel extends ChangeNotifier {
       default:
         return _carreraColor;
     }
+  }
+
+  void clearError() {
+    _error = '';
+    notifyListeners();
+  }
+
+  // Recargar datos
+  void reload() {
+    _initializeFirestore();
   }
 }

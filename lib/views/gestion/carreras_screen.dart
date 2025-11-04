@@ -45,7 +45,7 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) => CarrerasViewModel(DataRepository()), // ← CORREGIDO
+      create: (context) => CarrerasViewModel(DataRepository()),
       child: Consumer<CarrerasViewModel>(
         builder: (context, viewModel, child) {
           // Notificar cambios cuando se actualice el ViewModel
@@ -67,19 +67,7 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
               ),
               backgroundColor: AppColors.secondary,
             ),
-            body: viewModel.carreras.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    padding: EdgeInsets.all(AppSpacing.medium),
-                    itemCount: viewModel.carreras.length + 1,
-                    itemBuilder: (context, index) {
-                      if (index == viewModel.carreras.length) {
-                        return _buildProgramasCard(context);
-                      }
-                      final carrera = viewModel.carreras[index];
-                      return _buildCarreraCard(carrera, context, viewModel);
-                    },
-                  ),
+            body: _buildBody(context, viewModel),
             floatingActionButton: FloatingActionButton(
               onPressed: () => _showAgregarCarreraDialog(context, viewModel),
               backgroundColor: AppColors.primary,
@@ -88,6 +76,53 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, CarrerasViewModel viewModel) {
+    if (viewModel.loading && viewModel.carreras.isEmpty) {
+      return Center(child: CircularProgressIndicator());
+    }
+
+    if (viewModel.error.isNotEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error, size: 64, color: Colors.red),
+            SizedBox(height: AppSpacing.medium),
+            Text(
+              'Error: ${viewModel.error}',
+              style: AppTextStyles.bodyDark(context),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: AppSpacing.medium),
+            ElevatedButton(
+              onPressed: () {
+                viewModel.clearError();
+                viewModel.initializeCarrerasStream();
+              },
+              child: Text('Reintentar'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (viewModel.carreras.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    return ListView.builder(
+      padding: EdgeInsets.all(AppSpacing.medium),
+      itemCount: viewModel.carreras.length + 1,
+      itemBuilder: (context, index) {
+        if (index == viewModel.carreras.length) {
+          return _buildProgramasCard(context);
+        }
+        final carrera = viewModel.carreras[index];
+        return _buildCarreraCard(carrera, context, viewModel);
+      },
     );
   }
 
@@ -328,23 +363,38 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
     CarreraModel carrera,
     CarrerasViewModel viewModel,
     BuildContext context,
-  ) {
-    viewModel.toggleActivarCarrera(
-      carrera.id,
-      carrera.activa,
-    ); // ← AQUÍ EL CAMBIO
+  ) async {
+    try {
+      await viewModel.toggleActivarCarrera(
+        carrera.id,
+      ); // CORREGIDO: solo se pasa el ID
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '${carrera.nombre} ${!carrera.activa ? 'activada' : 'desactivada'}',
-          style: AppTextStyles.bodyDark(context).copyWith(color: Colors.white),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${carrera.nombre} ${!carrera.activa ? 'activada' : 'desactivada'}',
+            style: AppTextStyles.bodyDark(
+              context,
+            ).copyWith(color: Colors.white),
+          ),
+          backgroundColor: !carrera.activa
+              ? AppColors.success
+              : AppColors.warning,
         ),
-        backgroundColor: !carrera.activa
-            ? AppColors.success
-            : AppColors.warning,
-      ),
-    );
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Error al cambiar estado: $e',
+            style: AppTextStyles.bodyDark(
+              context,
+            ).copyWith(color: Colors.white),
+          ),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   void _showAgregarCarreraDialog(
@@ -355,21 +405,30 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
       context: context,
       builder: (context) => _CarreraDialog(
         title: 'Agregar Carrera',
-        onSave: (nombre, color, icono) {
-          viewModel.agregarCarrera(nombre, color, icono);
+        onSave: (nombre, color, icono) async {
+          try {
+            // ESPERAR a que se complete la operación
+            await viewModel.agregarCarrera(nombre, color, icono);
 
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Carrera "$nombre" agregada correctamente',
-                style: AppTextStyles.bodyDark(
-                  context,
-                ).copyWith(color: Colors.white),
-              ),
-              backgroundColor: AppColors.success,
-            ),
-          );
+            // SOLO CERRAR después de que se complete
+            if (mounted) {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Carrera "$nombre" agregada correctamente',
+                    style: AppTextStyles.bodyDark(
+                      context,
+                    ).copyWith(color: Colors.white),
+                  ),
+                  backgroundColor: AppColors.success,
+                ),
+              );
+            }
+          } catch (e) {
+            // El error ya se maneja en el ViewModel
+            // No cerrar el diálogo si hay error
+          }
         },
       ),
     );
@@ -387,21 +446,30 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
         nombreInicial: carrera.nombre,
         colorInicial: carrera.color,
         iconoInicial: carrera.icon,
-        onSave: (nombre, color, icono) {
-          viewModel.editarCarrera(carrera.id, nombre, color, icono);
+        onSave: (nombre, color, icono) async {
+          try {
+            // ESPERAR a que se complete la operación
+            await viewModel.editarCarrera(carrera.id, nombre, color, icono);
 
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Carrera "$nombre" modificada correctamente',
-                style: AppTextStyles.bodyDark(
-                  context,
-                ).copyWith(color: Colors.white),
-              ),
-              backgroundColor: AppColors.success,
-            ),
-          );
+            // SOLO CERRAR después de que se complete
+            if (mounted) {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Carrera "$nombre" modificada correctamente',
+                    style: AppTextStyles.bodyDark(
+                      context,
+                    ).copyWith(color: Colors.white),
+                  ),
+                  backgroundColor: AppColors.success,
+                ),
+              );
+            }
+          } catch (e) {
+            // El error ya se maneja en el ViewModel
+            // No cerrar el diálogo si hay error
+          }
         },
       ),
     );
@@ -439,22 +507,26 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
             ),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               final nombreCarrera = carrera.nombre;
-              viewModel.eliminarCarrera(carrera.id);
+              try {
+                await viewModel.eliminarCarrera(carrera.id);
 
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Carrera "$nombreCarrera" eliminada',
-                    style: AppTextStyles.bodyDark(
-                      context,
-                    ).copyWith(color: Colors.white),
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Carrera "$nombreCarrera" eliminada',
+                      style: AppTextStyles.bodyDark(
+                        context,
+                      ).copyWith(color: Colors.white),
+                    ),
+                    backgroundColor: AppColors.error,
                   ),
-                  backgroundColor: AppColors.error,
-                ),
-              );
+                );
+              } catch (e) {
+                Navigator.pop(context);
+              }
             },
             child: Text(
               'Eliminar',
@@ -507,6 +579,7 @@ class _CarreraDialogState extends State<_CarreraDialog> {
   IconData _iconoSeleccionado = Icons.school;
   bool _mostrarMasIconos = false;
   bool _mostrarMasColores = false;
+  bool _guardando = false;
 
   final List<Map<String, dynamic>> _carrerasPredefinidas = [
     {

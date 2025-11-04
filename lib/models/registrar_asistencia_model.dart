@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 class Estudiante {
   final String nombre;
   final String curso;
@@ -8,17 +10,38 @@ class Estudiante {
     required this.curso,
     required this.huellaAsignada,
   });
+}
 
-  // Para fácil conversión desde Map
-  factory Estudiante.fromMap(Map<String, dynamic> map) {
-    return Estudiante(
-      nombre: map['nombre'] ?? '',
-      curso: map['curso'] ?? '',
-      huellaAsignada: map['huellaAsignada'] ?? false,
+class EstadoRegistroAsistencia {
+  final List<bool> asistencias;
+  final bool isLoading;
+  final bool biometricAvailable;
+  final List<Estudiante> estudiantes;
+
+  EstadoRegistroAsistencia({
+    required this.asistencias,
+    required this.isLoading,
+    required this.biometricAvailable,
+    required this.estudiantes,
+  });
+
+  EstadoRegistroAsistencia copyWith({
+    List<bool>? asistencias,
+    bool? isLoading,
+    bool? biometricAvailable,
+    List<Estudiante>? estudiantes,
+  }) {
+    return EstadoRegistroAsistencia(
+      asistencias: asistencias ?? this.asistencias,
+      isLoading: isLoading ?? this.isLoading,
+      biometricAvailable: biometricAvailable ?? this.biometricAvailable,
+      estudiantes: estudiantes ?? this.estudiantes,
     );
   }
 
-  Map<String, dynamic> toMap() {
-    return {'nombre': nombre, 'curso': curso, 'huellaAsignada': huellaAsignada};
+  int get totalAsistenciasRegistradas {
+    return asistencias.where((element) => element).length;
   }
+
+  int get totalEstudiantes => asistencias.length;
 }
