@@ -6,6 +6,7 @@ import 'turnos_screen.dart';
 import '../../views/gestion/programas/programas_screen.dart';
 import '../../viewmodels/carreras_viewmodel.dart';
 import '../../models/carrera_model.dart';
+import '../../repositories/data_repository.dart';
 
 class CarrerasScreen extends StatefulWidget {
   final String tipo;
@@ -44,7 +45,7 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) => CarrerasViewModel(),
+      create: (context) => CarrerasViewModel(DataRepository()), // ← CORREGIDO
       child: Consumer<CarrerasViewModel>(
         builder: (context, viewModel, child) {
           // Notificar cambios cuando se actualice el ViewModel
@@ -199,7 +200,7 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
         child: ListTile(
           leading: CircleAvatar(
             backgroundColor: isActiva ? color : Colors.grey,
-            child: Icon(carrera.icon, color: Colors.white),
+            child: Icon(carrera.icono, color: Colors.white),
           ),
           title: Container(
             height: 60,
@@ -328,7 +329,10 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
     CarrerasViewModel viewModel,
     BuildContext context,
   ) {
-    viewModel.toggleActivarCarrera(carrera.id);
+    viewModel.toggleActivarCarrera(
+      carrera.id,
+      carrera.activa,
+    ); // ← AQUÍ EL CAMBIO
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -531,15 +535,6 @@ class _CarreraDialogState extends State<_CarreraDialog> {
       'icon': Icons.calculate,
     },
     {'nombre': 'Idioma Inglés', 'color': '#F44336', 'icon': Icons.language},
-  ];
-
-  final List<Map<String, dynamic>> _coloresDisponibles = [
-    {'nombre': 'Azul Sistemas', 'color': '#1565C0'},
-    {'nombre': 'Naranja Comercio', 'color': '#FF9800'},
-    {'nombre': 'Verde Secretariado', 'color': '#4CAF50'},
-    {'nombre': 'Celeste Administración', 'color': '#03A9F4'},
-    {'nombre': 'Amarillo Contaduría', 'color': '#FFEB3B'},
-    {'nombre': 'Rojo Inglés', 'color': '#F44336'},
   ];
 
   final List<Map<String, dynamic>> _masColores = [
