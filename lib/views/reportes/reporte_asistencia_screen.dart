@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../viewmodels/reporte_viewmodel.dart';
+import '../../models/asistencia_model.dart';
 import '../../utils/constants.dart';
 
 class ReportesScreen extends StatelessWidget {
@@ -6,9 +9,27 @@ class ReportesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Center(
+    return ChangeNotifierProvider(
+      create: (context) => ReporteViewModel(),
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: const _ReportesScreenBody(),
+      ),
+    );
+  }
+}
+
+class _ReportesScreenBody extends StatelessWidget {
+  const _ReportesScreenBody();
+
+  @override
+  Widget build(BuildContext context) {
+    final viewModel = Provider.of<ReporteViewModel>(context);
+    final model = viewModel.model;
+
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -26,21 +47,21 @@ class ReportesScreen extends StatelessWidget {
                 color: AppColors.primary,
               ),
             ),
-            
+
             const SizedBox(height: 32),
-            
+
             // Título
             Text(
-              "Reportes en Desarrollo",
+              model.status,
               style: AppTextStyles.heading2.copyWith(
                 color: AppColors.primary,
                 fontWeight: FontWeight.bold,
               ),
               textAlign: TextAlign.center,
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Descripción
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32.0),
@@ -53,34 +74,34 @@ class ReportesScreen extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
             ),
-            
+
             const SizedBox(height: 32),
-            
+
             // Indicador de progreso
             SizedBox(
               width: 200,
               child: LinearProgressIndicator(
-                value: 0.7, // 70% completado
+                value: model.progress,
                 backgroundColor: AppColors.textSecondary.withOpacity(0.2),
                 valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                 borderRadius: BorderRadius.circular(10),
                 minHeight: 8,
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Porcentaje
             Text(
-              "70% Completado",
+              model.progressText,
               style: AppTextStyles.body.copyWith(
                 color: AppColors.primary,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            
+
             const SizedBox(height: 40),
-            
+
             // Características próximas
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -95,38 +116,21 @@ class ReportesScreen extends StatelessWidget {
                       fontSize: 18,
                     ),
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
-                  _buildFeatureItem("Reportes de asistencia por estudiante"),
-                  _buildFeatureItem("Reportes de asistencia por curso"),
-                  _buildFeatureItem("Estadísticas mensuales y anuales"),
-                  _buildFeatureItem("Exportación a PDF y Excel"),
-                  _buildFeatureItem("Gráficos y visualizaciones"),
+
+                  ...model.features
+                      .map((feature) => _buildFeatureItem(feature))
+                      .toList(),
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 40),
-            
+
             // Botón de notificación
             ElevatedButton.icon(
-              onPressed: () {
-                // Mostrar snackbar de confirmación
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      "Te notificaremos cuando los reportes estén disponibles",
-                      style: AppTextStyles.body.copyWith(color: Colors.white),
-                    ),
-                    backgroundColor: AppColors.primary,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                );
-              },
+              onPressed: () => viewModel.showNotification(context),
               icon: Icon(Icons.notifications_active, color: Colors.white),
               label: Text(
                 "Notificarme cuando esté listo",
@@ -155,18 +159,12 @@ class ReportesScreen extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.check_circle,
-            color: AppColors.success,
-            size: 20,
-          ),
+          Icon(Icons.check_circle, color: AppColors.success, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               text,
-              style: AppTextStyles.body.copyWith(
-                color: AppColors.textPrimary,
-              ),
+              style: AppTextStyles.body.copyWith(color: AppColors.textPrimary),
             ),
           ),
         ],

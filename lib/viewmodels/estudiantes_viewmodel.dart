@@ -8,7 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import 'dart:io';
 
 class EstudiantesViewModel with ChangeNotifier {
-  final List<Map<String, dynamic>> _estudiantes = [];
+  List<Map<String, dynamic>> _estudiantes = [];
   List<Map<String, dynamic>> _estudiantesFiltrados = [];
   final TextEditingController searchController = TextEditingController();
 
@@ -35,7 +35,7 @@ class EstudiantesViewModel with ChangeNotifier {
   List<Map<String, dynamic>> get estudiantesFiltrados => _estudiantesFiltrados;
 
   void _cargarDatosIniciales() {
-    _estudiantes.addAll([
+    _estudiantes = [
       {
         'id': 1,
         'nombres': 'Juan Carlos',
@@ -63,9 +63,9 @@ class EstudiantesViewModel with ChangeNotifier {
         'fechaRegistro': '2024-01-17',
         'huellasRegistradas': 0,
       },
-    ]);
+    ];
     _ordenarEstudiantes();
-    _estudiantesFiltrados = _estudiantes;
+    _estudiantesFiltrados = List.from(_estudiantes);
   }
 
   void _ordenarEstudiantes() {
@@ -76,13 +76,13 @@ class EstudiantesViewModel with ChangeNotifier {
       if (comparacion != 0) return comparacion;
       return a['nombres'].compareTo(b['nombres']);
     });
-    notifyListeners();
+    _filtrarEstudiantes();
   }
 
   void _filtrarEstudiantes() {
     final query = searchController.text.toLowerCase();
     if (query.isEmpty) {
-      _estudiantesFiltrados = _estudiantes;
+      _estudiantesFiltrados = List.from(_estudiantes);
     } else {
       _estudiantesFiltrados = _estudiantes.where((estudiante) {
         return estudiante['nombres'].toLowerCase().contains(query) ||
@@ -94,45 +94,57 @@ class EstudiantesViewModel with ChangeNotifier {
     notifyListeners();
   }
 
+  // AGREGAR ESTUDIANTE
   void agregarEstudiante({
     required String nombres,
     required String paterno,
     required String materno,
     required String ci,
   }) {
+    final nuevoId = DateTime.now().millisecondsSinceEpoch;
+    final nuevaFecha = DateTime.now().toString().split(' ')[0];
+
     _estudiantes.add({
-      'id': DateTime.now().millisecondsSinceEpoch,
-      'nombres': nombres,
-      'apellidoPaterno': paterno,
-      'apellidoMaterno': materno,
-      'ci': ci,
-      'fechaRegistro': '2024-01-18',
+      'id': nuevoId,
+      'nombres': nombres.trim(),
+      'apellidoPaterno': paterno.trim(),
+      'apellidoMaterno': materno.trim(),
+      'ci': ci.trim(),
+      'fechaRegistro': nuevaFecha,
       'huellasRegistradas': 0,
     });
+
     _ordenarEstudiantes();
     notifyListeners();
   }
 
-  void editarEstudiante(
-    int index, {
+  // EDITAR ESTUDIANTE - SIMPLIFICADO Y CORREGIDO
+  void editarEstudiante({
+    required int id,
     required String nombres,
     required String paterno,
     required String materno,
     required String ci,
   }) {
-    _estudiantes[index] = {
-      ..._estudiantes[index],
-      'nombres': nombres,
-      'apellidoPaterno': paterno,
-      'apellidoMaterno': materno,
-      'ci': ci,
-    };
-    _ordenarEstudiantes();
-    notifyListeners();
+    final index = _estudiantes.indexWhere(
+      (estudiante) => estudiante['id'] == id,
+    );
+
+    if (index != -1) {
+      // Actualizar solo los campos editables
+      _estudiantes[index]['nombres'] = nombres.trim();
+      _estudiantes[index]['apellidoPaterno'] = paterno.trim();
+      _estudiantes[index]['apellidoMaterno'] = materno.trim();
+      _estudiantes[index]['ci'] = ci.trim();
+
+      _ordenarEstudiantes();
+      notifyListeners();
+    }
   }
 
-  void eliminarEstudiante(int index) {
-    _estudiantes.removeAt(index);
+  // ELIMINAR ESTUDIANTE
+  void eliminarEstudiante(int id) {
+    _estudiantes.removeWhere((estudiante) => estudiante['id'] == id);
     _filtrarEstudiantes();
     notifyListeners();
   }
@@ -145,14 +157,7 @@ class EstudiantesViewModel with ChangeNotifier {
     }
   }
 
-  Map<String, dynamic> getEstudiante(int index) {
-    return _estudiantesFiltrados[index];
-  }
-
-  int getIndiceEnListaPrincipal(Map<String, dynamic> estudiante) {
-    return _estudiantes.indexWhere((e) => e['id'] == estudiante['id']);
-  }
-
+  // Resto de métodos sin cambios...
   Future<void> exportarExcel({
     bool simple = true,
     String asignatura = 'BASE DE DATOS II',

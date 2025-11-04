@@ -1,8 +1,7 @@
-// 📂 views/biometrico/registro_huellas_screen.dart
 import 'package:flutter/material.dart';
-import 'package:local_auth/local_auth.dart';
-
-// Utilidades y estilos
+import 'package:provider/provider.dart';
+import '../../models/biometrico_model.dart';
+import '../../viewmodels/registro_huellas_viewmodel.dart';
 import '../../utils/constants.dart';
 import '../../utils/helpers.dart';
 
@@ -21,369 +20,485 @@ class RegistroHuellasScreen extends StatefulWidget {
 }
 
 class _RegistroHuellasScreenState extends State<RegistroHuellasScreen> {
-  final LocalAuthentication _auth = LocalAuthentication();
-  final List<bool> _huellasRegistradas = [false, false, false];
-  int _huellaActual = 0;
-  bool _isLoading = false;
-  bool _biometricAvailable = false;
-  List<BiometricType> _availableBiometrics = [];
-
-  final List<String> _nombresDedos = [
-    'Pulgar - Mano Derecha',
-    'Índice - Mano Derecha',
-    'Medio - Mano Derecha',
-  ];
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _checkBiometricSupport();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<RegistroHuellasViewModel>().verificarSoporteBiometrico();
+    });
   }
 
-  // ✅ Verifica si hay sensores disponibles en el dispositivo
-  Future<void> _checkBiometricSupport() async {
-    try {
-      final bool canCheckBiometrics = await _auth.canCheckBiometrics;
-      _availableBiometrics = await _auth.getAvailableBiometrics();
+  void _finalizarRegistro() async {
+    final viewModel = context.read<RegistroHuellasViewModel>();
+    final totalRegistradas = viewModel.model.totalRegistradas;
 
-      setState(() {
-        _biometricAvailable =
-            canCheckBiometrics && _availableBiometrics.isNotEmpty;
-      });
-    } catch (e) {
-      setState(() => _biometricAvailable = false);
-      debugPrint('Error verificando biométricos: $e');
-    }
-  }
-
-  // ✅ Registra huella simulando autenticación del dedo actual
-  Future<void> _registrarHuellaActual() async {
-    if (_isLoading || _huellasRegistradas[_huellaActual]) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      if (!_biometricAvailable) {
-        Helpers.showSnackBar(
-          context,
-          'El dispositivo no soporta autenticación biométrica',
-          type: 'error',
-        );
-        return;
-      }
-
-      final bool authenticated = await _auth.authenticate(
-        localizedReason: 'Coloca tu dedo para ${_nombresDedos[_huellaActual]}',
-        options: const AuthenticationOptions(
-          biometricOnly: true,
-          stickyAuth: true,
-          useErrorDialogs: true,
+    if (totalRegistradas == 0) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Sin huellas registradas'),
+          content: const Text(
+            '¿Está seguro de que desea finalizar sin registrar huellas digitales?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Continuar'),
+            ),
+          ],
         ),
       );
 
-      if (authenticated) {
-        await Future.delayed(const Duration(milliseconds: 600));
-
-        setState(() {
-          _huellasRegistradas[_huellaActual] = true;
-        });
-
-        Helpers.showSnackBar(
-          context,
-          '✅ ${_nombresDedos[_huellaActual]} registrada correctamente',
-          type: 'success',
-        );
-
-        if (_huellaActual < 2) {
-          await Future.delayed(const Duration(milliseconds: 800));
-          _siguienteHuella();
-        }
-      } else {
-        Helpers.showSnackBar(
-          context,
-          '❌ Autenticación fallida para ${_nombresDedos[_huellaActual]}',
-          type: 'error',
-        );
-      }
-    } catch (e) {
-      Helpers.showSnackBar(context, 'Error: ${e.toString()}', type: 'error');
-    } finally {
-      setState(() => _isLoading = false);
+      if (confirm != true) return;
     }
-  }
 
-  void _siguienteHuella() {
-    if (_huellaActual < 2) setState(() => _huellaActual++);
-  }
-
-  void _anteriorHuella() {
-    if (_huellaActual > 0) setState(() => _huellaActual--);
-  }
-
-  void _finalizarRegistro() {
-    int total = _huellasRegistradas.where((h) => h).length;
-    widget.onHuellasRegistradas(total);
+    widget.onHuellasRegistradas(totalRegistradas);
     Navigator.pop(context);
+
     Helpers.showSnackBar(
       context,
-      'Registro de huellas completado: $total/3',
+      '✅ Registro completado: $totalRegistradas/3 huellas',
       type: 'success',
     );
   }
 
-  void _reenrolarHuella(int index) {
-    setState(() {
-      _huellasRegistradas[index] = false;
-      _huellaActual = index;
-    });
-  }
-
-  // ✅ Nombre legible del tipo biométrico
-  String _getBiometricName(BiometricType type) {
-    switch (type) {
-      case BiometricType.face:
-        return 'Reconocimiento Facial';
-      case BiometricType.fingerprint:
-        return 'Sensor de Huella';
-      case BiometricType.iris:
-        return 'Reconocimiento de Iris';
-      default:
-        return 'Desconocido';
-    }
-  }
-
-  // ✅ Interfaz principal
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Registro de Huellas'),
-        backgroundColor: AppColors.primary,
-        actions: [
-          if (_huellasRegistradas.any((h) => h))
+    return ChangeNotifierProvider(
+      create: (context) => RegistroHuellasViewModel(),
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'Registro de Huellas',
+            style: AppTextStyles.heading2Dark(
+              context,
+            ).copyWith(color: Colors.white),
+          ),
+          backgroundColor: AppColors.primary,
+          actions: [
             IconButton(
               icon: const Icon(Icons.done_all, color: Colors.white),
-              tooltip: 'Finalizar registro',
               onPressed: _finalizarRegistro,
+              tooltip: 'Finalizar registro',
             ),
-        ],
-      ),
-      body: Padding(
-        padding: EdgeInsets.all(AppSpacing.medium),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 🧑 Datos del estudiante
-            Card(
-              elevation: 2,
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: AppColors.primary,
-                  child: Text(
-                    widget.estudiante['nombres'][0],
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                ),
-                title: Text(
-                  '${widget.estudiante['apellidoPaterno']} ${widget.estudiante['apellidoMaterno']} ${widget.estudiante['nombres']}',
-                ),
-                subtitle: Text('CI: ${widget.estudiante['ci']}'),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // 🔍 Estado del sensor
-            _biometricAvailable
-                ? _infoBox(
-                    color: Colors.green,
-                    icon: Icons.check_circle,
-                    title: "Sensor biométrico disponible",
-                    subtitle:
-                        "Detectado: ${_availableBiometrics.map(_getBiometricName).join(', ')}",
-                  )
-                : _infoBox(
-                    color: Colors.orange,
-                    icon: Icons.warning,
-                    title: "Sensor biométrico no disponible",
-                    subtitle: "No se detectaron sensores de huella",
-                  ),
-
-            const SizedBox(height: 10),
-
-            // 📈 Progreso
-            Text(
-              'Progreso: ${_huellasRegistradas.where((h) => h).length}/3 huellas registradas',
-              style: AppTextStyles.heading2Dark(context),
-            ),
-            const SizedBox(height: 8),
-            LinearProgressIndicator(
-              value: _huellasRegistradas.where((h) => h).length / 3,
-              backgroundColor: Colors.grey.shade300,
-              color: AppColors.primary,
-            ),
-
-            const SizedBox(height: 25),
-
-            // 🔵 Huella actual (icono central animado)
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    GestureDetector(
-                      onTap: _isLoading ? null : _registrarHuellaActual,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: _huellasRegistradas[_huellaActual]
-                              ? Colors.green.withOpacity(0.1)
-                              : AppColors.primary.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: _huellasRegistradas[_huellaActual]
-                                ? Colors.green
-                                : AppColors.primary,
-                            width: 3,
-                          ),
-                        ),
-                        child: Icon(
-                          Icons.fingerprint,
-                          size: 120,
-                          color: _huellasRegistradas[_huellaActual]
-                              ? Colors.green
-                              : AppColors.primary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      _nombresDedos[_huellaActual],
-                      style: AppTextStyles.heading2Dark(context),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _huellasRegistradas[_huellaActual]
-                          ? '✅ Huella registrada. Toca para reenrolar.'
-                          : 'Toca el icono para registrar esta huella.',
-                      style: AppTextStyles.bodyDark(context),
-                    ),
-                    const SizedBox(height: 20),
-                    if (_isLoading)
-                      Column(
-                        children: [
-                          CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              AppColors.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          const Text('Esperando huella...'),
-                        ],
-                      ),
-                  ],
-                ),
-              ),
-            ),
-
-            // 🔙 Controles de navegación
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                ElevatedButton(
-                  onPressed: _huellaActual > 0 ? _anteriorHuella : null,
-                  child: const Text('Anterior'),
-                ),
-                ElevatedButton(
-                  onPressed: _huellaActual < 2 ? _siguienteHuella : null,
-                  child: const Text('Siguiente'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // 🧾 Lista de huellas registradas
-            Text(
-              'Huellas registradas:',
-              style: AppTextStyles.heading3Dark(context),
-            ),
-            const SizedBox(height: 10),
-            ..._nombresDedos.asMap().entries.map((entry) {
-              int index = entry.key;
-              String nombre = entry.value;
-              return Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  leading: Icon(
-                    _huellasRegistradas[index]
-                        ? Icons.check_circle
-                        : Icons.radio_button_unchecked,
-                    color: _huellasRegistradas[index]
-                        ? Colors.green
-                        : Colors.grey,
-                  ),
-                  title: Text(nombre),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (_huellasRegistradas[index])
-                        IconButton(
-                          icon: const Icon(Icons.refresh),
-                          onPressed: () => _reenrolarHuella(index),
-                          tooltip: 'Reenrolar huella',
-                          color: AppColors.primary,
-                        ),
-                      Icon(
-                        Icons.fingerprint,
-                        color: _huellasRegistradas[index]
-                            ? Colors.green
-                            : Colors.grey,
-                      ),
-                    ],
-                  ),
-                  onTap: () => setState(() => _huellaActual = index),
-                ),
-              );
-            }),
           ],
+        ),
+        body: SingleChildScrollView(
+          controller: _scrollController,
+          padding: EdgeInsets.all(AppSpacing.medium),
+          child: Consumer<RegistroHuellasViewModel>(
+            builder: (context, viewModel, child) {
+              final model = viewModel.model;
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Información del estudiante
+                  _buildInfoEstudiante(),
+                  SizedBox(height: AppSpacing.large),
+
+                  // Estado del sensor
+                  _buildEstadoSensor(model.estadoBiometrico),
+                  SizedBox(height: AppSpacing.large),
+
+                  // Mensaje de error
+                  if (model.errorMessage.isNotEmpty)
+                    _buildMensajeError(model.errorMessage),
+
+                  // Progreso
+                  _buildProgresoRegistro(model.totalRegistradas),
+                  SizedBox(height: AppSpacing.large),
+
+                  // Selector de huellas
+                  _buildSelectorHuellas(viewModel, model),
+                  SizedBox(height: AppSpacing.large),
+
+                  // Área de registro
+                  _buildAreaRegistro(viewModel, model),
+                  SizedBox(height: AppSpacing.large),
+
+                  // Controles de navegación
+                  _buildControlesNavegacion(viewModel, model),
+                  SizedBox(height: AppSpacing.xlarge),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
   }
 
-  Widget _infoBox({
-    required Color color,
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
+  Widget _buildInfoEstudiante() {
+    return Card(
+      elevation: 2,
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: AppColors.primary,
+          child: Text(
+            widget.estudiante['nombres'][0],
+            style: const TextStyle(color: Colors.white),
+          ),
+        ),
+        title: Text(
+          '${widget.estudiante['apellidoPaterno']} ${widget.estudiante['apellidoMaterno']} ${widget.estudiante['nombres']}',
+          style: AppTextStyles.heading3Dark(context),
+        ),
+        subtitle: Text(
+          'CI: ${widget.estudiante['ci']}',
+          style: AppTextStyles.bodyDark(context),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEstadoSensor(BiometricoEstadoModel estado) {
+    Color statusColor;
+    IconData statusIcon;
+
+    if (!estado.disponible) {
+      statusColor = Colors.red;
+      statusIcon = Icons.error;
+    } else if (estado.soloHuellaDigital) {
+      statusColor = Colors.green;
+      statusIcon = Icons.fingerprint;
+    } else {
+      statusColor = Colors.orange;
+      statusIcon = Icons.warning;
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
-      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: statusColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(AppRadius.small),
-        border: Border.all(color: color),
+        border: Border.all(color: statusColor),
       ),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 8),
+          Icon(statusIcon, color: statusColor, size: 20),
+          SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
-                  style: TextStyle(fontWeight: FontWeight.w600, color: color),
+                  estado.mensaje,
+                  style: AppTextStyles.bodyDark(
+                    context,
+                  ).copyWith(fontWeight: FontWeight.w500, color: statusColor),
                 ),
-                Text(subtitle, style: TextStyle(fontSize: 12, color: color)),
+                Text(
+                  estado.submensaje,
+                  style: AppTextStyles.bodyDark(
+                    context,
+                  ).copyWith(fontSize: 12, color: statusColor),
+                ),
               ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildMensajeError(String mensaje) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: AppSpacing.medium),
+      decoration: BoxDecoration(
+        color: Colors.red.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(AppRadius.small),
+        border: Border.all(color: Colors.red),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline, color: Colors.red, size: 20),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              mensaje,
+              style: AppTextStyles.bodyDark(
+                context,
+              ).copyWith(color: Colors.red, fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgresoRegistro(int registradas) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(AppRadius.medium),
+        border: Border.all(color: AppColors.primary),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Progreso del Registro',
+                style: AppTextStyles.heading3Dark(context).copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                '$registradas/3',
+                style: AppTextStyles.heading3Dark(
+                  context,
+                ).copyWith(color: AppColors.primary),
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          LinearProgressIndicator(
+            value: registradas / 3,
+            backgroundColor: Colors.grey.shade300,
+            color: AppColors.primary,
+            minHeight: 8,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSelectorHuellas(
+    RegistroHuellasViewModel viewModel,
+    RegistroHuellasModel model,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Seleccione el dedo a registrar:',
+          style: AppTextStyles.heading3Dark(context),
+        ),
+        SizedBox(height: 8),
+        Row(
+          children: model.huellas.asMap().entries.map((entry) {
+            int index = entry.key;
+            HuellaModel huella = entry.value;
+            bool isActive = index == model.huellaActual;
+
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => viewModel.seleccionarHuella(index),
+                child: Container(
+                  margin: EdgeInsets.only(right: 6),
+                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? AppColors.primary.withOpacity(0.15)
+                        : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(AppRadius.small),
+                    border: Border.all(
+                      color: isActive ? AppColors.primary : Colors.transparent,
+                      width: 2,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(huella.icono, style: TextStyle(fontSize: 18)),
+                      SizedBox(height: 4),
+                      Text(
+                        huella.nombreDedo.split(' ')[0],
+                        style: AppTextStyles.bodyDark(context).copyWith(
+                          fontSize: 10,
+                          fontWeight: isActive
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 2),
+                      Icon(
+                        huella.registrada
+                            ? Icons.fingerprint
+                            : Icons.fingerprint_outlined,
+                        color: huella.registrada ? Colors.green : Colors.grey,
+                        size: 14,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAreaRegistro(
+    RegistroHuellasViewModel viewModel,
+    RegistroHuellasModel model,
+  ) {
+    final huellaActual = model.huellas[model.huellaActual];
+
+    return Card(
+      elevation: 3,
+      child: Padding(
+        padding: EdgeInsets.all(AppSpacing.large),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Icono del dedo
+            Text(huellaActual.icono, style: TextStyle(fontSize: 60)),
+            SizedBox(height: 16),
+
+            // Nombre del dedo
+            Text(
+              huellaActual.nombreDedo,
+              style: AppTextStyles.heading2Dark(context),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 24),
+
+            // Estado o instrucciones
+            if (huellaActual.registrada)
+              _buildHuellaRegistrada()
+            else
+              _buildInstruccionesRegistro(model.estadoBiometrico),
+
+            SizedBox(height: 24),
+
+            // Botón de acción
+            if (!huellaActual.registrada)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: model.isLoading
+                      ? null
+                      : () =>
+                            viewModel.registrarHuellaActual(widget.estudiante),
+                  icon: Icon(
+                    model.isLoading ? Icons.hourglass_empty : Icons.fingerprint,
+                    size: 24,
+                  ),
+                  label: Text(
+                    model.isLoading ? 'Autenticando...' : 'Registrar Huella',
+                    style: AppTextStyles.button.copyWith(color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.medium),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInstruccionesRegistro(BiometricoEstadoModel estado) {
+    return Column(
+      children: [
+        Icon(
+          Icons.fingerprint,
+          size: 50,
+          color: AppColors.primary.withOpacity(0.7),
+        ),
+        SizedBox(height: 16),
+        Text(
+          estado.soloHuellaDigital
+              ? 'Toque el sensor de huella digital'
+              : 'Use su método biométrico configurado',
+          style: AppTextStyles.bodyDark(
+            context,
+          ).copyWith(color: Colors.grey.shade600),
+          textAlign: TextAlign.center,
+        ),
+        SizedBox(height: 8),
+        Text(
+          'Mantenga el dedo en el sensor hasta sentir la vibración',
+          style: AppTextStyles.bodyDark(
+            context,
+          ).copyWith(color: Colors.grey.shade500, fontSize: 12),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHuellaRegistrada() {
+    return Column(
+      children: [
+        Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            color: Colors.green.withOpacity(0.1),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.green, width: 3),
+          ),
+          child: Icon(Icons.check, size: 40, color: Colors.green),
+        ),
+        SizedBox(height: 16),
+        Text(
+          '✅ Huella Registrada',
+          style: AppTextStyles.heading3Dark(
+            context,
+          ).copyWith(color: Colors.green, fontWeight: FontWeight.w600),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildControlesNavegacion(
+    RegistroHuellasViewModel viewModel,
+    RegistroHuellasModel model,
+  ) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        ElevatedButton(
+          onPressed: model.huellaActual > 0 ? viewModel.anteriorHuella : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.grey.shade300,
+            foregroundColor: Colors.grey.shade700,
+          ),
+          child: Text('Anterior'),
+        ),
+
+        Text(
+          '${model.huellaActual + 1}/3',
+          style: AppTextStyles.heading3Dark(context),
+        ),
+
+        ElevatedButton(
+          onPressed: model.huellaActual < model.huellas.length - 1
+              ? viewModel.siguienteHuella
+              : null,
+          child: Text('Siguiente'),
+        ),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 }

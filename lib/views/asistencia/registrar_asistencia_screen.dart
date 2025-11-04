@@ -1,269 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:local_auth/local_auth.dart';
+import 'package:provider/provider.dart';
+import '../../viewmodels/registrar_asistencia_viewmodel.dart';
 import '../../utils/constants.dart';
 
-class RegistrarAsistenciaScreen extends StatefulWidget {
+class RegistrarAsistenciaScreen extends StatelessWidget {
   const RegistrarAsistenciaScreen({super.key});
 
   @override
-  State<RegistrarAsistenciaScreen> createState() =>
-      _RegistrarAsistenciaScreenState();
-}
-
-class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
-  final LocalAuthentication auth = LocalAuthentication();
-  List<bool> asistencia = List.filled(10, false);
-  bool _isLoading = false;
-  bool _biometricAvailable = false;
-
-  // Datos de ejemplo de estudiantes con "huellas asignadas" (simulado)
-  final List<Map<String, dynamic>> estudiantes = [
-    {
-      'nombre': 'Ana García López',
-      'curso': 'Matemáticas Avanzadas',
-      'huellaAsignada': true,
-    },
-    {
-      'nombre': 'Carlos Rodríguez',
-      'curso': 'Matemáticas Avanzadas',
-      'huellaAsignada': true,
-    },
-    {
-      'nombre': 'María Fernández',
-      'curso': 'Matemáticas Avanzadas',
-      'huellaAsignada': true,
-    },
-    {
-      'nombre': 'José Martínez',
-      'curso': 'Matemáticas Avanzadas',
-      'huellaAsignada': true,
-    },
-    {
-      'nombre': 'Laura Hernández',
-      'curso': 'Matemáticas Avanzadas',
-      'huellaAsignada': true,
-    },
-    {
-      'nombre': 'Miguel Sánchez',
-      'curso': 'Matemáticas Avanzadas',
-      'huellaAsignada': false,
-    },
-    {
-      'nombre': 'Elena Díaz',
-      'curso': 'Matemáticas Avanzadas',
-      'huellaAsignada': false,
-    },
-    {
-      'nombre': 'David Romero',
-      'curso': 'Matemáticas Avanzadas',
-      'huellaAsignada': true,
-    },
-    {
-      'nombre': 'Sofía Torres',
-      'curso': 'Matemáticas Avanzadas',
-      'huellaAsignada': true,
-    },
-    {
-      'nombre': 'Daniel Vázquez',
-      'curso': 'Matemáticas Avanzadas',
-      'huellaAsignada': false,
-    },
-  ];
-
-  // Funciones para obtener colores según el tema
-  Color _getBackgroundColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade900
-        : AppColors.background;
-  }
-
-  Color _getCardColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade800
-        : Colors.white;
-  }
-
-  Color _getTextColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.white
-        : Colors.black;
-  }
-
-  Color _getSecondaryTextColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.white70
-        : Colors.black87;
-  }
-
-  Color _getBorderColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade600
-        : AppColors.border;
-  }
-
-  Color _getSuccessColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.green.shade700
-        : AppColors.success;
-  }
-
-  Color _getWarningColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.orange.shade700
-        : AppColors.warning;
-  }
-
-  Color _getErrorColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.red.shade700
-        : AppColors.error;
-  }
-
-  Color _getAccentColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.blue.shade700
-        : AppColors.accent;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _checkBiometricSupport();
-  }
-
-  Future<void> _checkBiometricSupport() async {
-    try {
-      final bool canCheckBiometrics = await auth.canCheckBiometrics;
-      final List<BiometricType> availableBiometrics = await auth
-          .getAvailableBiometrics();
-
-      setState(() {
-        _biometricAvailable =
-            canCheckBiometrics && availableBiometrics.isNotEmpty;
-      });
-    } catch (e) {
-      setState(() {
-        _biometricAvailable = false;
-      });
-    }
-  }
-
-  Future<void> autenticarHuella(int index) async {
-    if (_isLoading || asistencia[index]) return;
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      // Verificar si el estudiante tiene huella asignada (simulado)
-      if (!estudiantes[index]['huellaAsignada']) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              "${estudiantes[index]['nombre']} no tiene huella registrada en el sistema",
-              style: TextStyle(color: Colors.white),
-            ),
-            backgroundColor: _getWarningColor(context),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        return;
-      }
-
-      // Verificar disponibilidad de biométricos
-      if (!_biometricAvailable) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-              "El dispositivo no soporta autenticación biométrica",
-              style: TextStyle(color: Colors.white),
-            ),
-            backgroundColor: _getErrorColor(context),
-          ),
-        );
-        return;
-      }
-
-      // Realizar autenticación biométrica
-      final bool autenticado = await auth.authenticate(
-        localizedReason:
-            "Autentica tu identidad para ${estudiantes[index]['nombre']}",
-        options: const AuthenticationOptions(
-          biometricOnly: true,
-          useErrorDialogs: true,
-          stickyAuth: true,
-        ),
-      );
-
-      if (autenticado) {
-        // Simular verificación en base de datos
-        await Future.delayed(const Duration(milliseconds: 800));
-
-        setState(() {
-          asistencia[index] = true;
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              "✅ Asistencia confirmada - ${estudiantes[index]['nombre']}",
-              style: TextStyle(color: Colors.white),
-            ),
-            backgroundColor: _getSuccessColor(context),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              "❌ Huella no coincide con ${estudiantes[index]['nombre']}",
-              style: TextStyle(color: Colors.white),
-            ),
-            backgroundColor: _getErrorColor(context),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            "Error de autenticación: ${e.toString()}",
-            style: TextStyle(color: Colors.white),
-          ),
-          backgroundColor: _getErrorColor(context),
-        ),
-      );
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  // Método alternativo para registrar sin huella (para testing)
-  void _registrarSinHuella(int index) {
-    if (_isLoading || asistencia[index]) return;
-
-    setState(() {
-      asistencia[index] = true;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          "✅ Asistencia manual - ${estudiantes[index]['nombre']}",
-          style: TextStyle(color: Colors.white),
-        ),
-        backgroundColor: _getSuccessColor(context),
-        duration: const Duration(seconds: 2),
-      ),
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (context) => AsistenciaViewModel(),
+      child: const _RegistrarAsistenciaView(),
     );
   }
+}
 
-  void _escanearQR() {
+class _RegistrarAsistenciaView extends StatelessWidget {
+  const _RegistrarAsistenciaView();
+
+  void _escanearQR(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text(
@@ -275,21 +30,23 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
     );
   }
 
-  void _mostrarInfoHuella() {
+  void _mostrarInfoHuella(BuildContext context) {
+    final viewModel = context.read<AsistenciaViewModel>();
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: _getCardColor(context),
+        backgroundColor: viewModel.getCardColor(context),
         title: Text(
           "Información de Huellas",
-          style: TextStyle(color: _getTextColor(context)),
+          style: TextStyle(color: viewModel.getTextColor(context)),
         ),
         content: Text(
           "El sistema autentica con cualquier huella registrada en el dispositivo. "
           "En una implementación real, se conectaría con una base de datos que asocie "
           "cada huella a un estudiante específico.\n\n"
-          "Estudiantes con ⚠️ no tienen huella asignada en el sistema.",
-          style: TextStyle(color: _getSecondaryTextColor(context)),
+          "Estudiantes con ⚠️ no tienen huellas suficientes registradas en el sistema.",
+          style: TextStyle(color: viewModel.getSecondaryTextColor(context)),
         ),
         actions: [
           TextButton(
@@ -306,12 +63,12 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final viewModel = context.watch<AsistenciaViewModel>();
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 360;
-    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: _getBackgroundColor(context),
+      backgroundColor: viewModel.getBackgroundColor(context),
       appBar: AppBar(
         title: Text(
           'Registrar Asistencia',
@@ -326,7 +83,7 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.info_outline, color: Colors.white),
-            onPressed: _mostrarInfoHuella,
+            onPressed: () => _mostrarInfoHuella(context),
             tooltip: 'Información sobre huellas',
           ),
         ],
@@ -336,289 +93,330 @@ class _RegistrarAsistenciaScreenState extends State<RegistrarAsistenciaScreen> {
         child: Column(
           children: [
             // Card de escaneo QR
-            Card(
-              elevation: 4,
-              color: _getCardColor(context),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.medium),
-              ),
-              child: Padding(
-                padding: EdgeInsets.all(isSmallScreen ? 12.0 : 16.0),
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.qr_code_scanner,
-                      size: isSmallScreen ? 50 : 60,
-                      color: AppColors.primary,
-                    ),
-                    SizedBox(height: isSmallScreen ? 12 : 16),
-                    Text(
-                      'Escanear Código QR',
-                      style: AppTextStyles.heading2.copyWith(
-                        fontSize: isSmallScreen ? 16 : 18,
-                        color: _getTextColor(context),
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: isSmallScreen ? 12 : 16),
-                    ElevatedButton.icon(
-                      onPressed: _isLoading ? null : _escanearQR,
-                      icon: const Icon(Icons.camera_alt, color: Colors.white),
-                      label: Text(
-                        'Escanear QR',
-                        style: AppTextStyles.button.copyWith(
-                          color: Colors.white,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isSmallScreen ? 16 : 24,
-                          vertical: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            _buildQRCard(context, viewModel, isSmallScreen),
             SizedBox(height: isSmallScreen ? 16 : 20),
 
             // Estado del sensor biométrico
-            if (!_biometricAvailable)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: _getWarningColor(context).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(AppRadius.small),
-                  border: Border.all(color: _getWarningColor(context)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.warning,
-                      color: _getWarningColor(context),
-                      size: 20,
-                    ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        "Sensor biométrico no disponible",
-                        style: AppTextStyles.body.copyWith(
-                          color: _getWarningColor(context),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            if (!viewModel.biometricAvailable)
+              _buildBiometricWarning(context, viewModel),
 
             // Separador
-            Row(
-              children: [
-                Expanded(
-                  child: Divider(color: _getBorderColor(context), thickness: 1),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    'Registro por huella',
-                    style: AppTextStyles.body.copyWith(
-                      fontSize: isSmallScreen ? 14 : 16,
-                      color: _getTextColor(context),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Divider(color: _getBorderColor(context), thickness: 1),
-                ),
-              ],
-            ),
+            _buildSeparator(context, viewModel, isSmallScreen),
             SizedBox(height: isSmallScreen ? 12 : 16),
 
             // Contador de asistencias
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: _getAccentColor(context).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(AppRadius.small),
-                border: Border.all(color: _getAccentColor(context)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Asistencias registradas:',
-                    style: AppTextStyles.body.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: _getTextColor(context),
-                    ),
-                  ),
-                  Text(
-                    '${asistencia.where((element) => element).length}/${asistencia.length}',
-                    style: AppTextStyles.heading2.copyWith(
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _buildAttendanceCounter(context, viewModel),
             SizedBox(height: isSmallScreen ? 12 : 16),
 
             // Lista de estudiantes
-            Expanded(
-              child: ListView.builder(
-                itemCount: estudiantes.length,
-                itemBuilder: (context, index) {
-                  final estudiante = estudiantes[index];
-                  final tieneHuella = estudiante['huellaAsignada'] as bool;
+            _buildStudentsList(context, viewModel, isSmallScreen),
+          ],
+        ),
+      ),
+    );
+  }
 
-                  return Card(
-                    margin: EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: isSmallScreen ? 2 : 4,
-                    ),
-                    elevation: 2,
-                    color: _getCardColor(context),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: asistencia[index]
-                            ? _getSuccessColor(context).withOpacity(0.1)
-                            : AppColors.primary.withOpacity(0.1),
-                        child: Icon(
-                          asistencia[index] ? Icons.check_circle : Icons.person,
-                          color: asistencia[index]
-                              ? _getSuccessColor(context)
-                              : AppColors.primary,
-                        ),
-                      ),
-                      title: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              estudiante['nombre']!,
-                              style: AppTextStyles.heading3.copyWith(
-                                color: _getTextColor(context),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (!tieneHuella)
-                            Icon(
-                              Icons.warning,
-                              color: _getWarningColor(context),
-                              size: 16,
-                            ),
-                        ],
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            estudiante['curso']!,
-                            style: AppTextStyles.body.copyWith(
-                              color: _getSecondaryTextColor(context),
-                            ),
-                          ),
-                          if (!tieneHuella)
-                            Text(
-                              'Sin huella asignada',
-                              style: AppTextStyles.body.copyWith(
-                                color: _getWarningColor(context),
-                                fontSize: 12,
-                              ),
-                            ),
-                        ],
-                      ),
-                      trailing: SizedBox(
-                        width: isSmallScreen ? 110 : 130,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            if (!asistencia[index])
-                              ElevatedButton(
-                                onPressed: _isLoading
-                                    ? null
-                                    : () => autenticarHuella(index),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: tieneHuella
-                                      ? AppColors.primary
-                                      : _getWarningColor(context),
-                                  foregroundColor: Colors.white,
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: isSmallScreen ? 8 : 12,
-                                    vertical: 6,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      tieneHuella
-                                          ? Icons.fingerprint
-                                          : Icons.warning,
-                                      size: isSmallScreen ? 14 : 16,
-                                    ),
-                                    SizedBox(width: isSmallScreen ? 4 : 6),
-                                    Text(
-                                      tieneHuella ? 'Huella' : 'Manual',
-                                      style: TextStyle(
-                                        fontSize: isSmallScreen ? 10 : 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            if (asistencia[index])
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: _getSuccessColor(
-                                    context,
-                                  ).withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: _getSuccessColor(context),
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.check,
-                                      color: _getSuccessColor(context),
-                                      size: 14,
-                                    ),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      'Registrado',
-                                      style: TextStyle(
-                                        color: _getSuccessColor(context),
-                                        fontSize: isSmallScreen ? 10 : 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
+  Widget _buildQRCard(
+    BuildContext context,
+    AsistenciaViewModel viewModel,
+    bool isSmallScreen,
+  ) {
+    return Card(
+      elevation: 4,
+      color: viewModel.getCardColor(context),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.medium),
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(isSmallScreen ? 12.0 : 16.0),
+        child: Column(
+          children: [
+            Icon(
+              Icons.qr_code_scanner,
+              size: isSmallScreen ? 50 : 60,
+              color: AppColors.primary,
+            ),
+            SizedBox(height: isSmallScreen ? 12 : 16),
+            Text(
+              'Escanear Código QR',
+              style: AppTextStyles.heading2.copyWith(
+                fontSize: isSmallScreen ? 16 : 18,
+                color: viewModel.getTextColor(context),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: isSmallScreen ? 12 : 16),
+            ElevatedButton.icon(
+              onPressed: viewModel.isLoading
+                  ? null
+                  : () => _escanearQR(context),
+              icon: const Icon(Icons.camera_alt, color: Colors.white),
+              label: Text(
+                'Escanear QR',
+                style: AppTextStyles.button.copyWith(color: Colors.white),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isSmallScreen ? 16 : 24,
+                  vertical: 12,
+                ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildBiometricWarning(
+    BuildContext context,
+    AsistenciaViewModel viewModel,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: viewModel.getWarningColor(context).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(AppRadius.small),
+        border: Border.all(color: viewModel.getWarningColor(context)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.warning,
+            color: viewModel.getWarningColor(context),
+            size: 20,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              "Sensor biométrico no disponible",
+              style: AppTextStyles.body.copyWith(
+                color: viewModel.getWarningColor(context),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSeparator(
+    BuildContext context,
+    AsistenciaViewModel viewModel,
+    bool isSmallScreen,
+  ) {
+    return Row(
+      children: [
+        Expanded(
+          child: Divider(
+            color: viewModel.getBorderColor(context),
+            thickness: 1,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            'Registro por huella',
+            style: AppTextStyles.body.copyWith(
+              fontSize: isSmallScreen ? 14 : 16,
+              color: viewModel.getTextColor(context),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Divider(
+            color: viewModel.getBorderColor(context),
+            thickness: 1,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAttendanceCounter(
+    BuildContext context,
+    AsistenciaViewModel viewModel,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: viewModel.getAccentColor(context).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(AppRadius.small),
+        border: Border.all(color: viewModel.getAccentColor(context)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Asistencias registradas:',
+            style: AppTextStyles.body.copyWith(
+              fontWeight: FontWeight.w600,
+              color: viewModel.getTextColor(context),
+            ),
+          ),
+          Text(
+            '${viewModel.totalAsistencias}/${viewModel.totalEstudiantes}',
+            style: AppTextStyles.heading2.copyWith(color: AppColors.primary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStudentsList(
+    BuildContext context,
+    AsistenciaViewModel viewModel,
+    bool isSmallScreen,
+  ) {
+    return Expanded(
+      child: ListView.builder(
+        itemCount: viewModel.estudiantes.length,
+        itemBuilder: (context, index) {
+          final estudiante = viewModel.estudiantes[index];
+          final tieneHuellas = estudiante.tieneTodasLasHuellas;
+          final asistenciaRegistrada = viewModel.asistencia[index];
+
+          return Card(
+            margin: EdgeInsets.symmetric(
+              horizontal: 4,
+              vertical: isSmallScreen ? 2 : 4,
+            ),
+            elevation: 2,
+            color: viewModel.getCardColor(context),
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: asistenciaRegistrada
+                    ? viewModel.getSuccessColor(context).withOpacity(0.1)
+                    : AppColors.primary.withOpacity(0.1),
+                child: Icon(
+                  asistenciaRegistrada ? Icons.check_circle : Icons.person,
+                  color: asistenciaRegistrada
+                      ? viewModel.getSuccessColor(context)
+                      : AppColors.primary,
+                ),
+              ),
+              title: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      estudiante.nombreCompleto,
+                      style: AppTextStyles.heading3.copyWith(
+                        color: viewModel.getTextColor(context),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (!tieneHuellas)
+                    Icon(
+                      Icons.warning,
+                      color: viewModel.getWarningColor(context),
+                      size: 16,
+                    ),
+                ],
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'CI: ${estudiante.ci}',
+                    style: AppTextStyles.body.copyWith(
+                      color: viewModel.getSecondaryTextColor(context),
+                    ),
+                  ),
+                  if (!tieneHuellas)
+                    Text(
+                      'Huellas registradas: ${estudiante.huellasRegistradas}/3',
+                      style: AppTextStyles.body.copyWith(
+                        color: viewModel.getWarningColor(context),
+                        fontSize: 12,
+                      ),
+                    ),
+                ],
+              ),
+              trailing: SizedBox(
+                width: isSmallScreen ? 110 : 130,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (!asistenciaRegistrada)
+                      ElevatedButton(
+                        onPressed: viewModel.isLoading
+                            ? null
+                            : () => viewModel.autenticarHuella(index, context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: tieneHuellas
+                              ? AppColors.primary
+                              : viewModel.getWarningColor(context),
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isSmallScreen ? 8 : 12,
+                            vertical: 6,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              tieneHuellas ? Icons.fingerprint : Icons.warning,
+                              size: isSmallScreen ? 14 : 16,
+                            ),
+                            SizedBox(width: isSmallScreen ? 4 : 6),
+                            Text(
+                              tieneHuellas ? 'Huella' : 'Manual',
+                              style: TextStyle(
+                                fontSize: isSmallScreen ? 10 : 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (asistenciaRegistrada)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: viewModel
+                              .getSuccessColor(context)
+                              .withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: viewModel.getSuccessColor(context),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.check,
+                              color: viewModel.getSuccessColor(context),
+                              size: 14,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Registrado',
+                              style: TextStyle(
+                                color: viewModel.getSuccessColor(context),
+                                fontSize: isSmallScreen ? 10 : 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

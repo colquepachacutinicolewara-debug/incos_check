@@ -50,7 +50,7 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
   }
 }
 
-class _EstudiantesListContent extends StatelessWidget {
+class _EstudiantesListContent extends StatefulWidget {
   final String tipo;
   final Map<String, dynamic> carrera;
   final Map<String, dynamic> turno;
@@ -65,6 +65,12 @@ class _EstudiantesListContent extends StatelessWidget {
     required this.paralelo,
   });
 
+  @override
+  State<_EstudiantesListContent> createState() =>
+      _EstudiantesListContentState();
+}
+
+class _EstudiantesListContentState extends State<_EstudiantesListContent> {
   Color _parseColor(String colorString) {
     try {
       return Color(int.parse(colorString.replaceAll('#', '0xFF')));
@@ -78,7 +84,7 @@ class _EstudiantesListContent extends StatelessWidget {
     final viewModel = Provider.of<EstudiantesViewModel>(context);
     final estudiantes = viewModel.estudiantesFiltrados;
     final searchController = viewModel.searchController;
-    Color carreraColor = _parseColor(carrera['color']);
+    Color carreraColor = _parseColor(widget.carrera['color']);
 
     // Definir estilos que necesitan contexto
     final heading2Style = AppTextStyles.heading2Dark(context);
@@ -89,7 +95,7 @@ class _EstudiantesListContent extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Paralelo ${paralelo['nombre']} - Estudiantes',
+          'Paralelo ${widget.paralelo['nombre']} - Estudiantes',
           style: heading2Style.copyWith(color: Colors.white),
         ),
         backgroundColor: carreraColor,
@@ -196,7 +202,7 @@ class _EstudiantesListContent extends StatelessWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAgregarEstudianteDialog(context),
+        onPressed: () => _showAgregarEstudianteDialog(context, viewModel),
         backgroundColor: carreraColor,
         child: Icon(Icons.add, color: Colors.white),
       ),
@@ -261,12 +267,13 @@ class _EstudiantesListContent extends StatelessWidget {
             if (huellasRegistradas < 3)
               IconButton(
                 icon: Icon(Icons.fingerprint, color: Colors.blue),
-                onPressed: () => _registrarHuellas(context, estudiante, index),
+                onPressed: () =>
+                    _registrarHuellas(context, estudiante, viewModel),
                 tooltip: 'Registrar Huellas',
               ),
             PopupMenuButton<String>(
               onSelected: (value) =>
-                  _handleMenuAction(context, value, estudiante, index),
+                  _handleMenuAction(context, value, estudiante, viewModel),
               itemBuilder: (BuildContext context) => [
                 PopupMenuItem(
                   value: 'edit',
@@ -333,51 +340,64 @@ class _EstudiantesListContent extends StatelessWidget {
     BuildContext context,
     String action,
     Map<String, dynamic> estudiante,
-    int index,
+    EstudiantesViewModel viewModel,
   ) {
-    final viewModel = Provider.of<EstudiantesViewModel>(context, listen: false);
-    final indexPrincipal = viewModel.getIndiceEnListaPrincipal(estudiante);
-
     switch (action) {
       case 'edit':
-        _showEditarEstudianteDialog(context, estudiante, indexPrincipal);
+        _showEditarEstudianteDialog(context, estudiante, viewModel);
         break;
       case 'huellas':
-        _registrarHuellas(context, estudiante, indexPrincipal);
+        _registrarHuellas(context, estudiante, viewModel);
         break;
       case 'delete':
-        _showEliminarEstudianteDialog(context, estudiante, indexPrincipal);
+        _showEliminarEstudianteDialog(context, estudiante, viewModel);
         break;
     }
   }
 
   void _handleExportAction(BuildContext context, String action) {
+    final viewModel = Provider.of<EstudiantesViewModel>(context, listen: false);
     switch (action) {
       case 'excel_simple':
-        _showExportPreviewDialog(context, isPdf: false, simple: true);
+        _showExportPreviewDialog(
+          context,
+          viewModel,
+          isPdf: false,
+          simple: true,
+        );
         break;
       case 'excel_completo':
-        _showExportPreviewDialog(context, isPdf: false, simple: false);
+        _showExportPreviewDialog(
+          context,
+          viewModel,
+          isPdf: false,
+          simple: false,
+        );
         break;
       case 'pdf_simple':
-        _showExportPreviewDialog(context, isPdf: true, simple: true);
+        _showExportPreviewDialog(context, viewModel, isPdf: true, simple: true);
         break;
       case 'pdf_completo':
-        _showExportPreviewDialog(context, isPdf: true, simple: false);
+        _showExportPreviewDialog(
+          context,
+          viewModel,
+          isPdf: true,
+          simple: false,
+        );
         break;
     }
   }
 
-  void _showAgregarEstudianteDialog(BuildContext context) {
+  // CORRECCIÓN: Pasar viewModel como parámetro
+  void _showAgregarEstudianteDialog(
+    BuildContext context,
+    EstudiantesViewModel viewModel,
+  ) {
     showDialog(
       context: context,
       builder: (context) => _EstudianteDialog(
         title: 'Agregar Estudiante',
         onSave: (nombres, paterno, materno, ci) {
-          final viewModel = Provider.of<EstudiantesViewModel>(
-            context,
-            listen: false,
-          );
           viewModel.agregarEstudiante(
             nombres: nombres,
             paterno: paterno,
@@ -394,10 +414,11 @@ class _EstudiantesListContent extends StatelessWidget {
     );
   }
 
+  // CORRECCIÓN: Pasar viewModel como parámetro
   void _showEditarEstudianteDialog(
     BuildContext context,
     Map<String, dynamic> estudiante,
-    int index,
+    EstudiantesViewModel viewModel,
   ) {
     showDialog(
       context: context,
@@ -408,12 +429,8 @@ class _EstudiantesListContent extends StatelessWidget {
         maternoInicial: estudiante['apellidoMaterno'],
         ciInicial: estudiante['ci'],
         onSave: (nombres, paterno, materno, ci) {
-          final viewModel = Provider.of<EstudiantesViewModel>(
-            context,
-            listen: false,
-          );
           viewModel.editarEstudiante(
-            index,
+            id: estudiante['id'],
             nombres: nombres,
             paterno: paterno,
             materno: materno,
@@ -429,10 +446,11 @@ class _EstudiantesListContent extends StatelessWidget {
     );
   }
 
+  // CORRECCIÓN: Pasar viewModel como parámetro
   void _showEliminarEstudianteDialog(
     BuildContext context,
     Map<String, dynamic> estudiante,
-    int index,
+    EstudiantesViewModel viewModel,
   ) {
     Helpers.showConfirmationDialog(
       context,
@@ -441,11 +459,7 @@ class _EstudiantesListContent extends StatelessWidget {
           '¿Estás seguro de eliminar a ${estudiante['nombres']} ${estudiante['apellidoPaterno']}?',
     ).then((confirmed) {
       if (confirmed) {
-        final viewModel = Provider.of<EstudiantesViewModel>(
-          context,
-          listen: false,
-        );
-        viewModel.eliminarEstudiante(index);
+        viewModel.eliminarEstudiante(estudiante['id']);
         Helpers.showSnackBar(
           context,
           'Estudiante eliminado exitosamente',
@@ -455,10 +469,11 @@ class _EstudiantesListContent extends StatelessWidget {
     });
   }
 
+  // CORRECCIÓN: Pasar viewModel como parámetro
   void _registrarHuellas(
     BuildContext context,
     Map<String, dynamic> estudiante,
-    int index,
+    EstudiantesViewModel viewModel,
   ) {
     Navigator.push(
       context,
@@ -466,10 +481,6 @@ class _EstudiantesListContent extends StatelessWidget {
         builder: (context) => RegistroHuellasScreen(
           estudiante: estudiante,
           onHuellasRegistradas: (int huellasRegistradas) {
-            final viewModel = Provider.of<EstudiantesViewModel>(
-              context,
-              listen: false,
-            );
             viewModel.actualizarHuellasEstudiante(
               estudiante['id'],
               huellasRegistradas,
@@ -481,11 +492,11 @@ class _EstudiantesListContent extends StatelessWidget {
   }
 
   void _showExportPreviewDialog(
-    BuildContext context, {
+    BuildContext context,
+    EstudiantesViewModel viewModel, {
     required bool isPdf,
     required bool simple,
   }) {
-    final viewModel = Provider.of<EstudiantesViewModel>(context, listen: false);
     final TextEditingController asignaturaController = TextEditingController(
       text: 'BASE DE DATOS II',
     );
@@ -625,10 +636,34 @@ class _EstudianteDialog extends StatefulWidget {
 
 class _EstudianteDialogState extends State<_EstudianteDialog> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _nombresController = TextEditingController();
-  final TextEditingController _paternoController = TextEditingController();
-  final TextEditingController _maternoController = TextEditingController();
-  final TextEditingController _ciController = TextEditingController();
+  late TextEditingController _nombresController;
+  late TextEditingController _paternoController;
+  late TextEditingController _maternoController;
+  late TextEditingController _ciController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nombresController = TextEditingController(
+      text: widget.nombresInicial ?? '',
+    );
+    _paternoController = TextEditingController(
+      text: widget.paternoInicial ?? '',
+    );
+    _maternoController = TextEditingController(
+      text: widget.maternoInicial ?? '',
+    );
+    _ciController = TextEditingController(text: widget.ciInicial ?? '');
+  }
+
+  @override
+  void dispose() {
+    _nombresController.dispose();
+    _paternoController.dispose();
+    _maternoController.dispose();
+    _ciController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

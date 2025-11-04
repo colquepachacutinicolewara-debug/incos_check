@@ -1,61 +1,29 @@
 import 'package:flutter/material.dart';
-import 'package:incos_check/utils/constants.dart';
-import 'package:incos_check/utils/helpers.dart';
-import 'package:local_auth/local_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
-import '../configuracion/soporte/soporte_screen.dart';
+import '../../viewmodels/configuracion_viewmodel.dart';
+import '../../utils/constants.dart';
+import '../../utils/helpers.dart';
 import '../../services/theme_service.dart';
+import '../configuracion/soporte/soporte_screen.dart';
 
-class ConfiguracionScreen extends StatefulWidget {
+class ConfiguracionScreen extends StatelessWidget {
   const ConfiguracionScreen({super.key});
 
   @override
-  State<ConfiguracionScreen> createState() => _ConfiguracionScreenState();
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (context) => ConfiguracionViewModel(),
+      child: const _ConfiguracionView(),
+    );
+  }
 }
 
-class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
-  final LocalAuthentication _localAuth = LocalAuthentication();
+class _ConfiguracionView extends StatelessWidget {
+  const _ConfiguracionView();
 
-  bool _notificationsEnabled = true;
-  bool _darkModeEnabled = false;
-  bool _biometricEnabled = false;
-  bool _autoSyncEnabled = true;
-  String _selectedLanguage = 'Español';
-  String _selectedTheme = 'Sistema';
-  String _cacheSize = "15.2 MB";
+  void _showLanguageDialog(BuildContext context) {
+    final viewModel = context.read<ConfiguracionViewModel>();
 
-  final List<String> _languages = ['Español', 'English', 'Português'];
-  final List<String> _themes = ['Sistema', 'Claro', 'Oscuro'];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSettings();
-  }
-
-  Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
-      _darkModeEnabled = prefs.getBool('dark_mode_enabled') ?? false;
-      _biometricEnabled = prefs.getBool('biometric_enabled') ?? false;
-      _autoSyncEnabled = prefs.getBool('auto_sync_enabled') ?? true;
-      _selectedLanguage = prefs.getString('selected_language') ?? 'Español';
-      _selectedTheme = prefs.getString('selected_theme') ?? 'Sistema';
-    });
-  }
-
-  Future<void> _saveSetting(String key, dynamic value) async {
-    final prefs = await SharedPreferences.getInstance();
-    if (value is bool) {
-      await prefs.setBool(key, value);
-    } else if (value is String) {
-      await prefs.setString(key, value);
-    }
-  }
-
-  void _showLanguageDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -67,20 +35,15 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
           width: double.maxFinite,
           child: ListView.builder(
             shrinkWrap: true,
-            itemCount: _languages.length,
+            itemCount: viewModel.languages.length,
             itemBuilder: (context, index) {
+              final language = viewModel.languages[index];
               return RadioListTile(
-                title: Text(
-                  _languages[index],
-                  style: AppTextStyles.bodyDark(context),
-                ),
-                value: _languages[index],
-                groupValue: _selectedLanguage,
+                title: Text(language, style: AppTextStyles.bodyDark(context)),
+                value: language,
+                groupValue: viewModel.configuracion.selectedLanguage,
                 onChanged: (value) async {
-                  setState(() {
-                    _selectedLanguage = value!;
-                  });
-                  await _saveSetting('selected_language', value);
+                  await viewModel.updateLanguage(value!);
                   Navigator.pop(context);
                   Helpers.showSnackBar(
                     context,
@@ -102,7 +65,8 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     );
   }
 
-  void _showThemeDialog() {
+  void _showThemeDialog(BuildContext context) {
+    final viewModel = context.read<ConfiguracionViewModel>();
     final themeService = Provider.of<ThemeService>(context, listen: false);
 
     showDialog(
@@ -116,20 +80,15 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
           width: double.maxFinite,
           child: ListView.builder(
             shrinkWrap: true,
-            itemCount: _themes.length,
+            itemCount: viewModel.themes.length,
             itemBuilder: (context, index) {
+              final theme = viewModel.themes[index];
               return RadioListTile(
-                title: Text(
-                  _themes[index],
-                  style: AppTextStyles.bodyDark(context),
-                ),
-                value: _themes[index],
-                groupValue: _selectedTheme,
+                title: Text(theme, style: AppTextStyles.bodyDark(context)),
+                value: theme,
+                groupValue: viewModel.configuracion.selectedTheme,
                 onChanged: (value) async {
-                  setState(() {
-                    _selectedTheme = value!;
-                  });
-                  await _saveSetting('selected_theme', value);
+                  await viewModel.updateTheme(value!);
                   await themeService.updateTheme(value!);
                   Navigator.pop(context);
                   Helpers.showSnackBar(
@@ -152,7 +111,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     );
   }
 
-  void _showBackupDialog() {
+  void _showBackupDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -203,83 +162,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     );
   }
 
-  Future<void> _checkBiometricAvailability() async {
-    try {
-      final bool canAuthenticate = await _localAuth.canCheckBiometrics;
-
-      if (!canAuthenticate) {
-        Helpers.showSnackBar(
-          context,
-          '❌ Biometría no disponible en este dispositivo',
-          type: 'error',
-        );
-        return;
-      }
-
-      final List<BiometricType> availableBiometrics = await _localAuth
-          .getAvailableBiometrics();
-
-      if (availableBiometrics.isEmpty) {
-        Helpers.showSnackBar(
-          context,
-          '❌ No hay métodos biométricos configurados',
-          type: 'error',
-        );
-        return;
-      }
-
-      final biometricNames = availableBiometrics
-          .map((type) {
-            switch (type) {
-              case BiometricType.face:
-                return 'Reconocimiento Facial';
-              case BiometricType.fingerprint:
-                return 'Huella Digital';
-              case BiometricType.iris:
-                return 'Reconocimiento de Iris';
-              default:
-                return 'Método Biométrico';
-            }
-          })
-          .join(', ');
-
-      final bool didAuthenticate = await _localAuth.authenticate(
-        localizedReason:
-            'Autentícate para habilitar el acceso biométrico en IncosCheck',
-        options: const AuthenticationOptions(
-          biometricOnly: true,
-          useErrorDialogs: true,
-          stickyAuth: true,
-        ),
-      );
-
-      if (didAuthenticate) {
-        setState(() {
-          _biometricEnabled = true;
-        });
-        await _saveSetting('biometric_enabled', true);
-        Helpers.showSnackBar(
-          context,
-          '✅ Autenticación biométrica activada ($biometricNames)',
-          type: 'success',
-        );
-      } else {
-        Helpers.showSnackBar(
-          context,
-          '❌ Autenticación cancelada o fallida',
-          type: 'error',
-        );
-      }
-    } catch (e) {
-      Helpers.showSnackBar(
-        context,
-        '❌ Error al configurar biometría: ${e.toString()}',
-        type: 'error',
-      );
-    }
-  }
-
-  void _showChangePasswordDialog() {
+  void _showChangePasswordDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -353,10 +236,17 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                       ),
                     ),
                     SizedBox(height: 4),
-                    _buildSimpleRequirement('Mínimo 5 caracteres'),
-                    _buildSimpleRequirement('Una letra mayúscula (A-Z)'),
-                    _buildSimpleRequirement('Una letra minúscula (a-z)'),
+                    _buildSimpleRequirement(context, 'Mínimo 5 caracteres'),
                     _buildSimpleRequirement(
+                      context,
+                      'Una letra mayúscula (A-Z)',
+                    ),
+                    _buildSimpleRequirement(
+                      context,
+                      'Una letra minúscula (a-z)',
+                    ),
+                    _buildSimpleRequirement(
+                      context,
                       'Un carácter especial (!@#\$% etc.)',
                     ),
                   ],
@@ -386,7 +276,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     );
   }
 
-  Widget _buildSimpleRequirement(String text) {
+  Widget _buildSimpleRequirement(BuildContext context, String text) {
     return Row(
       children: [
         Icon(Icons.check_circle_outline, size: 14, color: AppColors.primary),
@@ -401,7 +291,9 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     );
   }
 
-  void _showClearCacheDialog() {
+  void _showClearCacheDialog(BuildContext context) {
+    final viewModel = context.read<ConfiguracionViewModel>();
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -421,7 +313,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
             ),
             SizedBox(height: AppSpacing.small),
             Text(
-              'Se liberarán $_cacheSize de espacio de almacenamiento',
+              'Se liberarán ${viewModel.configuracion.cacheSize} de espacio de almacenamiento',
               style: AppTextStyles.bodyDark(
                 context,
               ).copyWith(color: AppColors.primary, fontWeight: FontWeight.bold),
@@ -436,9 +328,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              setState(() {
-                _cacheSize = "0 MB";
-              });
+              viewModel.clearCache();
               Helpers.showSnackBar(
                 context,
                 '✅ Caché limpiado exitosamente',
@@ -452,7 +342,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     );
   }
 
-  void _showAboutDialog() {
+  void _showAboutDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -490,14 +380,20 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
               ),
               SizedBox(height: AppSpacing.medium),
               _buildInfoItem(
+                context,
                 'Desarrollado para:',
                 'Instituto Técnico Comercial INCOS - El Alto',
               ),
               _buildInfoItem(
+                context,
                 'Desarrolladora:',
                 'Est. Nicole Wara Colque Pachacuti\n(Sistemas Informáticos - Proyecto de Grado)',
               ),
-              _buildInfoItem('Contacto:', '+591 75205630\nincos@gmail.com'),
+              _buildInfoItem(
+                context,
+                'Contacto:',
+                '+591 75205630\nincos@gmail.com',
+              ),
               SizedBox(height: AppSpacing.medium),
               Text(
                 '© 2025 Todos los derechos reservados',
@@ -520,7 +416,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     );
   }
 
-  Widget _buildInfoItem(String label, String value) {
+  Widget _buildInfoItem(BuildContext context, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.small),
       child: Column(
@@ -544,7 +440,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     );
   }
 
-  void _showPrivacyPolicy() {
+  void _showPrivacyPolicy(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -571,18 +467,22 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
               ),
               SizedBox(height: AppSpacing.medium),
               _buildPrivacyItem(
+                context,
                 '📊 Datos Recopilados:',
                 '• Registros de asistencia\n• Información de estudiantes\n• Datos de docentes\n• Materias, carreras y horarios\n• Turnos y paralelos',
               ),
               _buildPrivacyItem(
+                context,
                 '🛡️ Protección:',
                 '• Autenticación biométrica\n• Almacenamiento seguro en Firebase\n• Acceso restringido al personal autorizado',
               ),
               _buildPrivacyItem(
+                context,
                 '🚫 Uso de Datos:',
                 '• Exclusivamente para control de asistencia interna\n• No se comparte con terceros\n• Uso educativo institucional',
               ),
               _buildPrivacyItem(
+                context,
                 '📝 Responsabilidad:',
                 '• Instituto Técnico Comercial INCOS - El Alto\n• Cumplimiento de normativas educativas',
               ),
@@ -608,7 +508,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     );
   }
 
-  Widget _buildPrivacyItem(String title, String content) {
+  Widget _buildPrivacyItem(BuildContext context, String title, String content) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.medium),
       child: Column(
@@ -632,6 +532,9 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final viewModel = context.watch<ConfiguracionViewModel>();
+    final config = viewModel.configuracion;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -653,124 +556,147 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
             ),
             child: Column(
               children: [
-                _buildUserCard(isTablet),
+                _buildUserCard(context, isTablet),
                 SizedBox(height: AppSpacing.large),
 
                 // Configuración de notificaciones
-                _buildSettingsSection('Notificaciones', Icons.notifications, [
-                  _buildSwitchSetting(
-                    'Notificaciones Push',
-                    'Recibir notificaciones importantes',
-                    _notificationsEnabled,
-                    (value) async {
-                      setState(() {
-                        _notificationsEnabled = value;
-                      });
-                      await _saveSetting('notifications_enabled', value);
-                      Helpers.showSnackBar(
-                        context,
-                        'Notificaciones ${value ? 'activadas' : 'desactivadas'}',
-                        type: 'success',
-                      );
-                    },
-                  ),
-                  _buildSwitchSetting(
-                    'Sincronización Automática',
-                    'Sincronizar datos automáticamente',
-                    _autoSyncEnabled,
-                    (value) async {
-                      setState(() {
-                        _autoSyncEnabled = value;
-                      });
-                      await _saveSetting('auto_sync_enabled', value);
-                      Helpers.showSnackBar(
-                        context,
-                        'Sincronización automática ${value ? 'activada' : 'desactivada'}',
-                        type: 'success',
-                      );
-                    },
-                  ),
-                ]),
+                _buildSettingsSection(
+                  context,
+                  'Notificaciones',
+                  Icons.notifications,
+                  [
+                    _buildSwitchSetting(
+                      context,
+                      'Notificaciones Push',
+                      'Recibir notificaciones importantes',
+                      config.notificationsEnabled,
+                      (value) async {
+                        await viewModel.updateNotificationsEnabled(value);
+                        Helpers.showSnackBar(
+                          context,
+                          'Notificaciones ${value ? 'activadas' : 'desactivadas'}',
+                          type: 'success',
+                        );
+                      },
+                    ),
+                    _buildSwitchSetting(
+                      context,
+                      'Sincronización Automática',
+                      'Sincronizar datos automáticamente',
+                      config.autoSyncEnabled,
+                      (value) async {
+                        await viewModel.updateAutoSyncEnabled(value);
+                        Helpers.showSnackBar(
+                          context,
+                          'Sincronización automática ${value ? 'activada' : 'desactivada'}',
+                          type: 'success',
+                        );
+                      },
+                    ),
+                  ],
+                ),
 
                 SizedBox(height: AppSpacing.large),
 
                 // Configuración de seguridad
-                _buildSettingsSection('Seguridad', Icons.security, [
+                _buildSettingsSection(context, 'Seguridad', Icons.security, [
                   _buildSwitchSetting(
+                    context,
                     'Autenticación Biométrica',
                     'Usar huella digital o reconocimiento facial',
-                    _biometricEnabled,
+                    config.biometricEnabled,
                     (value) async {
-                      if (value) {
-                        await _checkBiometricAvailability();
-                      } else {
-                        setState(() {
-                          _biometricEnabled = false;
-                        });
-                        await _saveSetting('biometric_enabled', false);
+                      try {
+                        await viewModel.toggleBiometricEnabled();
+                        if (value) {
+                          Helpers.showSnackBar(
+                            context,
+                            '✅ Autenticación biométrica activada',
+                            type: 'success',
+                          );
+                        } else {
+                          Helpers.showSnackBar(
+                            context,
+                            'Autenticación biométrica desactivada',
+                            type: 'success',
+                          );
+                        }
+                      } catch (e) {
                         Helpers.showSnackBar(
                           context,
-                          'Autenticación biométrica desactivada',
-                          type: 'success',
+                          '❌ ${e.toString()}',
+                          type: 'error',
                         );
                       }
                     },
                   ),
                   _buildActionSetting(
+                    context,
                     'Cambiar Contraseña',
                     Icons.lock,
                     'Actualizar contraseña de acceso',
-                    _showChangePasswordDialog,
+                    () => _showChangePasswordDialog(context),
                   ),
                 ]),
 
                 SizedBox(height: AppSpacing.large),
 
                 // Configuración de apariencia
-                _buildSettingsSection('Apariencia', Icons.palette, [
+                _buildSettingsSection(context, 'Apariencia', Icons.palette, [
                   _buildSelectionSetting(
+                    context,
                     'Idioma',
                     Icons.language,
-                    _selectedLanguage,
-                    _showLanguageDialog,
+                    config.selectedLanguage,
+                    () => _showLanguageDialog(context),
                   ),
                   _buildSelectionSetting(
+                    context,
                     'Tema',
                     Icons.brightness_medium,
-                    _selectedTheme,
-                    _showThemeDialog,
+                    config.selectedTheme,
+                    () => _showThemeDialog(context),
                   ),
                 ]),
 
                 SizedBox(height: AppSpacing.large),
 
                 // Configuración de datos
-                _buildSettingsSection('Datos y Almacenamiento', Icons.storage, [
-                  _buildActionSetting(
-                    'Copia de Seguridad',
-                    Icons.backup,
-                    'Crear backup de todos los datos',
-                    _showBackupDialog,
-                  ),
-                  _buildActionSetting(
-                    'Limpiar Caché',
-                    Icons.cleaning_services,
-                    'Tamaño actual: $_cacheSize',
-                    _showClearCacheDialog,
-                  ),
-                ]),
+                _buildSettingsSection(
+                  context,
+                  'Datos y Almacenamiento',
+                  Icons.storage,
+                  [
+                    _buildActionSetting(
+                      context,
+                      'Copia de Seguridad',
+                      Icons.backup,
+                      'Crear backup de todos los datos',
+                      () => _showBackupDialog(context),
+                    ),
+                    _buildActionSetting(
+                      context,
+                      'Limpiar Caché',
+                      Icons.cleaning_services,
+                      'Tamaño actual: ${config.cacheSize}',
+                      () => _showClearCacheDialog(context),
+                    ),
+                  ],
+                ),
 
                 SizedBox(height: AppSpacing.large),
 
                 // Información y soporte
-                _buildSettingsSection('Información', Icons.info, [
+                _buildSettingsSection(context, 'Información', Icons.info, [
                   _buildActionSetting(
+                    context,
                     'Acerca de IncosCheck',
                     Icons.business,
                     'Información de la aplicación',
-                    _showAboutDialog,
+                    () => _showAboutDialog(context),
                   ),
                   _buildActionSetting(
+                    context,
                     'Ayuda y Soporte',
                     Icons.help,
                     'Centro de ayuda y contacto',
@@ -784,10 +710,11 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                     },
                   ),
                   _buildActionSetting(
+                    context,
                     'Política de Privacidad',
                     Icons.privacy_tip,
                     'Términos y condiciones de uso',
-                    _showPrivacyPolicy,
+                    () => _showPrivacyPolicy(context),
                   ),
                 ]),
 
@@ -844,7 +771,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     );
   }
 
-  Widget _buildUserCard(bool isTablet) {
+  Widget _buildUserCard(BuildContext context, bool isTablet) {
     return Card(
       elevation: 4,
       child: Padding(
@@ -906,6 +833,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   }
 
   Widget _buildSettingsSection(
+    BuildContext context,
     String title,
     IconData icon,
     List<Widget> settings,
@@ -938,6 +866,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   }
 
   Widget _buildSwitchSetting(
+    BuildContext context,
     String title,
     String subtitle,
     bool value,
@@ -964,6 +893,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   }
 
   Widget _buildActionSetting(
+    BuildContext context,
     String title,
     IconData icon,
     String subtitle,
@@ -994,6 +924,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   }
 
   Widget _buildSelectionSetting(
+    BuildContext context,
     String title,
     IconData icon,
     String value,

@@ -1,28 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:incos_check/utils/constants.dart';
-import 'package:incos_check/utils/helpers.dart';
+import 'package:provider/provider.dart';
+import '../../viewmodels/inicio_viewmodel.dart';
+import '../../utils/constants.dart';
 
 class InicioScreen extends StatelessWidget {
   const InicioScreen({super.key});
 
-  // Métodos helper para modo oscuro (mismo patrón)
-  Color _getTextColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.white
-        : Colors.black;
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (context) => InicioViewModel(),
+      child: const _InicioScreenContent(),
+    );
   }
+}
 
-  Color _getSecondaryTextColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.white70
-        : Colors.black87;
-  }
-
-  Color _getBackgroundColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade800
-        : Colors.grey.shade50;
-  }
+class _InicioScreenContent extends StatelessWidget {
+  const _InicioScreenContent();
 
   @override
   Widget build(BuildContext context) {
@@ -33,76 +27,87 @@ class InicioScreen extends StatelessWidget {
           AppStrings.dashboard,
           style: AppTextStyles.heading2.copyWith(color: Colors.white),
         ),
-        backgroundColor: AppColors.secondary, // Cambiado a CELESTE
+        backgroundColor: AppColors.secondary,
         centerTitle: true,
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final bool isTablet = constraints.maxWidth > 600;
-          final bool isDesktop = constraints.maxWidth > 900;
+      body: const _InicioScreenBody(),
+    );
+  }
+}
 
-          final double iconSize = isDesktop ? 120.0 : (isTablet ? 100.0 : 80.0);
-          final double titleFontSize = isDesktop
-              ? 32.0
-              : (isTablet ? 28.0 : 24.0);
-          final double bodyFontSize = isDesktop
-              ? 20.0
-              : (isTablet ? 18.0 : 16.0);
+class _InicioScreenBody extends StatelessWidget {
+  const _InicioScreenBody();
 
-          return SingleChildScrollView(
-            child: Container(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              padding: EdgeInsets.all(AppSpacing.medium),
-              child: Center(
-                child: Container(
-                  constraints: BoxConstraints(
-                    maxWidth: isDesktop ? 800 : (isTablet ? 600 : 400),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.school,
-                        size: iconSize,
-                        color: AppColors.primary,
+  @override
+  Widget build(BuildContext context) {
+    final viewModel = Provider.of<InicioViewModel>(context);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isTablet = constraints.maxWidth > 600;
+        final bool isDesktop = constraints.maxWidth > 900;
+
+        final double iconSize = isDesktop ? 120.0 : (isTablet ? 100.0 : 80.0);
+        final double titleFontSize = isDesktop
+            ? 32.0
+            : (isTablet ? 28.0 : 24.0);
+        final double bodyFontSize = isDesktop ? 20.0 : (isTablet ? 18.0 : 16.0);
+
+        return SingleChildScrollView(
+          child: Container(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            padding: EdgeInsets.all(AppSpacing.medium),
+            child: Center(
+              child: Container(
+                constraints: BoxConstraints(
+                  maxWidth: isDesktop ? 800 : (isTablet ? 600 : 400),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.school,
+                      size: iconSize,
+                      color: AppColors.primary,
+                    ),
+                    SizedBox(height: AppSpacing.large),
+                    Text(
+                      'Sistema de Asistencia ${AppStrings.appName}',
+                      style: AppTextStyles.heading1.copyWith(
+                        fontSize: titleFontSize,
+                        color: viewModel.getTextColor(context),
                       ),
-                      SizedBox(height: AppSpacing.large),
-                      Text(
-                        'Sistema de Asistencia ${AppStrings.appName}',
-                        style: AppTextStyles.heading1.copyWith(
-                          fontSize: titleFontSize,
-                          color: _getTextColor(context),
-                        ),
-                        textAlign: TextAlign.center,
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: AppSpacing.medium),
+                    Text(
+                      'Bienvenido al sistema de gestión de asistencia académica',
+                      style: AppTextStyles.bodyDark(context).copyWith(
+                        fontSize: bodyFontSize,
+                        color: viewModel.getSecondaryTextColor(context),
                       ),
-                      SizedBox(height: AppSpacing.medium),
-                      Text(
-                        'Bienvenido al sistema de gestión de asistencia académica',
-                        style: AppTextStyles.bodyDark(context).copyWith(
-                          fontSize: bodyFontSize,
-                          color: _getSecondaryTextColor(context),
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: AppSpacing.large),
-                      _buildInfoCard(
-                        context,
-                        isDesktop: isDesktop,
-                        isTablet: isTablet,
-                      ),
-                    ],
-                  ),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: AppSpacing.large),
+                    _buildInfoCard(
+                      context,
+                      viewModel,
+                      isDesktop: isDesktop,
+                      isTablet: isTablet,
+                    ),
+                  ],
                 ),
               ),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildInfoCard(
-    BuildContext context, {
+    BuildContext context,
+    InicioViewModel viewModel, {
     bool isDesktop = false,
     bool isTablet = false,
   }) {
@@ -131,26 +136,34 @@ class InicioScreen extends StatelessWidget {
               'Información del Sistema',
               style: AppTextStyles.heading2Dark(context).copyWith(
                 fontSize: titleFontSize,
-                color: _getTextColor(context),
+                color: viewModel.getTextColor(context),
               ),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: AppSpacing.medium),
             _buildInfoRow(
               'Fecha:',
-              Helpers.formatDate(DateTime.now()),
+              viewModel.model.formattedDate,
               bodyFontSize,
               context,
+              viewModel,
             ),
             SizedBox(height: AppSpacing.small),
             _buildInfoRow(
               'Hora:',
-              Helpers.formatTime(DateTime.now()),
+              viewModel.model.formattedTime,
               bodyFontSize,
               context,
+              viewModel,
             ),
             SizedBox(height: AppSpacing.small),
-            _buildInfoRow('Estado:', 'Sistema Activo', bodyFontSize, context),
+            _buildInfoRow(
+              'Estado:',
+              viewModel.model.systemStatus,
+              bodyFontSize,
+              context,
+              viewModel,
+            ),
           ],
         ),
       ),
@@ -162,6 +175,7 @@ class InicioScreen extends StatelessWidget {
     String value,
     double fontSize,
     BuildContext context,
+    InicioViewModel viewModel,
   ) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -171,7 +185,7 @@ class InicioScreen extends StatelessWidget {
           style: AppTextStyles.bodyDark(context).copyWith(
             fontSize: fontSize,
             fontWeight: FontWeight.bold,
-            color: _getTextColor(context),
+            color: viewModel.getTextColor(context),
           ),
         ),
         Text(
