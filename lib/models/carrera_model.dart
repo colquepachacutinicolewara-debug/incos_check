@@ -1,119 +1,65 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
-class CarreraModel {
+class Carrera {
   final String id;
   final String nombre;
   final String color;
-  final IconData icono;
+  final IconData icon;
   final bool activa;
-  final DateTime? fechaCreacion;
-  final DateTime? fechaActualizacion;
 
-  CarreraModel({
+  Carrera({
     required this.id,
     required this.nombre,
     required this.color,
-    required this.icono,
+    required this.icon,
     required this.activa,
-    this.fechaCreacion,
-    this.fechaActualizacion,
   });
 
-  // Getter para compatibilidad (puedes usar icono o icon)
-  IconData get icon => icono;
-
-  // Método fromFirestore
-  static CarreraModel fromFirestore(String id, Map<String, dynamic> data) {
-    return CarreraModel(
-      id: id,
-      nombre: data['nombre'] ?? '',
-      color: data['color'] ?? '#2196F3',
-      icono: _getIconFromCode(data['iconCode'] ?? Icons.school.codePoint),
-      activa: data['activa'] ?? true,
-      fechaCreacion: data['fechaCreacion'] != null
-          ? (data['fechaCreacion'] as Timestamp).toDate()
-          : null,
-      fechaActualizacion: data['fechaActualizacion'] != null
-          ? (data['fechaActualizacion'] as Timestamp).toDate()
-          : null,
-    );
-  }
-
-  // Método para convertir a mapa (para Firestore)
-  Map<String, dynamic> toFirestore() {
-    return {
-      'nombre': nombre,
-      'color': color,
-      'iconCode': icono.codePoint,
-      'activa': activa,
-      'fechaCreacion': fechaCreacion != null
-          ? Timestamp.fromDate(fechaCreacion!)
-          : FieldValue.serverTimestamp(),
-      'fechaActualizacion': FieldValue.serverTimestamp(),
-    };
-  }
-
-  // Método toMap para la UI
   Map<String, dynamic> toMap() {
     return {
       'id': id,
       'nombre': nombre,
       'color': color,
-      'icon': icono,
-      'iconCode': icono.codePoint,
+      'icon': _iconToCode(icon),
       'activa': activa,
-      'fechaCreacion': fechaCreacion,
-      'fechaActualizacion': fechaActualizacion,
     };
   }
 
-  // Método auxiliar para obtener IconData desde codePoint
-  static IconData _getIconFromCode(int codePoint) {
-    return IconData(codePoint, fontFamily: 'MaterialIcons');
-  }
-
-  // Método para obtener Color desde string
-  Color get colorValue {
-    try {
-      return Color(int.parse(color.replaceAll('#', '0xFF')));
-    } catch (e) {
-      return Colors.blue;
-    }
-  }
-
-  // Copiar con cambios
-  CarreraModel copyWith({
-    String? id,
-    String? nombre,
-    String? color,
-    IconData? icono,
-    bool? activa,
-    DateTime? fechaCreacion,
-    DateTime? fechaActualizacion,
-  }) {
-    return CarreraModel(
-      id: id ?? this.id,
-      nombre: nombre ?? this.nombre,
-      color: color ?? this.color,
-      icono: icono ?? this.icono,
-      activa: activa ?? this.activa,
-      fechaCreacion: fechaCreacion ?? this.fechaCreacion,
-      fechaActualizacion: fechaActualizacion ?? this.fechaActualizacion,
+  factory Carrera.fromMap(Map<String, dynamic> map) {
+    return Carrera(
+      id: map['id'] ?? '',
+      nombre: map['nombre'] ?? '',
+      color: map['color'] ?? '#1565C0',
+      icon: _codeToIcon(map['icon'] ?? 'school'),
+      activa: map['activa'] ?? true,
     );
   }
 
-  @override
-  String toString() {
-    return 'CarreraModel(id: $id, nombre: $nombre, activa: $activa)';
+  Carrera copyWith({
+    String? id,
+    String? nombre,
+    String? color,
+    IconData? icon,
+    bool? activa,
+  }) {
+    return Carrera(
+      id: id ?? this.id,
+      nombre: nombre ?? this.nombre,
+      color: color ?? this.color,
+      icon: icon ?? this.icon,
+      activa: activa ?? this.activa,
+    );
   }
 
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is CarreraModel && other.id == id;
+  static String _iconToCode(IconData icon) {
+    return icon.codePoint.toString();
   }
 
-  @override
-  int get hashCode => id.hashCode;
+  static IconData _codeToIcon(String code) {
+    try {
+      return IconData(int.parse(code), fontFamily: 'MaterialIcons');
+    } catch (e) {
+      return Icons.school;
+    }
+  }
 }

@@ -1,198 +1,122 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/carrera_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../repositories/data_repository.dart';
 
-class CarrerasViewModel with ChangeNotifier {
-  final DataRepository _repository;
+class CarreraViewModel with ChangeNotifier {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final DataRepository _dataRepository; // Tu repositorio existente
 
-  CarrerasViewModel(this._repository) {
-    initializeCarrerasStream(); // Inicializar automáticamente
-  }
+  List<Carrera> _carreras = [];
+  bool _isLoading = false;
+  String? _error;
 
-  List<CarreraModel> _carreras = [];
-  bool _loading = false;
-  String _error = '';
-  Stream<QuerySnapshot>? _carrerasStream;
+  List<Carrera> get carreras => _carreras;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
 
-  // Getters
-  List<CarreraModel> get carreras => _carreras;
-  bool get loading => _loading;
-  String get error => _error;
-  List<CarreraModel> get carrerasActivas {
-    return _carreras.where((carrera) => carrera.activa).toList();
-  }
+  CarreraViewModel(this._dataRepository);
 
-  // Inicializar stream de carreras
-  void initializeCarrerasStream() {
-    _carrerasStream = _repository.getCarrerasStream();
-    _carrerasStream?.listen(
-      (snapshot) {
-        _carreras = _parseCarrerasFromSnapshot(snapshot);
-        _error = ''; // Limpiar error si hay éxito
-        notifyListeners();
-      },
-      onError: (error) {
-        _error = 'Error al cargar carreras: $error';
-        _loading = false;
-        notifyListeners();
-      },
-    );
-  }
-
-  // Parsear carreras desde Firestore
-  List<CarreraModel> _parseCarrerasFromSnapshot(QuerySnapshot snapshot) {
+  Future<void> cargarCarreras() async {
     try {
-      return snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        return CarreraModel.fromFirestore(doc.id, data);
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      final querySnapshot = await _firestore.collection('carreras').get();
+
+      _carreras = querySnapshot.docs.map((doc) {
+        return Carrera.fromMap({'id': doc.id, ...doc.data()});
       }).toList();
-    } catch (e) {
-      _error = 'Error al procesar datos: $e';
-      return [];
-    }
-  }
 
-  // Agregar carrera
-  Future<void> agregarCarrera(
-    String nombre,
-    String color,
-    IconData icono,
-  ) async {
-    _loading = true;
-    _error = '';
-    notifyListeners();
-
-    try {
-      final nuevaCarrera = {
-        'nombre': nombre,
-        'color': color,
-        'iconCode': icono.codePoint,
-        'activa': true,
-        'fechaCreacion': FieldValue.serverTimestamp(),
-        'fechaActualizacion': FieldValue.serverTimestamp(),
-      };
-
-      await _repository.addCarrera(nuevaCarrera);
-      _error = ''; // Limpiar error si hay éxito
-    } catch (e) {
-      _error = 'Error al agregar carrera: $e';
-      rethrow;
-    } finally {
-      _loading = false;
-      notifyListeners();
-    }
-  }
-
-  // Editar carrera
-  Future<void> editarCarrera(
-    String id,
-    String nombre,
-    String color,
-    IconData icono,
-  ) async {
-    _loading = true;
-    _error = '';
-    notifyListeners();
-
-    try {
-      final datosActualizados = {
-        'nombre': nombre,
-        'color': color,
-        'iconCode': icono.codePoint,
-        'fechaActualizacion': FieldValue.serverTimestamp(),
-      };
-
-      await _repository.updateCarrera(id, datosActualizados);
-      _error = ''; // Limpiar error si hay éxito
-    } catch (e) {
-      _error = 'Error al editar carrera: $e';
-      rethrow;
-    } finally {
-      _loading = false;
-      notifyListeners();
-    }
-  }
-
-  // Activar/desactivar carrera - CORREGIDO
-  Future<void> toggleActivarCarrera(String id) async {
-    try {
-      final carrera = obtenerCarreraPorId(id);
-      if (carrera != null) {
-        await _repository.updateCarrera(id, {
-          'activa': !carrera.activa,
-          'fechaActualizacion': FieldValue.serverTimestamp(),
-        });
+      // Si no hay carreras en Firestore, usar datos locales
+      if (_carreras.isEmpty) {
+        _carreras = [
+          Carrera(
+            id: '1',
+            nombre: 'Sistemas Informáticos',
+            color: '#1565C0',
+            icon: Icons.computer,
+            activa: true,
+          ),
+        ];
       }
     } catch (e) {
-      _error = 'Error al cambiar estado de carrera: $e';
+      _error = 'Error al cargar carreras: $e';
+    } finally {
+      _isLoading = false;
       notifyListeners();
-      rethrow;
     }
   }
 
-  // Eliminar carrera
-  Future<void> eliminarCarrera(String id) async {
-    _loading = true;
-    _error = '';
-    notifyListeners();
-
+  Future<void> agregarCarrera(Carrera carrera) async {
     try {
-      await _repository.deleteCarrera(id);
-      _error = ''; // Limpiar error si hay éxito
+      _isLoading = true;
+      notifyListeners();
+
+      final docRef = await _firestore
+          .collection('carreras')
+          .add(carrera.toMap());
+
+      final nuevaCarrera = carrera.copyWith(id: docRef.id);
+      _carreras.add(nuevaCarrera);
+
+      notifyListeners();
+    } catch (e) {
+      _error = 'Error al agregar carrera: $e';
+      notifyListeners();
+      throw e;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> actualizarCarrera(Carrera carrera) async {
+    try {
+      await _firestore
+          .collection('carreras')
+          .doc(carrera.id)
+          .update(carrera.toMap());
+
+      final index = _carreras.indexWhere((c) => c.id == carrera.id);
+      if (index != -1) {
+        _carreras[index] = carrera;
+        notifyListeners();
+      }
+    } catch (e) {
+      _error = 'Error al actualizar carrera: $e';
+      notifyListeners();
+      throw e;
+    }
+  }
+
+  Future<void> eliminarCarrera(String id) async {
+    try {
+      await _firestore.collection('carreras').doc(id).delete();
+      _carreras.removeWhere((carrera) => carrera.id == id);
+      notifyListeners();
     } catch (e) {
       _error = 'Error al eliminar carrera: $e';
-      rethrow;
-    } finally {
-      _loading = false;
       notifyListeners();
+      throw e;
     }
   }
 
-  // Obtener carrera por ID
-  CarreraModel? obtenerCarreraPorId(String id) {
-    try {
-      return _carreras.firstWhere((carrera) => carrera.id == id);
-    } catch (e) {
-      return null;
-    }
+  Future<void> toggleActivarCarrera(Carrera carrera) async {
+    final carreraActualizada = carrera.copyWith(activa: !carrera.activa);
+    await actualizarCarrera(carreraActualizada);
   }
 
-  // Nombres de carreras activas
   List<String> get nombresCarrerasActivas {
-    return carrerasActivas.map((carrera) => carrera.nombre).toList();
+    return _carreras
+        .where((carrera) => carrera.activa)
+        .map((carrera) => carrera.nombre)
+        .toList();
   }
 
-  // Métodos de utilidad
-  static Color parseColor(String colorString) {
-    try {
-      return Color(int.parse(colorString.replaceAll('#', '0xFF')));
-    } catch (e) {
-      return Colors.blue;
-    }
-  }
-
-  static IconData getIconFromCode(int codePoint) {
-    try {
-      return IconData(
-        codePoint,
-        fontFamily: 'MaterialIcons',
-        fontPackage: null,
-      );
-    } catch (e) {
-      return Icons.school;
-    }
-  }
-
-  // Limpiar error
   void clearError() {
-    _error = '';
+    _error = null;
     notifyListeners();
-  }
-
-  // Disposer para limpiar recursos
-  void dispose() {
-    _carrerasStream = null;
-    super.dispose();
   }
 }

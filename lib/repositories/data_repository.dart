@@ -1,26 +1,23 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DataRepository {
-  // Inicialización de FirebaseFirestore
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   // -----------------------------------------------------------------
-  // MÉTODOS PARA CarrerasViewModel (CRUD)
+  // MÉTODOS PARA CarrerasViewModel
   // -----------------------------------------------------------------
 
-  /// Obtiene un stream de documentos de la colección 'carreras'.
-  Stream<QuerySnapshot<Map<String, dynamic>>> getCarrerasStream() {
+  Stream<QuerySnapshot> getCarrerasStream() {
+    // ← CORREGIDO: Remover tipo genérico
     return _db
         .collection('carreras')
         .orderBy('nombre', descending: false)
         .snapshots()
         .handleError((error) {
-          // Lanza la excepción manejada para que el ViewModel la capture
           throw _handleFirestoreError('carreras', error);
         });
   }
 
-  /// Agrega una nueva carrera y retorna su ID.
   Future<String> addCarrera(Map<String, dynamic> data) async {
     try {
       final docRef = await _db.collection('carreras').add(data);
@@ -30,7 +27,6 @@ class DataRepository {
     }
   }
 
-  /// Actualiza una carrera por su ID.
   Future<void> updateCarrera(
     String carreraId,
     Map<String, dynamic> data,
@@ -42,7 +38,6 @@ class DataRepository {
     }
   }
 
-  /// Elimina una carrera por su ID.
   Future<void> deleteCarrera(String carreraId) async {
     try {
       await _db.collection('carreras').doc(carreraId).delete();
@@ -52,11 +47,11 @@ class DataRepository {
   }
 
   // -----------------------------------------------------------------
-  // MÉTODOS PARA DocenteViewModel (CRUD de Docentes)
+  // MÉTODOS PARA DocenteViewModel
   // -----------------------------------------------------------------
 
-  /// Obtiene un stream de documentos de la colección 'docentes'.
-  Stream<QuerySnapshot<Map<String, dynamic>>> getDocentesStream() {
+  Stream<QuerySnapshot> getDocentesStream() {
+    // ← CORREGIDO: Remover tipo genérico
     return _db
         .collection('docentes')
         .orderBy('apellido', descending: false)
@@ -66,14 +61,13 @@ class DataRepository {
         });
   }
 
-  /// Obtiene un documento de docente por su ID.
-  Future<DocumentSnapshot<Map<String, dynamic>>> getDocenteById(
+  Future<DocumentSnapshot> getDocenteById(
+    // ← CORREGIDO: Remover tipo genérico
     String docenteId,
   ) {
     return _db.collection('docentes').doc(docenteId).get();
   }
 
-  /// Agrega un nuevo docente y retorna su ID.
   Future<String> addDocente(Map<String, dynamic> data) async {
     try {
       final docRef = await _db.collection('docentes').add(data);
@@ -83,7 +77,6 @@ class DataRepository {
     }
   }
 
-  /// Actualiza un docente por su ID.
   Future<void> updateDocente(
     String docenteId,
     Map<String, dynamic> data,
@@ -95,7 +88,6 @@ class DataRepository {
     }
   }
 
-  /// Elimina un docente por su ID.
   Future<void> deleteDocente(String docenteId) async {
     try {
       await _db.collection('docentes').doc(docenteId).delete();
@@ -105,10 +97,9 @@ class DataRepository {
   }
 
   // -----------------------------------------------------------------
-  // MÉTODOS PARA DashboardViewModel (Estadísticas y Cursos)
+  // MÉTODOS PARA DashboardViewModel (estadísticas)
   // -----------------------------------------------------------------
 
-  /// Obtiene el número total de estudiantes.
   Future<int> getTotalEstudiantes() async {
     try {
       final snapshot = await _db.collection('estudiantes').get();
@@ -118,7 +109,6 @@ class DataRepository {
     }
   }
 
-  /// Obtiene estadísticas de asistencia para el día de hoy.
   Future<Map<String, dynamic>> getEstadisticasHoy() async {
     try {
       final today = _getTodayString();
@@ -160,8 +150,8 @@ class DataRepository {
     }
   }
 
-  /// Obtiene un stream de cursos programados para hoy.
-  Stream<QuerySnapshot<Map<String, dynamic>>> getCursosHoyStream() {
+  Stream<QuerySnapshot> getCursosHoyStream() {
+    // ← CORREGIDO: Remover tipo genérico
     final today = _getTodayString();
     return _db
         .collection('cursos')
@@ -173,8 +163,8 @@ class DataRepository {
         });
   }
 
-  /// Obtiene un stream de las últimas 10 actividades (asistencias) recientes.
-  Stream<QuerySnapshot<Map<String, dynamic>>> getActividadesRecientesStream() {
+  Stream<QuerySnapshot> getActividadesRecientesStream() {
+    // ← CORREGIDO: Remover tipo genérico
     return _db
         .collection('asistencias')
         .orderBy('fecha', descending: true)
@@ -190,15 +180,14 @@ class DataRepository {
   // MÉTODOS GENERALES/UTILITARIOS
   // -----------------------------------------------------------------
 
-  /// Obtiene un documento genérico por colección e ID.
-  Future<DocumentSnapshot<Map<String, dynamic>>> getDocumentById(
+  Future<DocumentSnapshot> getDocumentById(
+    // ← CORREGIDO: Remover tipo genérico
     String collection,
     String documentId,
   ) {
     return _db.collection(collection).doc(documentId).get();
   }
 
-  /// Agrega un documento genérico a una colección y retorna su ID.
   Future<String> addDocument(
     String collection,
     Map<String, dynamic> data,
@@ -211,7 +200,6 @@ class DataRepository {
     }
   }
 
-  /// Actualiza un documento genérico en una colección por su ID.
   Future<void> updateDocument(
     String collection,
     String documentId,
@@ -224,17 +212,17 @@ class DataRepository {
     }
   }
 
-  // Método auxiliar privado para manejo consistente de errores de Firestore
+  // Método auxiliar para manejo de errores
   Exception _handleFirestoreError(String collection, dynamic error) {
     if (error is FirebaseException) {
       return Exception(
-        'Error de Firestore en $collection: ${error.code} - ${error.message}',
+        'Error en $collection: ${error.code} - ${error.message}',
       );
     }
-    return Exception('Error desconocido en $collection: $error');
+    return Exception('Error en $collection: $error');
   }
 
-  // Método auxiliar privado para obtener la fecha de hoy en formato 'YYYY-MM-DD'
+  // Método auxiliar para obtener la fecha de hoy como string
   String _getTodayString() {
     final now = DateTime.now();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';

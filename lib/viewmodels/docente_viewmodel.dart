@@ -23,6 +23,7 @@ class DocentesViewModel extends ChangeNotifier {
   // Estados
   bool _loading = false;
   bool _syncing = false;
+  bool _guardando = false; // ✅ NUEVO: Estado específico para guardado
   String _error = '';
   Stream<QuerySnapshot>? _docentesStream;
 
@@ -41,6 +42,7 @@ class DocentesViewModel extends ChangeNotifier {
   TextEditingController get searchController => _searchController;
   bool get loading => _loading;
   bool get syncing => _syncing;
+  bool get guardando => _guardando; // ✅ NUEVO
   String get error => _error;
 
   // Setters
@@ -187,9 +189,9 @@ class DocentesViewModel extends ChangeNotifier {
     };
   }
 
-  // CRUD CON FIRESTORE (PERSISTENCIA REAL)
-  Future<void> addDocente(Docente docente) async {
-    _loading = true;
+  // ✅ CORREGIDO: CRUD CON RETORNO DE ÉXITO/FALLO
+  Future<bool> addDocente(Docente docente) async {
+    _guardando = true; // ✅ Usar estado específico de guardado
     _error = '';
     notifyListeners();
 
@@ -197,17 +199,19 @@ class DocentesViewModel extends ChangeNotifier {
       final docenteData = docente.toFirestore();
       await _repository.addDocente(docenteData);
       _error = '';
+      return true; // ✅ Retornar éxito
     } catch (e) {
       _error = 'Error agregando docente: $e';
-      rethrow;
+      return false; // ✅ Retornar fallo
     } finally {
-      _loading = false;
+      _guardando = false;
       notifyListeners();
     }
   }
 
-  Future<void> updateDocente(Docente docente) async {
-    _loading = true;
+  // ✅ CORREGIDO: Actualizar con retorno de bool
+  Future<bool> updateDocente(Docente docente) async {
+    _guardando = true; // ✅ Usar estado específico de guardado
     _error = '';
     notifyListeners();
 
@@ -215,16 +219,18 @@ class DocentesViewModel extends ChangeNotifier {
       final docenteData = docente.toFirestore();
       await _repository.updateDocente(docente.id, docenteData);
       _error = '';
+      return true; // ✅ Retornar éxito
     } catch (e) {
       _error = 'Error actualizando docente: $e';
-      rethrow;
+      return false; // ✅ Retornar fallo
     } finally {
-      _loading = false;
+      _guardando = false;
       notifyListeners();
     }
   }
 
-  Future<void> deleteDocente(String id) async {
+  // ✅ CORREGIDO: Eliminar con retorno de bool
+  Future<bool> deleteDocente(String id) async {
     _loading = true;
     _error = '';
     notifyListeners();
@@ -232,9 +238,10 @@ class DocentesViewModel extends ChangeNotifier {
     try {
       await _repository.deleteDocente(id);
       _error = '';
+      return true; // ✅ Retornar éxito
     } catch (e) {
       _error = 'Error eliminando docente: $e';
-      rethrow;
+      return false; // ✅ Retornar fallo
     } finally {
       _loading = false;
       notifyListeners();
