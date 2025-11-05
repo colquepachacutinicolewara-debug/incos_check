@@ -1,4 +1,6 @@
+// docente_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/constants.dart';
 
 class Docente {
   final String id;
@@ -11,8 +13,8 @@ class Docente {
   final String email;
   final String telefono;
   final String estado;
-  final DateTime fechaCreacion;
-  final DateTime fechaActualizacion;
+  final DateTime? fechaCreacion;
+  final DateTime? fechaActualizacion;
 
   Docente({
     required this.id,
@@ -25,46 +27,10 @@ class Docente {
     required this.email,
     required this.telefono,
     required this.estado,
-    required this.fechaCreacion,
-    required this.fechaActualizacion,
+    this.fechaCreacion,
+    this.fechaActualizacion,
   });
 
-  // Crear Docente desde Firestore
-  factory Docente.fromFirestore(String docId, Map<String, dynamic> data) {
-    return Docente(
-      id: docId,
-      apellidoPaterno: data['apellidoPaterno'] ?? '',
-      apellidoMaterno: data['apellidoMaterno'] ?? '',
-      nombres: data['nombres'] ?? '',
-      ci: data['ci'] ?? '',
-      carrera: data['carrera'] ?? '',
-      turno: data['turno'] ?? 'MAÑANA',
-      email: data['email'] ?? '',
-      telefono: data['telefono'] ?? '',
-      estado: data['estado'] ?? 'Activo',
-      fechaCreacion: (data['fechaCreacion'] as Timestamp).toDate(),
-      fechaActualizacion: (data['fechaActualizacion'] as Timestamp).toDate(),
-    );
-  }
-
-  // Convertir a Map para Firestore
-  Map<String, dynamic> toFirestore() {
-    return {
-      'apellidoPaterno': apellidoPaterno,
-      'apellidoMaterno': apellidoMaterno,
-      'nombres': nombres,
-      'ci': ci,
-      'carrera': carrera,
-      'turno': turno,
-      'email': email,
-      'telefono': telefono,
-      'estado': estado,
-      'fechaCreacion': Timestamp.fromDate(fechaCreacion),
-      'fechaActualizacion': Timestamp.fromDate(fechaActualizacion),
-    };
-  }
-
-  // Para compatibilidad con tu UI existente
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -80,32 +46,51 @@ class Docente {
     };
   }
 
-  // Para crear nuevos docentes
-  factory Docente.createNew({
-    required String apellidoPaterno,
-    required String apellidoMaterno,
-    required String nombres,
-    required String ci,
-    required String carrera,
-    required String turno,
-    required String email,
-    required String telefono,
-    required String estado,
-  }) {
-    final now = DateTime.now();
+  Map<String, dynamic> toFirestore() {
+    return {
+      'apellidoPaterno': apellidoPaterno,
+      'apellidoMaterno': apellidoMaterno,
+      'nombres': nombres,
+      'ci': ci,
+      'carrera': carrera,
+      'turno': turno,
+      'email': email,
+      'telefono': telefono,
+      'estado': estado,
+      'fechaCreacion': fechaCreacion ?? FieldValue.serverTimestamp(),
+      'fechaActualizacion': FieldValue.serverTimestamp(),
+    };
+  }
+
+  factory Docente.fromFirestore(String id, Map<String, dynamic> data) {
     return Docente(
-      id: '', // Firestore generará el ID
-      apellidoPaterno: apellidoPaterno,
-      apellidoMaterno: apellidoMaterno,
-      nombres: nombres,
-      ci: ci,
-      carrera: carrera,
-      turno: turno,
-      email: email,
-      telefono: telefono,
-      estado: estado,
-      fechaCreacion: now,
-      fechaActualizacion: now,
+      id: id,
+      apellidoPaterno: data['apellidoPaterno'] as String,
+      apellidoMaterno: data['apellidoMaterno'] as String,
+      nombres: data['nombres'] as String,
+      ci: data['ci'] as String,
+      carrera: data['carrera'] as String,
+      turno: data['turno'] as String,
+      email: data['email'] as String,
+      telefono: data['telefono'] as String,
+      estado: data['estado'] as String? ?? Estados.activo,
+      fechaCreacion: (data['fechaCreacion'] as Timestamp?)?.toDate(),
+      fechaActualizacion: (data['fechaActualizacion'] as Timestamp?)?.toDate(),
+    );
+  }
+
+  factory Docente.fromMap(Map<String, dynamic> map) {
+    return Docente(
+      id: map['id'] as String,
+      apellidoPaterno: map['apellidoPaterno'] as String,
+      apellidoMaterno: map['apellidoMaterno'] as String,
+      nombres: map['nombres'] as String,
+      ci: map['ci'] as String,
+      carrera: map['carrera'] as String,
+      turno: map['turno'] as String,
+      email: map['email'] as String,
+      telefono: map['telefono'] as String,
+      estado: map['estado'] as String,
     );
   }
 
@@ -120,6 +105,8 @@ class Docente {
     String? email,
     String? telefono,
     String? estado,
+    DateTime? fechaCreacion,
+    DateTime? fechaActualizacion,
   }) {
     return Docente(
       id: id ?? this.id,
@@ -132,13 +119,8 @@ class Docente {
       email: email ?? this.email,
       telefono: telefono ?? this.telefono,
       estado: estado ?? this.estado,
-      fechaCreacion: fechaCreacion,
-      fechaActualizacion: DateTime.now(),
+      fechaCreacion: fechaCreacion ?? this.fechaCreacion,
+      fechaActualizacion: fechaActualizacion ?? this.fechaActualizacion,
     );
-  }
-
-  @override
-  String toString() {
-    return 'Docente(id: $id, nombre: $nombres $apellidoPaterno, carrera: $carrera)';
   }
 }

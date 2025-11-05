@@ -3,116 +3,174 @@ import '../models/carrera_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../repositories/data_repository.dart';
 
-class CarreraViewModel with ChangeNotifier {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final DataRepository _dataRepository; // Tu repositorio existente
-
-  List<Carrera> _carreras = [];
+class CarrerasViewModel extends ChangeNotifier {
+  final DataRepository _repository;
+  List<CarreraModel> _carreras = [];
   bool _isLoading = false;
   String? _error;
 
-  List<Carrera> get carreras => _carreras;
+  CarrerasViewModel(this._repository) {
+    _loadCarreras();
+  }
+
+  List<CarreraModel> get carreras => _carreras;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  CarreraViewModel(this._dataRepository);
-
-  Future<void> cargarCarreras() async {
-    try {
-      _isLoading = true;
-      _error = null;
-      notifyListeners();
-
-      final querySnapshot = await _firestore.collection('carreras').get();
-
-      _carreras = querySnapshot.docs.map((doc) {
-        return Carrera.fromMap({'id': doc.id, ...doc.data()});
-      }).toList();
-
-      // Si no hay carreras en Firestore, usar datos locales
-      if (_carreras.isEmpty) {
-        _carreras = [
-          Carrera(
-            id: '1',
-            nombre: 'Sistemas Informáticos',
-            color: '#1565C0',
-            icon: Icons.computer,
-            activa: true,
-          ),
-        ];
-      }
-    } catch (e) {
-      _error = 'Error al cargar carreras: $e';
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
+  List<CarreraModel> get carrerasActivas {
+    return _carreras.where((carrera) => carrera.activa).toList();
   }
 
-  Future<void> agregarCarrera(Carrera carrera) async {
+  List<String> get nombresCarrerasActivas {
+    return carrerasActivas.map((carrera) => carrera.nombre).toList();
+  }
+
+  void _loadCarreras() {
+    _isLoading = true;
+    notifyListeners();
+
+    // Escuchar cambios en tiempo real de Firestore
+    _repository.getCarrerasStream().listen(
+      (snapshot) {
+        _carreras = snapshot.docs.map((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          return CarreraModel.fromFirestore(doc.id, data);
+        }).toList();
+
+        _isLoading = false;
+        _error = null;
+        notifyListeners();
+      },
+      onError: (error) {
+        _isLoading = false;
+        _error = 'Error al cargar carreras: $error';
+        notifyListeners();
+      },
+    );
+  }
+
+  Future<void> agregarCarrera(
+    String nombre,
+    String color,
+    IconData icono,
+  ) async {
     try {
       _isLoading = true;
       notifyListeners();
 
-      final docRef = await _firestore
-          .collection('carreras')
-          .add(carrera.toMap());
+      final carreraData = {
+        'nombre': nombre,
+        'color': color,
+        'icon': _iconDataToString(icono),
+        'activa': true,
+        'fechaCreacion': FieldValue.serverTimestamp(),
+        'fechaActualizacion': FieldValue.serverTimestamp(),
+      };
 
-      final nuevaCarrera = carrera.copyWith(id: docRef.id);
-      _carreras.add(nuevaCarrera);
+      await _repository.addCarrera(carreraData);
 
-      notifyListeners();
+      // El stream se actualizará automáticamente
     } catch (e) {
       _error = 'Error al agregar carrera: $e';
       notifyListeners();
-      throw e;
+      rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  Future<void> actualizarCarrera(Carrera carrera) async {
+  Future<void> editarCarrera(
+    String id,
+    String nombre,
+    String color,
+    IconData icono,
+  ) async {
     try {
-      await _firestore
-          .collection('carreras')
-          .doc(carrera.id)
-          .update(carrera.toMap());
-
-      final index = _carreras.indexWhere((c) => c.id == carrera.id);
-      if (index != -1) {
-        _carreras[index] = carrera;
-        notifyListeners();
-      }
-    } catch (e) {
-      _error = 'Error al actualizar carrera: $e';
+      _isLoading = true;
       notifyListeners();
-      throw e;
+
+      final updateData = {
+        'nombre': nombre,
+        'color': color,
+        'icon': _iconDataToString(icono),
+        'fechaActualizacion': FieldValue.serverTimestamp(),
+      };
+
+      await _repository.updateCarrera(id, updateData);
+
+      // El stream se actualizará automáticamente
+    } catch (e) {
+      _error = 'Error al editar carrera: $e';
+      notifyListeners();
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> toggleActivarCarrera(String id) async {
+    try {
+      final carrera = _carreras.firstWhere((c) => c.id == id);
+      final nuevoEstado = !carrera.activa;
+
+      final updateData = {
+        'activa': nuevoEstado,
+        'fechaActualizacion': FieldValue.serverTimestamp(),
+      };
+
+      await _repository.updateCarrera(id, updateData);
+
+      // El stream se actualizará automáticamente
+    } catch (e) {
+      _error = 'Error al cambiar estado de carrera: $e';
+      notifyListeners();
+      rethrow;
     }
   }
 
   Future<void> eliminarCarrera(String id) async {
     try {
-      await _firestore.collection('carreras').doc(id).delete();
-      _carreras.removeWhere((carrera) => carrera.id == id);
+      _isLoading = true;
       notifyListeners();
+
+      await _repository.deleteCarrera(id);
+
+      // El stream se actualizará automáticamente
     } catch (e) {
       _error = 'Error al eliminar carrera: $e';
       notifyListeners();
-      throw e;
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
-  Future<void> toggleActivarCarrera(Carrera carrera) async {
-    final carreraActualizada = carrera.copyWith(activa: !carrera.activa);
-    await actualizarCarrera(carreraActualizada);
+  CarreraModel? obtenerCarreraPorId(String id) {
+    try {
+      return _carreras.firstWhere((carrera) => carrera.id == id);
+    } catch (e) {
+      return null;
+    }
   }
 
-  List<String> get nombresCarrerasActivas {
-    return _carreras
-        .where((carrera) => carrera.activa)
-        .map((carrera) => carrera.nombre)
-        .toList();
+  // Métodos de utilidad
+  static Color parseColor(String colorString) {
+    try {
+      return Color(int.parse(colorString.replaceAll('#', '0xFF')));
+    } catch (e) {
+      return Colors.blue; // Color por defecto
+    }
+  }
+
+  String _iconDataToString(IconData icon) {
+    return icon.codePoint.toString();
+  }
+
+  IconData _stringToIconData(String iconString) {
+    return IconData(int.parse(iconString), fontFamily: 'MaterialIcons');
   }
 
   void clearError() {
