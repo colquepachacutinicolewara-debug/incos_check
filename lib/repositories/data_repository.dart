@@ -3,12 +3,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class DataRepository {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  FirebaseFirestore get db => _db;
+
   // -----------------------------------------------------------------
   // MÉTODOS PARA CarrerasViewModel
   // -----------------------------------------------------------------
 
   Stream<QuerySnapshot> getCarrerasStream() {
-    // ← CORREGIDO: Remover tipo genérico
     return _db
         .collection('carreras')
         .orderBy('nombre', descending: false)
@@ -18,10 +19,34 @@ class DataRepository {
         });
   }
 
+  Stream<DocumentSnapshot> getCarreraStream(String carreraId) {
+    return _db.collection('carreras').doc(carreraId).snapshots();
+  }
+
+  Future<DocumentSnapshot> getCarrera(String carreraId) async {
+    try {
+      return await _db.collection('carreras').doc(carreraId).get();
+    } catch (e) {
+      throw _handleFirestoreError('carreras', e);
+    }
+  }
+
   Future<String> addCarrera(Map<String, dynamic> data) async {
     try {
       final docRef = await _db.collection('carreras').add(data);
       return docRef.id;
+    } catch (e) {
+      throw _handleFirestoreError('carreras', e);
+    }
+  }
+
+  Future<void> crearCarrera(String carreraId, Map<String, dynamic> data) async {
+    try {
+      await _db.collection('carreras').doc(carreraId).set({
+        ...data,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     } catch (e) {
       throw _handleFirestoreError('carreras', e);
     }
@@ -38,6 +63,20 @@ class DataRepository {
     }
   }
 
+  Future<void> actualizarCarrera(
+    String carreraId,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      await _db.collection('carreras').doc(carreraId).update({
+        ...data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw _handleFirestoreError('carreras', e);
+    }
+  }
+
   Future<void> deleteCarrera(String carreraId) async {
     try {
       await _db.collection('carreras').doc(carreraId).delete();
@@ -46,26 +85,322 @@ class DataRepository {
     }
   }
 
+  Future<void> eliminarCarrera(String carreraId) async {
+    try {
+      await _db.collection('carreras').doc(carreraId).delete();
+    } catch (e) {
+      throw _handleFirestoreError('carreras', e);
+    }
+  }
+
   // -----------------------------------------------------------------
-  // MÉTODOS PARA DocenteViewModel
+  // MÉTODOS PARA Turnos
+  // -----------------------------------------------------------------
+
+  Stream<QuerySnapshot> getTurnosStream(String carreraId) {
+    return _db
+        .collection('carreras')
+        .doc(carreraId)
+        .collection('turnos')
+        .orderBy('nombre')
+        .snapshots()
+        .handleError((error) {
+          throw _handleFirestoreError('turnos', error);
+        });
+  }
+
+  Future<String> addTurno(String carreraId, Map<String, dynamic> data) async {
+    try {
+      final docRef = await _db
+          .collection('carreras')
+          .doc(carreraId)
+          .collection('turnos')
+          .add(data);
+      return docRef.id;
+    } catch (e) {
+      throw _handleFirestoreError('turnos', e);
+    }
+  }
+
+  Future<void> agregarTurno(
+    String carreraId,
+    String turnoId,
+    Map<String, dynamic> turnoData,
+  ) async {
+    try {
+      await _db.collection('carreras').doc(carreraId).update({
+        'turnos.$turnoId': {
+          ...turnoData,
+          'createdAt': FieldValue.serverTimestamp(),
+        },
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw _handleFirestoreError('carreras', e);
+    }
+  }
+
+  Future<void> actualizarTurno(
+    String carreraId,
+    String turnoId,
+    Map<String, dynamic> turnoData,
+  ) async {
+    try {
+      await _db.collection('carreras').doc(carreraId).update({
+        'turnos.$turnoId': {
+          ...turnoData,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw _handleFirestoreError('carreras', e);
+    }
+  }
+
+  Future<void> eliminarTurno(String carreraId, String turnoId) async {
+    try {
+      await _db.collection('carreras').doc(carreraId).update({
+        'turnos.$turnoId': FieldValue.delete(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw _handleFirestoreError('carreras', e);
+    }
+  }
+
+  // -----------------------------------------------------------------
+  // MÉTODOS PARA Niveles
+  // -----------------------------------------------------------------
+
+  Stream<QuerySnapshot> getNivelesStream(String carreraId, String turnoId) {
+    return _db
+        .collection('carreras')
+        .doc(carreraId)
+        .collection('turnos')
+        .doc(turnoId)
+        .collection('niveles')
+        .orderBy('nombre')
+        .snapshots()
+        .handleError((error) {
+          throw _handleFirestoreError('niveles', error);
+        });
+  }
+
+  Future<String> addNivel(
+    String carreraId,
+    String turnoId,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      final docRef = await _db
+          .collection('carreras')
+          .doc(carreraId)
+          .collection('turnos')
+          .doc(turnoId)
+          .collection('niveles')
+          .add(data);
+      return docRef.id;
+    } catch (e) {
+      throw _handleFirestoreError('niveles', e);
+    }
+  }
+
+  // -----------------------------------------------------------------
+  // MÉTODOS PARA ParalelosViewModel
+  // -----------------------------------------------------------------
+
+  Stream<QuerySnapshot> getParalelosStream(
+    String carreraId,
+    String turnoId,
+    String nivelId,
+  ) {
+    return _db
+        .collection('carreras')
+        .doc(carreraId)
+        .collection('turnos')
+        .doc(turnoId)
+        .collection('niveles')
+        .doc(nivelId)
+        .collection('paralelos')
+        .orderBy('nombre')
+        .snapshots()
+        .handleError((error) {
+          throw _handleFirestoreError('paralelos', error);
+        });
+  }
+
+  Future<String> addParalelo(
+    String carreraId,
+    String turnoId,
+    String nivelId,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      final docRef = await _db
+          .collection('carreras')
+          .doc(carreraId)
+          .collection('turnos')
+          .doc(turnoId)
+          .collection('niveles')
+          .doc(nivelId)
+          .collection('paralelos')
+          .add(data);
+      return docRef.id;
+    } catch (e) {
+      throw _handleFirestoreError('paralelos', e);
+    }
+  }
+
+  Future<void> updateParalelo(
+    String carreraId,
+    String turnoId,
+    String nivelId,
+    String paraleloId,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      await _db
+          .collection('carreras')
+          .doc(carreraId)
+          .collection('turnos')
+          .doc(turnoId)
+          .collection('niveles')
+          .doc(nivelId)
+          .collection('paralelos')
+          .doc(paraleloId)
+          .update(data);
+    } catch (e) {
+      throw _handleFirestoreError('paralelos', e);
+    }
+  }
+
+  Future<void> deleteParalelo(
+    String carreraId,
+    String turnoId,
+    String nivelId,
+    String paraleloId,
+  ) async {
+    try {
+      await _db
+          .collection('carreras')
+          .doc(carreraId)
+          .collection('turnos')
+          .doc(turnoId)
+          .collection('niveles')
+          .doc(nivelId)
+          .collection('paralelos')
+          .doc(paraleloId)
+          .delete();
+    } catch (e) {
+      throw _handleFirestoreError('paralelos', e);
+    }
+  }
+
+  Future<bool> paraleloExists(
+    String carreraId,
+    String turnoId,
+    String nivelId,
+    String nombre,
+  ) async {
+    try {
+      final snapshot = await _db
+          .collection('carreras')
+          .doc(carreraId)
+          .collection('turnos')
+          .doc(turnoId)
+          .collection('niveles')
+          .doc(nivelId)
+          .collection('paralelos')
+          .where('nombre', isEqualTo: nombre)
+          .get();
+      return snapshot.docs.isNotEmpty;
+    } catch (e) {
+      throw _handleFirestoreError('paralelos', e);
+    }
+  }
+
+  // -----------------------------------------------------------------
+  // MÉTODOS PARA EstudiantesViewModel
+  // -----------------------------------------------------------------
+
+  Stream<QuerySnapshot> getEstudiantesStream() {
+    return _db
+        .collection('estudiantes')
+        .orderBy('apellidoPaterno', descending: false)
+        .orderBy('apellidoMaterno', descending: false)
+        .orderBy('nombres', descending: false)
+        .snapshots()
+        .handleError((error) {
+          throw _handleFirestoreError('estudiantes', error);
+        });
+  }
+
+  Stream<QuerySnapshot> getEstudiantesByGrupoStream({
+    required String carreraId,
+    required String turnoId,
+    required String nivelId,
+    required String paraleloId,
+  }) {
+    return _db
+        .collection('estudiantes')
+        .where('carreraId', isEqualTo: carreraId)
+        .where('turnoId', isEqualTo: turnoId)
+        .where('nivelId', isEqualTo: nivelId)
+        .where('paraleloId', isEqualTo: paraleloId)
+        .orderBy('apellidoPaterno')
+        .orderBy('apellidoMaterno')
+        .orderBy('nombres')
+        .snapshots()
+        .handleError((error) {
+          throw _handleFirestoreError('estudiantes', error);
+        });
+  }
+
+  Future<String> addEstudiante(Map<String, dynamic> data) async {
+    try {
+      final docRef = await _db.collection('estudiantes').add(data);
+      return docRef.id;
+    } catch (e) {
+      throw _handleFirestoreError('estudiantes', e);
+    }
+  }
+
+  Future<void> updateEstudiante(
+    String estudianteId,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      await _db.collection('estudiantes').doc(estudianteId).update(data);
+    } catch (e) {
+      throw _handleFirestoreError('estudiantes', e);
+    }
+  }
+
+  Future<void> deleteEstudiante(String estudianteId) async {
+    try {
+      await _db.collection('estudiantes').doc(estudianteId).delete();
+    } catch (e) {
+      throw _handleFirestoreError('estudiantes', e);
+    }
+  }
+
+  // EN TU DataRepository EXISTENTE - AGREGAR ESTOS MÉTODOS:
+
+  // -----------------------------------------------------------------
+  // MÉTODOS MEJORADOS PARA DocenteViewModel
   // -----------------------------------------------------------------
 
   Stream<QuerySnapshot> getDocentesStream() {
-    // ← CORREGIDO: Remover tipo genérico
     return _db
         .collection('docentes')
-        .orderBy('apellido', descending: false)
+        .orderBy('apellidoPaterno', descending: false)
+        .orderBy('apellidoMaterno', descending: false)
+        .orderBy('nombres', descending: false)
         .snapshots()
         .handleError((error) {
           throw _handleFirestoreError('docentes', error);
         });
-  }
-
-  Future<DocumentSnapshot> getDocenteById(
-    // ← CORREGIDO: Remover tipo genérico
-    String docenteId,
-  ) {
-    return _db.collection('docentes').doc(docenteId).get();
   }
 
   Future<String> addDocente(Map<String, dynamic> data) async {
@@ -96,8 +431,56 @@ class DataRepository {
     }
   }
 
+  Future<DocumentSnapshot> getDocenteById(String docenteId) {
+    return _db.collection('docentes').doc(docenteId).get();
+  }
+
   // -----------------------------------------------------------------
-  // MÉTODOS PARA DashboardViewModel (estadísticas)
+  // MÉTODOS PARA ConfiguracionViewModel
+  // -----------------------------------------------------------------
+
+  Future<DocumentSnapshot> getConfiguracion(String usuarioId) async {
+    try {
+      return await _db.collection('configuraciones').doc(usuarioId).get();
+    } catch (e) {
+      throw _handleFirestoreError('configuraciones', e);
+    }
+  }
+
+  Stream<DocumentSnapshot> getConfiguracionStream(String usuarioId) {
+    return _db.collection('configuraciones').doc(usuarioId).snapshots();
+  }
+
+  Future<void> saveConfiguracion(
+    String usuarioId,
+    Map<String, dynamic> configuracion,
+  ) async {
+    try {
+      await _db.collection('configuraciones').doc(usuarioId).set({
+        ...configuracion,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      throw _handleFirestoreError('configuraciones', e);
+    }
+  }
+
+  Future<void> updateConfiguracion(
+    String usuarioId,
+    Map<String, dynamic> updates,
+  ) async {
+    try {
+      await _db.collection('configuraciones').doc(usuarioId).update({
+        ...updates,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw _handleFirestoreError('configuraciones', e);
+    }
+  }
+
+  // -----------------------------------------------------------------
+  // MÉTODOS PARA DashboardViewModel
   // -----------------------------------------------------------------
 
   Future<int> getTotalEstudiantes() async {
@@ -113,7 +496,6 @@ class DataRepository {
     try {
       final today = _getTodayString();
 
-      // Obtener asistencias de hoy
       final asistenciasSnapshot = await _db
           .collection('asistencias')
           .where('fecha', isEqualTo: today)
@@ -151,7 +533,6 @@ class DataRepository {
   }
 
   Stream<QuerySnapshot> getCursosHoyStream() {
-    // ← CORREGIDO: Remover tipo genérico
     final today = _getTodayString();
     return _db
         .collection('cursos')
@@ -164,7 +545,6 @@ class DataRepository {
   }
 
   Stream<QuerySnapshot> getActividadesRecientesStream() {
-    // ← CORREGIDO: Remover tipo genérico
     return _db
         .collection('asistencias')
         .orderBy('fecha', descending: true)
@@ -181,7 +561,6 @@ class DataRepository {
   // -----------------------------------------------------------------
 
   Future<DocumentSnapshot> getDocumentById(
-    // ← CORREGIDO: Remover tipo genérico
     String collection,
     String documentId,
   ) {
@@ -212,7 +591,51 @@ class DataRepository {
     }
   }
 
-  // Método auxiliar para manejo de errores
+  Future<void> setDocument(
+    String collection,
+    String documentId,
+    Map<String, dynamic> data, {
+    bool merge = true,
+  }) async {
+    try {
+      await _db
+          .collection(collection)
+          .doc(documentId)
+          .set(data, SetOptions(merge: merge));
+    } catch (e) {
+      throw _handleFirestoreError(collection, e);
+    }
+  }
+
+  Future<void> deleteDocument(String collection, String documentId) async {
+    try {
+      await _db.collection(collection).doc(documentId).delete();
+    } catch (e) {
+      throw _handleFirestoreError(collection, e);
+    }
+  }
+
+  Future<bool> documentExists(String collection, String documentId) async {
+    try {
+      final doc = await _db.collection(collection).doc(documentId).get();
+      return doc.exists;
+    } catch (e) {
+      throw _handleFirestoreError(collection, e);
+    }
+  }
+
+  Future<QuerySnapshot> getDocuments(String collection) async {
+    try {
+      return await _db.collection(collection).get();
+    } catch (e) {
+      throw _handleFirestoreError(collection, e);
+    }
+  }
+
+  // -----------------------------------------------------------------
+  // MÉTODOS AUXILIARES
+  // -----------------------------------------------------------------
+
   Exception _handleFirestoreError(String collection, dynamic error) {
     if (error is FirebaseException) {
       return Exception(
@@ -222,7 +645,6 @@ class DataRepository {
     return Exception('Error en $collection: $error');
   }
 
-  // Método auxiliar para obtener la fecha de hoy como string
   String _getTodayString() {
     final now = DateTime.now();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';

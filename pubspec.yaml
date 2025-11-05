@@ -57,7 +57,6 @@ dependencies:
   path_provider: ^2.1.1
   open_file: ^3.3.1
   share_plus: ^12.0.1
-  firebase_auth: ^4.16.0
   
   permission_handler: ^12.0.1
   
@@ -65,13 +64,12 @@ dependencies:
   cloud_firestore: ^4.17.0
   firebase_core: ^2.29.0
   lottie: 3.3.0
-  
+  firebase_auth: ^4.6.5
 
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-    
     
 
   # The "flutter_lints" package below contains a set of recommended lints to
@@ -80,6 +78,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -122,3 +121,6 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+dependency_overrides:
+  js: ^0.7.2

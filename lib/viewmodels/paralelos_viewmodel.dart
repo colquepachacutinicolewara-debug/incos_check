@@ -1,16 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:incos_check/utils/constants.dart';
-import 'package:incos_check/utils/data_manager.dart';
+import 'package:incos_check/repositories/data_repository.dart';
+import 'package:incos_check/models/paralelo_model.dart';
+import 'dart:async';
 
 class ParalelosViewModel extends ChangeNotifier {
-  final DataManager _dataManager = DataManager();
-  List<Map<String, dynamic>> _paralelos = [];
+  final DataRepository _repository;
+
+  List<Paralelo> _paralelos = [];
+  bool _isLoading = false;
+  String? _error;
+
   final TextEditingController _nombreController = TextEditingController();
   final TextEditingController _editarNombreController = TextEditingController();
 
-  List<Map<String, dynamic>> get paralelos => _paralelos;
+  String? _carreraId;
+  String? _turnoId;
+  String? _nivelId;
+  StreamSubscription? _paralelosSubscription;
+
+  List<Paralelo> get paralelos => _paralelos;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
   TextEditingController get nombreController => _nombreController;
   TextEditingController get editarNombreController => _editarNombreController;
+
+  ParalelosViewModel(this._repository);
 
   // Funciones para obtener colores según el tema
   Color getBackgroundColor(BuildContext context) {
@@ -62,163 +78,200 @@ class ParalelosViewModel extends ChangeNotifier {
     String nivelId,
     String turnoId,
   ) {
-    // INICIALIZAR SIEMPRE la carrera en DataManager
-    _dataManager.inicializarCarrera(carreraId, carreraNombre, carreraColor);
-
-    // Cargar paralelos desde DataManager
-    _cargarParalelosDataManager(carreraId, turnoId, nivelId);
+    _carreraId = carreraId;
+    _turnoId = turnoId;
+    _nivelId = nivelId;
+    _cargarParalelosFirestore(carreraId, turnoId, nivelId);
   }
 
-  void _cargarParalelosDataManager(
+  void _cargarParalelosFirestore(
     String carreraId,
     String turnoId,
     String nivelId,
   ) {
-    final paralelosDataManager = _dataManager.getParalelos(
-      carreraId,
-      turnoId,
-      nivelId,
-    );
+    _setLoading(true);
+    _error = null;
 
-    _paralelos = paralelosDataManager;
-    notifyListeners();
+    // Cancelar suscripción anterior si existe
+    _paralelosSubscription?.cancel();
+
+    _paralelosSubscription = _repository
+        .getParalelosStream(carreraId, turnoId, nivelId)
+        .listen(
+          (snapshot) {
+            _paralelos = snapshot.docs.map((doc) {
+              return Paralelo.fromFirestore(doc);
+            }).toList();
+            _setLoading(false);
+            notifyListeners();
+          },
+          onError: (error) {
+            _error = 'Error cargando paralelos: $error';
+            _setLoading(false);
+            notifyListeners();
+          },
+        );
   }
 
-  void agregarParalelo(
+  Future<void> agregarParalelo(
     String nombre,
     String carreraId,
     String turnoId,
     String nivelId,
     BuildContext context,
-  ) {
-    // Verificar si ya existe un paralelo con ese nombre
-    bool existe = _paralelos.any((p) => p['nombre'] == nombre);
+  ) async {
+    try {
+      _setLoading(true);
 
-    if (existe) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Ya existe un paralelo con la letra $nombre'),
-          backgroundColor: Colors.orange,
-        ),
+      // Verificar si ya existe un paralelo con ese nombre
+      final existe = await _repository.paraleloExists(
+        carreraId,
+        turnoId,
+        nivelId,
+        nombre,
       );
-      return;
+
+      if (existe) {
+        _showSnackBar(
+          context,
+          'Ya existe un paralelo con la letra $nombre',
+          Colors.orange,
+        );
+        _setLoading(false);
+        return;
+      }
+
+      // Usar el método estático para crear el mapa para Firestore
+      final nuevoParalelo = Paralelo.createForFirestore(nombre: nombre);
+
+      // Agregar a Firestore
+      await _repository.addParalelo(carreraId, turnoId, nivelId, nuevoParalelo);
+
+      _showSnackBar(
+        context,
+        'Paralelo $nombre agregado correctamente',
+        Colors.green,
+      );
+      _setLoading(false);
+    } catch (e) {
+      _setLoading(false);
+      _showSnackBar(context, 'Error al agregar paralelo: $e', Colors.red);
     }
-
-    // Crear nuevo paralelo con ID único
-    Map<String, dynamic> nuevoParalelo = {
-      'id': '${carreraId}_${turnoId}_${nivelId}_$nombre',
-      'nombre': nombre,
-      'activo': true,
-      'estudiantes': [],
-    };
-
-    // Guardar en DataManager
-    _dataManager.agregarParalelo(carreraId, turnoId, nivelId, nuevoParalelo);
-
-    _paralelos.add(nuevoParalelo);
-    // Ordenar paralelos alfabéticamente
-    _paralelos.sort((a, b) => a['nombre'].compareTo(b['nombre']));
-    notifyListeners();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Paralelo $nombre agregado correctamente'),
-        backgroundColor: Colors.green,
-      ),
-    );
   }
 
-  void cambiarEstadoParalelo(
-    Map<String, dynamic> paralelo,
+  Future<void> cambiarEstadoParalelo(
+    Paralelo paralelo,
     bool nuevoEstado,
     String carreraId,
     String turnoId,
     String nivelId,
-  ) {
-    paralelo['activo'] = nuevoEstado;
-    notifyListeners();
-
-    // Actualizar en DataManager
-    _dataManager.actualizarParalelo(
-      carreraId,
-      turnoId,
-      nivelId,
-      paralelo['id'].toString(),
-      paralelo,
-    );
+  ) async {
+    try {
+      await _repository.updateParalelo(
+        carreraId,
+        turnoId,
+        nivelId,
+        paralelo.id,
+        {
+          'activo': nuevoEstado,
+          'fechaActualizacion': FieldValue.serverTimestamp(),
+        },
+      );
+    } catch (e) {
+      throw Exception('Error al cambiar estado: $e');
+    }
   }
 
-  void editarParalelo(
-    Map<String, dynamic> paralelo,
+  Future<void> editarParalelo(
+    Paralelo paralelo,
     String nuevoNombre,
     String carreraId,
     String turnoId,
     String nivelId,
     BuildContext context,
-  ) {
-    // Verificar si ya existe otro paralelo con ese nombre (excluyendo el actual)
-    bool existe = _paralelos.any(
-      (p) => p['nombre'] == nuevoNombre && p['id'] != paralelo['id'],
-    );
+  ) async {
+    try {
+      _setLoading(true);
 
-    if (existe) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Ya existe un paralelo con la letra $nuevoNombre'),
-          backgroundColor: Colors.orange,
-        ),
+      // Verificar si ya existe otro paralelo con ese nombre
+      final existe = await _repository.paraleloExists(
+        carreraId,
+        turnoId,
+        nivelId,
+        nuevoNombre,
       );
-      return;
+
+      if (existe) {
+        _showSnackBar(
+          context,
+          'Ya existe un paralelo con la letra $nuevoNombre',
+          Colors.orange,
+        );
+        _setLoading(false);
+        return;
+      }
+
+      await _repository.updateParalelo(
+        carreraId,
+        turnoId,
+        nivelId,
+        paralelo.id,
+        {
+          'nombre': nuevoNombre,
+          'fechaActualizacion': FieldValue.serverTimestamp(),
+        },
+      );
+
+      _showSnackBar(
+        context,
+        'Paralelo actualizado a $nuevoNombre',
+        Colors.blue,
+      );
+      _setLoading(false);
+    } catch (e) {
+      _setLoading(false);
+      _showSnackBar(context, 'Error al editar paralelo: $e', Colors.red);
     }
-
-    paralelo['nombre'] = nuevoNombre;
-    // Reordenar después de editar
-    _paralelos.sort((a, b) => a['nombre'].compareTo(b['nombre']));
-    notifyListeners();
-
-    // Actualizar en DataManager
-    _dataManager.actualizarParalelo(
-      carreraId,
-      turnoId,
-      nivelId,
-      paralelo['id'].toString(),
-      paralelo,
-    );
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Paralelo actualizado a $nuevoNombre'),
-        backgroundColor: Colors.blue,
-      ),
-    );
   }
 
-  void eliminarParalelo(
-    Map<String, dynamic> paralelo,
+  Future<void> eliminarParalelo(
+    Paralelo paralelo,
     String carreraId,
     String turnoId,
     String nivelId,
     BuildContext context,
-  ) {
-    String nombreEliminado = paralelo['nombre'];
+  ) async {
+    try {
+      _setLoading(true);
 
-    // Eliminar del DataManager
-    _dataManager.eliminarParalelo(
-      carreraId,
-      turnoId,
-      nivelId,
-      paralelo['id'].toString(),
-    );
+      await _repository.deleteParalelo(
+        carreraId,
+        turnoId,
+        nivelId,
+        paralelo.id,
+      );
 
-    _paralelos.removeWhere((p) => p['id'] == paralelo['id']);
+      _showSnackBar(
+        context,
+        'Paralelo ${paralelo.nombre} eliminado',
+        Colors.red,
+      );
+      _setLoading(false);
+    } catch (e) {
+      _setLoading(false);
+      _showSnackBar(context, 'Error al eliminar paralelo: $e', Colors.red);
+    }
+  }
+
+  void _setLoading(bool loading) {
+    _isLoading = loading;
     notifyListeners();
+  }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Paralelo $nombreEliminado eliminado'),
-        backgroundColor: Colors.red,
-      ),
-    );
+  void _showSnackBar(BuildContext context, String message, Color color) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
   }
 
   Color parseColor(String colorString) {
@@ -229,8 +282,14 @@ class ParalelosViewModel extends ChangeNotifier {
     }
   }
 
+  void clearError() {
+    _error = null;
+    notifyListeners();
+  }
+
   @override
   void dispose() {
+    _paralelosSubscription?.cancel();
     _nombreController.dispose();
     _editarNombreController.dispose();
     super.dispose();

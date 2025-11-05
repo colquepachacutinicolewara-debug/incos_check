@@ -1,139 +1,203 @@
 // services/biometrico_service.dart
 import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class BiometricoService {
   static const platform = MethodChannel('com.incos/biometrico');
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  /// Verifica si el dispositivo soporta huella digital
-  Future<bool> isBiometricSupported() async {
-    try {
-      final bool isSupported = await platform.invokeMethod(
-        'isBiometricSupported',
-      );
-      return isSupported;
-    } on PlatformException catch (e) {
-      print("Error verificando soporte biométrico: ${e.message}");
-      return false;
-    }
-  }
-
-  /// Registra nueva huella digital para un estudiante
-  Future<Map<String, dynamic>> registrarHuella(
+  // OBJETIVO 2: Integración biométrica segura e individual
+  Future<Map<String, dynamic>> registrarHuellaConFirebase(
     String estudianteId,
     String estudianteNombre,
   ) async {
     try {
+      // 1. Verificar si el estudiante existe
+      final estudianteDoc = await _firestore
+          .collection('estudiantes')
+          .doc(estudianteId)
+          .get();
+
+      if (!estudianteDoc.exists) {
+        return {
+          'success': false,
+          'message': 'Estudiante no encontrado en la base de datos',
+        };
+      }
+
+      // 2. Registrar huella en dispositivo
       final Map<dynamic, dynamic> result = await platform.invokeMethod(
         'registrarHuella',
         {'estudianteId': estudianteId, 'estudianteNombre': estudianteNombre},
       );
 
+      // 3. Actualizar Firestore con registro biométrico
+      await _firestore.collection('estudiantes').doc(estudianteId).update({
+        'huellaRegistrada': true,
+        'huellaId': result['huellaId'],
+        'fechaRegistroHuella': FieldValue.serverTimestamp(),
+        'ultimaActualizacion': FieldValue.serverTimestamp(),
+      });
+
+      // 4. Registrar en historial biométrico
+      await _firestore.collection('registro_huellas').add({
+        'estudianteId': estudianteId,
+        'estudianteNombre': estudianteNombre,
+        'huellaId': result['huellaId'],
+        'fechaRegistro': FieldValue.serverTimestamp(),
+        'tipo': 'REGISTRO',
+        'dispositivo': 'Lector Biométrico INCOS',
+      });
+
       return {
         'success': true,
         'huellaId': result['huellaId'],
-        'message': 'Huella registrada exitosamente',
+        'message': 'Huella registrada y almacenada exitosamente',
+        'estudianteId': estudianteId,
       };
     } on PlatformException catch (e) {
       return {
         'success': false,
         'error': e.message ?? 'Error desconocido',
-        'message': 'Error registrando huella: ${e.message}',
+        'message': 'Error en registro biométrico: ${e.message}',
       };
     }
   }
 
-  /// Verifica huella y retorna ID del estudiante
-  Future<Map<String, dynamic>> verificarHuella() async {
+  // OBJETIVO 4: Autenticación individual para registro de asistencia
+  Future<Map<String, dynamic>> verificarHuellaParaAsistencia() async {
     try {
+      // 1. Verificar huella en dispositivo
       final Map<dynamic, dynamic> result = await platform.invokeMethod(
         'verificarHuella',
       );
 
+      final String estudianteId = result['estudianteId'];
+      final String estudianteNombre = result['estudianteNombre'];
+
+      // 2. Verificar en Firestore que la huella esté activa
+      final estudianteDoc = await _firestore
+          .collection('estudiantes')
+          .doc(estudianteId)
+          .get();
+
+      if (!estudianteDoc.exists ||
+          !(estudianteDoc.data()?['huellaRegistrada'] ?? false)) {
+        return {
+          'success': false,
+          'message': 'Huella no registrada en el sistema',
+        };
+      }
+
+      // 3. Registrar verificación en historial
+      await _firestore.collection('verificaciones_huellas').add({
+        'estudianteId': estudianteId,
+        'estudianteNombre': estudianteNombre,
+        'timestamp': FieldValue.serverTimestamp(),
+        'tipo': 'ASISTENCIA',
+        'valido': true,
+      });
+
       return {
         'success': true,
-        'estudianteId': result['estudianteId'],
-        'estudianteNombre': result['estudianteNombre'],
-        'timestamp': DateTime.now().toIso8601String(),
+        'estudianteId': estudianteId,
+        'estudianteNombre': estudianteNombre,
+        'timestamp': DateTime.now(),
+        'message': 'Autenticación biométrica exitosa',
       };
     } on PlatformException catch (e) {
+      // Registrar intento fallido
+      await _firestore.collection('verificaciones_huellas').add({
+        'timestamp': FieldValue.serverTimestamp(),
+        'tipo': 'ERROR',
+        'valido': false,
+        'error': e.message,
+      });
+
       return {
         'success': false,
         'error': e.message ?? 'Error en verificación',
-        'message': 'Error verificando huella: ${e.message}',
+        'message': 'Autenticación biométrica fallida',
       };
     }
   }
 
-  /// Elimina huella registrada
-  Future<bool> eliminarHuella(String huellaId) async {
+  // OBJETIVO 8: Gestión administrativa de huellas
+  Future<Map<String, dynamic>> obtenerEstadisticasBiometricas() async {
     try {
-      final bool success = await platform.invokeMethod('eliminarHuella', {
-        'huellaId': huellaId,
-      });
-      return success;
-    } on PlatformException catch (e) {
-      print("Error eliminando huella: ${e.message}");
-      return false;
-    }
-  }
-
-  /// Obtiene estadísticas del sensor biométrico
-  Future<Map<String, dynamic>> getEstadisticasBiometrico() async {
-    try {
-      final Map<dynamic, dynamic> stats = await platform.invokeMethod(
+      // Estadísticas del dispositivo
+      final Map<dynamic, dynamic> deviceStats = await platform.invokeMethod(
         'getEstadisticas',
       );
+
+      // Estadísticas de Firestore
+      final huellasRegistradas = await _firestore
+          .collection('estudiantes')
+          .where('huellaRegistrada', isEqualTo: true)
+          .get()
+          .then((snapshot) => snapshot.size);
+
+      final totalVerificaciones = await _firestore
+          .collection('verificaciones_huellas')
+          .where('valido', isEqualTo: true)
+          .get()
+          .then((snapshot) => snapshot.size);
+
       return {
-        'huellasRegistradas': stats['huellasRegistradas'] ?? 0,
-        'ultimaVerificacion': stats['ultimaVerificacion'],
-        'estadoSensor': stats['estadoSensor'] ?? 'Desconocido',
+        'huellasRegistradas': huellasRegistradas,
+        'totalVerificaciones': totalVerificaciones,
+        'estadoSensor': deviceStats['estadoSensor'] ?? 'Desconocido',
+        'ultimaVerificacion': deviceStats['ultimaVerificacion'],
+        'fechaConsulta': DateTime.now(),
       };
     } on PlatformException catch (e) {
-      return {'huellasRegistradas': 0, 'estadoSensor': 'Error: ${e.message}'};
+      return {
+        'error': 'Error obteniendo estadísticas: ${e.message}',
+        'huellasRegistradas': 0,
+        'totalVerificaciones': 0,
+      };
     }
   }
 
-  /// SIMULACIÓN: Registrar múltiples huellas para el proyecto
-  Future<Map<String, dynamic>> registrarMultiplesHuellasSimuladas({
-    required String estudianteId,
-    required String estudianteNombre,
-    required int cantidadHuellas,
-  }) async {
-    // Simulamos el registro de huellas para el proyecto
-    await Future.delayed(Duration(seconds: 2));
+  // OBJETIVO 9: Respaldo de datos biométricos
+  Future<Map<String, dynamic>> exportarDatosBiometricos() async {
+    try {
+      final huellasSnapshot = await _firestore
+          .collection('estudiantes')
+          .where('huellaRegistrada', isEqualTo: true)
+          .get();
 
-    List<String> huellasIds = [];
-    for (int i = 1; i <= cantidadHuellas; i++) {
-      huellasIds.add(
-        'HUELLA_${estudianteId}_DEDO_${i}_${DateTime.now().millisecondsSinceEpoch}',
-      );
+      final verificacionesSnapshot = await _firestore
+          .collection('verificaciones_huellas')
+          .orderBy('timestamp', descending: true)
+          .limit(1000)
+          .get();
+
+      final datosExportacion = {
+        'fechaExportacion': DateTime.now().toIso8601String(),
+        'totalEstudiantesConHuella': huellasSnapshot.size,
+        'estudiantes': huellasSnapshot.docs.map((doc) {
+          final data = doc.data();
+          return {
+            'id': doc.id,
+            'nombre': data['nombreCompleto'] ?? '',
+            'huellaId': data['huellaId'] ?? '',
+            'fechaRegistro': data['fechaRegistroHuella']
+                ?.toDate()
+                .toIso8601String(),
+          };
+        }).toList(),
+        'totalVerificaciones': verificacionesSnapshot.size,
+        'proyecto': 'INCOS - Control Asistencia Biométrico',
+      };
+
+      return {
+        'success': true,
+        'datos': datosExportacion,
+        'message': 'Datos biométricos exportados exitosamente',
+      };
+    } catch (e) {
+      return {'success': false, 'error': 'Error en exportación: $e'};
     }
-
-    return {
-      'success': true,
-      'huellasIds': huellasIds,
-      'totalRegistradas': huellasIds.length,
-      'message':
-          'SIMULACIÓN: Se registraron ${huellasIds.length} huellas para el proyecto',
-      'estudianteId': estudianteId,
-      'estudianteNombre': estudianteNombre,
-      'tipo': 'SIMULACIÓN PARA PROYECTO INCOS',
-    };
-  }
-
-  /// SIMULACIÓN: Verificar huella para demostración
-  Future<Map<String, dynamic>> verificarHuellaSimulada() async {
-    // Simulamos la verificación para el proyecto
-    await Future.delayed(Duration(seconds: 1));
-
-    return {
-      'success': true,
-      'estudianteId': 'demo_incos_001',
-      'estudianteNombre': 'ESTUDIANTE DEMO - INCOS',
-      'timestamp': DateTime.now().toIso8601String(),
-      'mensaje':
-          'SIMULACIÓN: Huella verificada exitosamente para demostración del proyecto',
-      'proyecto': 'Control de Asistencia Biométrico - INCOS EL ALTO',
-    };
   }
 }

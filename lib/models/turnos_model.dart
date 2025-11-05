@@ -25,28 +25,31 @@ class TurnoModel {
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
       'nombre': nombre,
-      'icon': icon,
+      'icon': icon.codePoint,
       'horario': horario,
       'rangoAsistencia': rangoAsistencia,
       'dias': dias,
       'color': color,
       'activo': activo,
       'niveles': niveles,
+      'updatedAt': DateTime.now().toIso8601String(),
     };
   }
 
-  static TurnoModel fromMap(Map<String, dynamic> map) {
+  static TurnoModel fromMap(String id, Map<String, dynamic> map) {
+    final iconCode = map['icon'] ?? Icons.wb_sunny.codePoint;
+    final IconData icon = IconData(iconCode, fontFamily: 'MaterialIcons');
+
     return TurnoModel(
-      id: map['id']?.toString() ?? '',
-      nombre: map['nombre']?.toString() ?? '',
-      icon: map['icon'] as IconData,
-      horario: map['horario']?.toString() ?? '',
-      rangoAsistencia: map['rangoAsistencia']?.toString() ?? '',
-      dias: map['dias']?.toString() ?? '',
+      id: id,
+      nombre: map['nombre']?.toString() ?? 'Sin nombre',
+      icon: icon,
+      horario: map['horario']?.toString() ?? 'Sin horario',
+      rangoAsistencia: map['rangoAsistencia']?.toString() ?? 'Sin rango',
+      dias: map['dias']?.toString() ?? 'Sin días',
       color: map['color']?.toString() ?? '#FFA000',
-      activo: map['activo'] ?? false,
+      activo: map['activo'] ?? true,
       niveles: map['niveles'] ?? [],
     );
   }

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:incos_check/utils/constants.dart';
-import 'package:incos_check/utils/data_manager.dart';
 import 'niveles_screen.dart';
-import '../../viewmodels/turnos_viewmodel.dart';
-import '../../models/turnos_model.dart';
+import '../../../viewmodels/turnos_viewmodel.dart';
+import '../../../models/turnos_model.dart';
+import '../../repositories/data_repository.dart';
 
 class TurnosScreen extends StatelessWidget {
   final String tipo;
@@ -15,7 +15,14 @@ class TurnosScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) => TurnosViewModel(tipo: tipo, carrera: carrera),
+      create: (context) {
+        final repository = context.read<DataRepository>();
+        return TurnosViewModel(
+          tipo: tipo,
+          carrera: carrera,
+          repository: repository,
+        );
+      },
       child: _TurnosScreenContent(tipo: tipo, carrera: carrera),
     );
   }
@@ -55,6 +62,77 @@ class _TurnosScreenContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final viewModel = Provider.of<TurnosViewModel>(context);
     final turnos = viewModel.turnos;
+    final isLoading = viewModel.isLoading;
+    final error = viewModel.error;
+
+    // Mostrar loading
+    if (isLoading && turnos.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(
+            '${carrera['nombre']} - Turnos',
+            style: AppTextStyles.heading2Dark(
+              context,
+            ).copyWith(color: Colors.white),
+          ),
+          backgroundColor: viewModel.parseColor(carrera['color']),
+        ),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Cargando turnos...'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Mostrar error
+    if (error != null && turnos.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(
+            '${carrera['nombre']} - Turnos',
+            style: AppTextStyles.heading2Dark(
+              context,
+            ).copyWith(color: Colors.white),
+          ),
+          backgroundColor: viewModel.parseColor(carrera['color']),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 64, color: AppColors.error),
+              SizedBox(height: 16),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 32),
+                child: Text(
+                  error,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.bodyDark(context),
+                ),
+              ),
+              SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => viewModel.recargarTurnos(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: viewModel.parseColor(carrera['color']),
+                ),
+                child: Text(
+                  'Reintentar',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     Color carreraColor = viewModel.parseColor(carrera['color']);
 
     return Scaffold(
@@ -297,7 +375,7 @@ class _TurnosScreenContent extends StatelessWidget {
         title: 'Agregar Turno',
         onSave: (nombre, icon, horario, rangoAsistencia, dias, color) {
           final nuevoTurno = TurnoModel(
-            id: '${carrera['id']}_${DateTime.now().millisecondsSinceEpoch}',
+            id: viewModel.generarTurnoId(),
             nombre: nombre,
             icon: icon,
             horario: horario,
@@ -305,7 +383,7 @@ class _TurnosScreenContent extends StatelessWidget {
             dias: dias,
             color: color,
             activo: true,
-            niveles: [], // Inicializar niveles VACÍOS
+            niveles: [],
           );
 
           viewModel.agregarTurno(nuevoTurno);
@@ -435,7 +513,7 @@ class _TurnosScreenContent extends StatelessWidget {
   }
 }
 
-// Diálogo para agregar/modificar turnos (se mantiene igual)
+// Diálogo para agregar/modificar turnos (MANTIENE TU DISEÑO ORIGINAL)
 class _TurnoDialog extends StatefulWidget {
   final String title;
   final String? nombreInicial;
@@ -479,7 +557,7 @@ class _TurnoDialogState extends State<_TurnoDialog> {
 
   IconData _iconoSeleccionado = Icons.wb_sunny;
 
-  // Opciones predefinidas para turnos
+  // Opciones predefinidas para turnos (TUS DATOS ORIGINALES)
   final List<Map<String, dynamic>> _turnosPredefinidos = [
     {
       'nombre': 'Mañana',
@@ -523,7 +601,7 @@ class _TurnoDialogState extends State<_TurnoDialog> {
     },
   ];
 
-  // Íconos adicionales para turnos
+  // Íconos adicionales para turnos (TUS DATOS ORIGINALES)
   final List<Map<String, dynamic>> _iconosTurnos = [
     {'icon': Icons.wb_sunny, 'nombre': 'Mañana'},
     {'icon': Icons.brightness_6, 'nombre': 'Tarde'},
@@ -535,7 +613,7 @@ class _TurnoDialogState extends State<_TurnoDialog> {
     {'icon': Icons.timelapse, 'nombre': 'Duración'},
   ];
 
-  // Colores para turnos
+  // Colores para turnos (TUS DATOS ORIGINALES)
   final List<Map<String, dynamic>> _coloresTurnos = [
     {'nombre': 'Naranja Mañana', 'color': '#FFA000'},
     {'nombre': 'Naranja Tarde', 'color': '#FF9800'},
@@ -607,7 +685,7 @@ class _TurnoDialogState extends State<_TurnoDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // TURNOS PREDEFINIDOS
+            // TURNOS PREDEFINIDOS (TU DISEÑO ORIGINAL)
             Text(
               'Turnos predefinidos:',
               style: AppTextStyles.bodyDark(
@@ -648,7 +726,7 @@ class _TurnoDialogState extends State<_TurnoDialog> {
             Divider(color: _getBorderColor(context)),
             SizedBox(height: AppSpacing.medium),
 
-            // NOMBRE DEL TURNO
+            // NOMBRE DEL TURNO (TU DISEÑO ORIGINAL)
             TextField(
               controller: _nombreController,
               decoration: InputDecoration(
@@ -669,7 +747,7 @@ class _TurnoDialogState extends State<_TurnoDialog> {
             ),
             SizedBox(height: AppSpacing.small),
 
-            // HORARIO
+            // HORARIO (TU DISEÑO ORIGINAL)
             TextField(
               controller: _horarioController,
               decoration: InputDecoration(
@@ -690,7 +768,7 @@ class _TurnoDialogState extends State<_TurnoDialog> {
             ),
             SizedBox(height: AppSpacing.small),
 
-            // RANGO DE ASISTENCIA
+            // RANGO DE ASISTENCIA (TU DISEÑO ORIGINAL)
             TextField(
               controller: _rangoAsistenciaController,
               decoration: InputDecoration(
@@ -711,7 +789,7 @@ class _TurnoDialogState extends State<_TurnoDialog> {
             ),
             SizedBox(height: AppSpacing.small),
 
-            // DÍAS
+            // DÍAS (TU DISEÑO ORIGINAL)
             TextField(
               controller: _diasController,
               decoration: InputDecoration(
@@ -732,7 +810,7 @@ class _TurnoDialogState extends State<_TurnoDialog> {
             ),
             SizedBox(height: AppSpacing.medium),
 
-            // SELECTOR DE ICONOS
+            // SELECTOR DE ICONOS (TU DISEÑO ORIGINAL)
             Text(
               'Ícono del turno:',
               style: AppTextStyles.bodyDark(
@@ -781,7 +859,7 @@ class _TurnoDialogState extends State<_TurnoDialog> {
 
             SizedBox(height: AppSpacing.medium),
 
-            // SELECTOR DE COLORES
+            // SELECTOR DE COLORES (TU DISEÑO ORIGINAL)
             Text(
               'Color del turno:',
               style: AppTextStyles.bodyDark(
@@ -826,7 +904,7 @@ class _TurnoDialogState extends State<_TurnoDialog> {
 
             SizedBox(height: AppSpacing.medium),
 
-            // VISTA PREVIA
+            // VISTA PREVIA (TU DISEÑO ORIGINAL)
             Container(
               padding: EdgeInsets.all(AppSpacing.medium),
               decoration: BoxDecoration(

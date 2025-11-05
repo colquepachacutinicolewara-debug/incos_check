@@ -6,6 +6,7 @@ import 'registrar_asistencia_screen.dart';
 import 'historial_asistencia_screen.dart';
 import '../../viewmodels/asistencia_viewmodel.dart';
 import '../../models/asistencia_model.dart';
+import '../../repositories/data_repository.dart';
 
 class AsistenciaScreen extends StatelessWidget {
   const AsistenciaScreen({super.key});
@@ -13,7 +14,10 @@ class AsistenciaScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) => AsistenciaViewModel(),
+      create: (context) {
+        final repository = context.read<DataRepository>();
+        return AsistenciaViewModel(repository);
+      },
       child: const _AsistenciaScreenContent(),
     );
   }
@@ -29,6 +33,83 @@ class _AsistenciaScreenContent extends StatelessWidget {
     final isSmallScreen = screenWidth < 360;
     final isVerySmallScreen = screenWidth < 320;
 
+    // Mostrar loading
+    if (viewModel.isLoading) {
+      return Scaffold(
+        backgroundColor: viewModel.getBackgroundColor(context),
+        appBar: AppBar(
+          title: Text(
+            AppStrings.asistencia,
+            style: AppTextStyles.heading1.copyWith(
+              fontSize: isVerySmallScreen ? 18 : (isSmallScreen ? 20 : 24),
+              color: viewModel.getTextColor(context),
+            ),
+          ),
+          backgroundColor: viewModel.getAppBarColor(context),
+          elevation: 0,
+          centerTitle: true,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Mostrar error si existe
+    if (viewModel.error != null) {
+      return Scaffold(
+        backgroundColor: viewModel.getBackgroundColor(context),
+        appBar: AppBar(
+          title: Text(
+            AppStrings.asistencia,
+            style: AppTextStyles.heading1.copyWith(
+              fontSize: isVerySmallScreen ? 18 : (isSmallScreen ? 20 : 24),
+              color: viewModel.getTextColor(context),
+            ),
+          ),
+          backgroundColor: viewModel.getAppBarColor(context),
+          elevation: 0,
+          centerTitle: true,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: viewModel.refreshData,
+            ),
+          ],
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, color: Colors.red, size: 50),
+                SizedBox(height: 16),
+                Text(
+                  'Error al cargar datos',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: viewModel.getTextColor(context),
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  viewModel.error!,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: viewModel.getTextColor(context)),
+                ),
+                SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: viewModel.refreshData,
+                  child: const Text('Reintentar'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Contenido normal
     return Scaffold(
       backgroundColor: viewModel.getBackgroundColor(context),
       appBar: AppBar(
@@ -43,6 +124,12 @@ class _AsistenciaScreenContent extends StatelessWidget {
         elevation: 0,
         centerTitle: true,
         iconTheme: IconThemeData(color: viewModel.getTextColor(context)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: viewModel.refreshData,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(

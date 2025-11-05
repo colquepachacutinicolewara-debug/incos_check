@@ -25,28 +25,49 @@ class CarrerasViewModel extends ChangeNotifier {
     return carrerasActivas.map((carrera) => carrera.nombre).toList();
   }
 
+  // ✅ Escucha el stream con manejo de errores mejorado
   void _loadCarreras() {
     _isLoading = true;
     notifyListeners();
 
-    // Escuchar cambios en tiempo real de Firestore
-    _repository.getCarrerasStream().listen(
-      (snapshot) {
-        _carreras = snapshot.docs.map((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          return CarreraModel.fromFirestore(doc.id, data);
-        }).toList();
+    try {
+      _repository.getCarrerasStream().listen(
+        (snapshot) {
+          _carreras = snapshot.docs.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            return CarreraModel.fromFirestore(doc.id, data);
+          }).toList();
 
-        _isLoading = false;
-        _error = null;
-        notifyListeners();
-      },
-      onError: (error) {
-        _isLoading = false;
-        _error = 'Error al cargar carreras: $error';
-        notifyListeners();
-      },
-    );
+          _isLoading = false;
+          _error = null;
+          notifyListeners();
+        },
+        onError: (error) {
+          final errorStr = error.toString();
+          if (errorStr.contains('unavailable')) {
+            _error =
+                '⚠ El servicio de Firebase no está disponible temporalmente.\nPor favor, verifica tu conexión a internet y reintenta.';
+          } else {
+            _error = 'Error al cargar carreras: $error';
+          }
+
+          _isLoading = false;
+          notifyListeners();
+        },
+      );
+    } catch (e) {
+      _error = 'Error inesperado al inicializar carreras: $e';
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // 🔁 Método para reintentar carga manualmente
+  Future<void> reintentarCarga() async {
+    _error = null;
+    _isLoading = true;
+    notifyListeners();
+    _loadCarreras();
   }
 
   Future<void> agregarCarrera(
@@ -68,8 +89,6 @@ class CarrerasViewModel extends ChangeNotifier {
       };
 
       await _repository.addCarrera(carreraData);
-
-      // El stream se actualizará automáticamente
     } catch (e) {
       _error = 'Error al agregar carrera: $e';
       notifyListeners();
@@ -98,8 +117,6 @@ class CarrerasViewModel extends ChangeNotifier {
       };
 
       await _repository.updateCarrera(id, updateData);
-
-      // El stream se actualizará automáticamente
     } catch (e) {
       _error = 'Error al editar carrera: $e';
       notifyListeners();
@@ -121,8 +138,6 @@ class CarrerasViewModel extends ChangeNotifier {
       };
 
       await _repository.updateCarrera(id, updateData);
-
-      // El stream se actualizará automáticamente
     } catch (e) {
       _error = 'Error al cambiar estado de carrera: $e';
       notifyListeners();
@@ -136,8 +151,6 @@ class CarrerasViewModel extends ChangeNotifier {
       notifyListeners();
 
       await _repository.deleteCarrera(id);
-
-      // El stream se actualizará automáticamente
     } catch (e) {
       _error = 'Error al eliminar carrera: $e';
       notifyListeners();
@@ -156,7 +169,7 @@ class CarrerasViewModel extends ChangeNotifier {
     }
   }
 
-  // Métodos de utilidad
+  // 🔧 Métodos utilitarios
   static Color parseColor(String colorString) {
     try {
       return Color(int.parse(colorString.replaceAll('#', '0xFF')));

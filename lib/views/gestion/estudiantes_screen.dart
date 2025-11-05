@@ -8,6 +8,9 @@ import 'package:incos_check/utils/helpers.dart';
 import 'package:printing/printing.dart';
 import '../../views/biometrico/registro_huella_screen.dart';
 
+// AGREGAR: Importar DataRepository
+import '../../repositories/data_repository.dart';
+
 class EstudiantesListScreen extends StatefulWidget {
   final String tipo;
   final Map<String, dynamic> carrera;
@@ -32,13 +35,18 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) => EstudiantesViewModel(
-        tipo: widget.tipo,
-        carrera: widget.carrera,
-        turno: widget.turno,
-        nivel: widget.nivel,
-        paralelo: widget.paralelo,
-      ),
+      create: (context) {
+        // CORREGIDO: Obtener DataRepository del contexto
+        final repository = context.read<DataRepository>();
+        return EstudiantesViewModel(
+          tipo: widget.tipo,
+          carrera: widget.carrera,
+          turno: widget.turno,
+          nivel: widget.nivel,
+          paralelo: widget.paralelo,
+          repository: repository, // AGREGADO
+        );
+      },
       child: _EstudiantesListContent(
         tipo: widget.tipo,
         carrera: widget.carrera,
@@ -91,6 +99,61 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
     final heading3Style = AppTextStyles.heading3Dark(context);
     final bodyStyle = AppTextStyles.bodyDark(context);
     final textSecondaryColor = AppColors.textSecondaryDark(context);
+
+    // Mostrar loading state
+    if (viewModel.isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'Paralelo ${widget.paralelo['nombre']} - Estudiantes',
+            style: heading2Style.copyWith(color: Colors.white),
+          ),
+          backgroundColor: carreraColor,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Mostrar error state
+    if (viewModel.error != null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'Paralelo ${widget.paralelo['nombre']} - Estudiantes',
+            style: heading2Style.copyWith(color: Colors.white),
+          ),
+          backgroundColor: carreraColor,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 64, color: Colors.red),
+              SizedBox(height: AppSpacing.medium),
+              Text('Error al cargar estudiantes', style: heading3Style),
+              SizedBox(height: AppSpacing.small),
+              Text(
+                viewModel.error!,
+                style: bodyStyle,
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: AppSpacing.medium),
+              ElevatedButton(
+                onPressed: () {
+                  // Recargar datos
+                  final viewModel = Provider.of<EstudiantesViewModel>(
+                    context,
+                    listen: false,
+                  );
+                  // El ViewModel se recargará automáticamente a través del stream
+                },
+                child: Text('Reintentar'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -388,7 +451,6 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
     }
   }
 
-  // CORRECCIÓN: Pasar viewModel como parámetro
   void _showAgregarEstudianteDialog(
     BuildContext context,
     EstudiantesViewModel viewModel,
@@ -397,24 +459,31 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
       context: context,
       builder: (context) => _EstudianteDialog(
         title: 'Agregar Estudiante',
-        onSave: (nombres, paterno, materno, ci) {
-          viewModel.agregarEstudiante(
-            nombres: nombres,
-            paterno: paterno,
-            materno: materno,
-            ci: ci,
-          );
-          Helpers.showSnackBar(
-            context,
-            'Estudiante agregado exitosamente',
-            type: 'success',
-          );
+        onSave: (nombres, paterno, materno, ci) async {
+          try {
+            await viewModel.agregarEstudiante(
+              nombres: nombres,
+              paterno: paterno,
+              materno: materno,
+              ci: ci,
+            );
+            Helpers.showSnackBar(
+              context,
+              'Estudiante agregado exitosamente',
+              type: 'success',
+            );
+          } catch (e) {
+            Helpers.showSnackBar(
+              context,
+              'Error al agregar estudiante: $e',
+              type: 'error',
+            );
+          }
         },
       ),
     );
   }
 
-  // CORRECCIÓN: Pasar viewModel como parámetro
   void _showEditarEstudianteDialog(
     BuildContext context,
     Map<String, dynamic> estudiante,
@@ -428,25 +497,32 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
         paternoInicial: estudiante['apellidoPaterno'],
         maternoInicial: estudiante['apellidoMaterno'],
         ciInicial: estudiante['ci'],
-        onSave: (nombres, paterno, materno, ci) {
-          viewModel.editarEstudiante(
-            id: estudiante['id'],
-            nombres: nombres,
-            paterno: paterno,
-            materno: materno,
-            ci: ci,
-          );
-          Helpers.showSnackBar(
-            context,
-            'Estudiante actualizado exitosamente',
-            type: 'success',
-          );
+        onSave: (nombres, paterno, materno, ci) async {
+          try {
+            await viewModel.editarEstudiante(
+              id: estudiante['id'], // Ahora es String (Firestore ID)
+              nombres: nombres,
+              paterno: paterno,
+              materno: materno,
+              ci: ci,
+            );
+            Helpers.showSnackBar(
+              context,
+              'Estudiante actualizado exitosamente',
+              type: 'success',
+            );
+          } catch (e) {
+            Helpers.showSnackBar(
+              context,
+              'Error al actualizar estudiante: $e',
+              type: 'error',
+            );
+          }
         },
       ),
     );
   }
 
-  // CORRECCIÓN: Pasar viewModel como parámetro
   void _showEliminarEstudianteDialog(
     BuildContext context,
     Map<String, dynamic> estudiante,
@@ -457,19 +533,26 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
       title: 'Eliminar Estudiante',
       content:
           '¿Estás seguro de eliminar a ${estudiante['nombres']} ${estudiante['apellidoPaterno']}?',
-    ).then((confirmed) {
+    ).then((confirmed) async {
       if (confirmed) {
-        viewModel.eliminarEstudiante(estudiante['id']);
-        Helpers.showSnackBar(
-          context,
-          'Estudiante eliminado exitosamente',
-          type: 'success',
-        );
+        try {
+          await viewModel.eliminarEstudiante(estudiante['id']);
+          Helpers.showSnackBar(
+            context,
+            'Estudiante eliminado exitosamente',
+            type: 'success',
+          );
+        } catch (e) {
+          Helpers.showSnackBar(
+            context,
+            'Error al eliminar estudiante: $e',
+            type: 'error',
+          );
+        }
       }
     });
   }
 
-  // CORRECCIÓN: Pasar viewModel como parámetro
   void _registrarHuellas(
     BuildContext context,
     Map<String, dynamic> estudiante,
@@ -480,11 +563,24 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
       MaterialPageRoute(
         builder: (context) => RegistroHuellasScreen(
           estudiante: estudiante,
-          onHuellasRegistradas: (int huellasRegistradas) {
-            viewModel.actualizarHuellasEstudiante(
-              estudiante['id'],
-              huellasRegistradas,
-            );
+          onHuellasRegistradas: (int huellasRegistradas) async {
+            try {
+              await viewModel.actualizarHuellasEstudiante(
+                estudiante['id'], // Ahora es String (Firestore ID)
+                huellasRegistradas,
+              );
+              Helpers.showSnackBar(
+                context,
+                'Huellas actualizadas exitosamente',
+                type: 'success',
+              );
+            } catch (e) {
+              Helpers.showSnackBar(
+                context,
+                'Error al actualizar huellas: $e',
+                type: 'error',
+              );
+            }
           },
         ),
       ),

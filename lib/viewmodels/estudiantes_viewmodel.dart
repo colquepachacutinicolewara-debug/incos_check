@@ -6,11 +6,20 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import 'dart:io';
+import 'dart:async';
+
+// AGREGAR: Importar DataRepository y Firestore
+import '../repositories/data_repository.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class EstudiantesViewModel with ChangeNotifier {
   List<Map<String, dynamic>> _estudiantes = [];
   List<Map<String, dynamic>> _estudiantesFiltrados = [];
   final TextEditingController searchController = TextEditingController();
+
+  // AGREGADO: DataRepository y StreamSubscription
+  final DataRepository _repository;
+  StreamSubscription? _estudiantesSubscription;
 
   // Datos del contexto
   final String tipo;
@@ -19,14 +28,28 @@ class EstudiantesViewModel with ChangeNotifier {
   final Map<String, dynamic> nivel;
   final Map<String, dynamic> paralelo;
 
+  // Estado de carga
+  bool _isLoading = true;
+  bool get isLoading => _isLoading;
+
+  String? _error;
+  String? get error => _error;
+
+  // CORREGIDO: Constructor con DataRepository (sin _ en parámetro)
   EstudiantesViewModel({
     required this.tipo,
     required this.carrera,
     required this.turno,
     required this.nivel,
     required this.paralelo,
-  }) {
-    _cargarDatosIniciales();
+    required DataRepository repository, // CORREGIDO: sin _
+  }) : _repository = repository {
+    // ASIGNACIÓN en initializer list
+    _inicializarViewModel();
+  }
+
+  void _inicializarViewModel() {
+    _cargarEstudiantesDesdeFirestore(); // NUEVO: Cargar desde Firestore
     searchController.addListener(_filtrarEstudiantes);
   }
 
@@ -34,10 +57,81 @@ class EstudiantesViewModel with ChangeNotifier {
   List<Map<String, dynamic>> get estudiantes => _estudiantes;
   List<Map<String, dynamic>> get estudiantesFiltrados => _estudiantesFiltrados;
 
-  void _cargarDatosIniciales() {
+  // NUEVO: Cargar estudiantes desde Firestore
+  void _cargarEstudiantesDesdeFirestore() {
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      // Usar el stream específico por grupo si tenemos los IDs
+      if (carrera['id'] != null &&
+          turno['id'] != null &&
+          nivel['id'] != null &&
+          paralelo['id'] != null) {
+        _estudiantesSubscription = _repository
+            .getEstudiantesByGrupoStream(
+              carreraId: carrera['id'],
+              turnoId: turno['id'],
+              nivelId: nivel['id'],
+              paraleloId: paralelo['id'],
+            )
+            .listen(_onEstudiantesSnapshot, onError: _onEstudiantesError);
+      } else {
+        // Fallback: cargar todos los estudiantes
+        _estudiantesSubscription = _repository.getEstudiantesStream().listen(
+          _onEstudiantesSnapshot,
+          onError: _onEstudiantesError,
+        );
+      }
+    } catch (e) {
+      _onEstudiantesError(e);
+    }
+  }
+
+  void _onEstudiantesSnapshot(QuerySnapshot snapshot) {
+    try {
+      _estudiantes = snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return {
+          'id': doc.id, // Usar el ID de Firestore
+          'nombres': data['nombres'] ?? '',
+          'apellidoPaterno': data['apellidoPaterno'] ?? '',
+          'apellidoMaterno': data['apellidoMaterno'] ?? '',
+          'ci': data['ci'] ?? '',
+          'fechaRegistro': data['fechaRegistro'] ?? '',
+          'huellasRegistradas': data['huellasRegistradas'] ?? 0,
+          'carreraId': data['carreraId'] ?? '',
+          'turnoId': data['turnoId'] ?? '',
+          'nivelId': data['nivelId'] ?? '',
+          'paraleloId': data['paraleloId'] ?? '',
+        };
+      }).toList();
+
+      _isLoading = false;
+      _error = null;
+      _ordenarEstudiantes();
+      notifyListeners();
+    } catch (e) {
+      _onEstudiantesError(e);
+    }
+  }
+
+  void _onEstudiantesError(dynamic error) {
+    print('Error cargando estudiantes: $error');
+    _isLoading = false;
+    _error = 'Error al cargar estudiantes: $error';
+
+    // Cargar datos locales de respaldo
+    _cargarDatosLocalesDeRespaldo();
+    notifyListeners();
+  }
+
+  // NUEVO: Datos de respaldo locales
+  void _cargarDatosLocalesDeRespaldo() {
     _estudiantes = [
       {
-        'id': 1,
+        'id': 'local_1',
         'nombres': 'Juan Carlos',
         'apellidoPaterno': 'Pérez',
         'apellidoMaterno': 'Gómez',
@@ -46,7 +140,7 @@ class EstudiantesViewModel with ChangeNotifier {
         'huellasRegistradas': 3,
       },
       {
-        'id': 2,
+        'id': 'local_2',
         'nombres': 'María Elena',
         'apellidoPaterno': 'López',
         'apellidoMaterno': 'Martínez',
@@ -54,18 +148,8 @@ class EstudiantesViewModel with ChangeNotifier {
         'fechaRegistro': '2024-01-16',
         'huellasRegistradas': 2,
       },
-      {
-        'id': 3,
-        'nombres': 'Ana María',
-        'apellidoPaterno': 'García',
-        'apellidoMaterno': 'López',
-        'ci': '9876543',
-        'fechaRegistro': '2024-01-17',
-        'huellasRegistradas': 0,
-      },
     ];
     _ordenarEstudiantes();
-    _estudiantesFiltrados = List.from(_estudiantes);
   }
 
   void _ordenarEstudiantes() {
@@ -94,70 +178,96 @@ class EstudiantesViewModel with ChangeNotifier {
     notifyListeners();
   }
 
-  // AGREGAR ESTUDIANTE
-  void agregarEstudiante({
+  // MODIFICADO: Agregar estudiante con Firestore
+  Future<void> agregarEstudiante({
     required String nombres,
     required String paterno,
     required String materno,
     required String ci,
-  }) {
-    final nuevoId = DateTime.now().millisecondsSinceEpoch;
-    final nuevaFecha = DateTime.now().toString().split(' ')[0];
+  }) async {
+    try {
+      final data = {
+        'nombres': nombres.trim(),
+        'apellidoPaterno': paterno.trim(),
+        'apellidoMaterno': materno.trim(),
+        'ci': ci.trim(),
+        'fechaRegistro': DateTime.now().toString().split(' ')[0],
+        'huellasRegistradas': 0,
+        'carreraId': carrera['id'] ?? '',
+        'turnoId': turno['id'] ?? '',
+        'nivelId': nivel['id'] ?? '',
+        'paraleloId': paralelo['id'] ?? '',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
 
-    _estudiantes.add({
-      'id': nuevoId,
-      'nombres': nombres.trim(),
-      'apellidoPaterno': paterno.trim(),
-      'apellidoMaterno': materno.trim(),
-      'ci': ci.trim(),
-      'fechaRegistro': nuevaFecha,
-      'huellasRegistradas': 0,
-    });
+      await _repository.addDocument('estudiantes', data);
 
-    _ordenarEstudiantes();
-    notifyListeners();
+      // El stream se actualizará automáticamente con el nuevo estudiante
+    } catch (e) {
+      print('Error agregando estudiante: $e');
+      throw Exception('Error al agregar estudiante: $e');
+    }
   }
 
-  // EDITAR ESTUDIANTE - SIMPLIFICADO Y CORREGIDO
-  void editarEstudiante({
-    required int id,
+  // MODIFICADO: Editar estudiante con Firestore
+  Future<void> editarEstudiante({
+    required String id, // Cambiado de int a String para Firestore ID
     required String nombres,
     required String paterno,
     required String materno,
     required String ci,
-  }) {
-    final index = _estudiantes.indexWhere(
-      (estudiante) => estudiante['id'] == id,
-    );
+  }) async {
+    try {
+      final data = {
+        'nombres': nombres.trim(),
+        'apellidoPaterno': paterno.trim(),
+        'apellidoMaterno': materno.trim(),
+        'ci': ci.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
 
-    if (index != -1) {
-      // Actualizar solo los campos editables
-      _estudiantes[index]['nombres'] = nombres.trim();
-      _estudiantes[index]['apellidoPaterno'] = paterno.trim();
-      _estudiantes[index]['apellidoMaterno'] = materno.trim();
-      _estudiantes[index]['ci'] = ci.trim();
+      await _repository.updateDocument('estudiantes', id, data);
 
-      _ordenarEstudiantes();
-      notifyListeners();
+      // El stream se actualizará automáticamente
+    } catch (e) {
+      print('Error editando estudiante: $e');
+      throw Exception('Error al editar estudiante: $e');
     }
   }
 
-  // ELIMINAR ESTUDIANTE
-  void eliminarEstudiante(int id) {
-    _estudiantes.removeWhere((estudiante) => estudiante['id'] == id);
-    _filtrarEstudiantes();
-    notifyListeners();
-  }
+  // MODIFICADO: Eliminar estudiante con Firestore
+  Future<void> eliminarEstudiante(String id) async {
+    // Cambiado de int a String
+    try {
+      await _repository.db.collection('estudiantes').doc(id).delete();
 
-  void actualizarHuellasEstudiante(int id, int huellasRegistradas) {
-    final index = _estudiantes.indexWhere((e) => e['id'] == id);
-    if (index != -1) {
-      _estudiantes[index]['huellasRegistradas'] = huellasRegistradas;
-      notifyListeners();
+      // El stream se actualizará automáticamente
+    } catch (e) {
+      print('Error eliminando estudiante: $e');
+      throw Exception('Error al eliminar estudiante: $e');
     }
   }
 
-  // Resto de métodos sin cambios...
+  // MODIFICADO: Actualizar huellas con Firestore
+  Future<void> actualizarHuellasEstudiante(
+    String id,
+    int huellasRegistradas,
+  ) async {
+    try {
+      await _repository.updateDocument('estudiantes', id, {
+        'huellasRegistradas': huellasRegistradas,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // El stream se actualizará automáticamente
+    } catch (e) {
+      print('Error actualizando huellas: $e');
+      throw Exception('Error al actualizar huellas: $e');
+    }
+  }
+
+  // MÉTODOS DE EXPORTACIÓN (SIN CAMBIOS - se mantiene toda la funcionalidad)
   Future<void> exportarExcel({
     bool simple = true,
     String asignatura = 'BASE DE DATOS II',
@@ -370,6 +480,7 @@ class EstudiantesViewModel with ChangeNotifier {
 
   @override
   void dispose() {
+    _estudiantesSubscription?.cancel(); // AGREGADO: Cancelar subscription
     searchController.dispose();
     super.dispose();
   }

@@ -1,4 +1,4 @@
-// docente_model.dart
+// docente_model.dart - VERSIÓN MEJORADA
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/constants.dart';
 
@@ -31,69 +31,7 @@ class Docente {
     this.fechaActualizacion,
   });
 
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'apellidoPaterno': apellidoPaterno,
-      'apellidoMaterno': apellidoMaterno,
-      'nombres': nombres,
-      'ci': ci,
-      'carrera': carrera,
-      'turno': turno,
-      'email': email,
-      'telefono': telefono,
-      'estado': estado,
-    };
-  }
-
-  Map<String, dynamic> toFirestore() {
-    return {
-      'apellidoPaterno': apellidoPaterno,
-      'apellidoMaterno': apellidoMaterno,
-      'nombres': nombres,
-      'ci': ci,
-      'carrera': carrera,
-      'turno': turno,
-      'email': email,
-      'telefono': telefono,
-      'estado': estado,
-      'fechaCreacion': fechaCreacion ?? FieldValue.serverTimestamp(),
-      'fechaActualizacion': FieldValue.serverTimestamp(),
-    };
-  }
-
-  factory Docente.fromFirestore(String id, Map<String, dynamic> data) {
-    return Docente(
-      id: id,
-      apellidoPaterno: data['apellidoPaterno'] as String,
-      apellidoMaterno: data['apellidoMaterno'] as String,
-      nombres: data['nombres'] as String,
-      ci: data['ci'] as String,
-      carrera: data['carrera'] as String,
-      turno: data['turno'] as String,
-      email: data['email'] as String,
-      telefono: data['telefono'] as String,
-      estado: data['estado'] as String? ?? Estados.activo,
-      fechaCreacion: (data['fechaCreacion'] as Timestamp?)?.toDate(),
-      fechaActualizacion: (data['fechaActualizacion'] as Timestamp?)?.toDate(),
-    );
-  }
-
-  factory Docente.fromMap(Map<String, dynamic> map) {
-    return Docente(
-      id: map['id'] as String,
-      apellidoPaterno: map['apellidoPaterno'] as String,
-      apellidoMaterno: map['apellidoMaterno'] as String,
-      nombres: map['nombres'] as String,
-      ci: map['ci'] as String,
-      carrera: map['carrera'] as String,
-      turno: map['turno'] as String,
-      email: map['email'] as String,
-      telefono: map['telefono'] as String,
-      estado: map['estado'] as String,
-    );
-  }
-
+  // Método copyWith mejorado
   Docente copyWith({
     String? id,
     String? apellidoPaterno,
@@ -122,5 +60,95 @@ class Docente {
       fechaCreacion: fechaCreacion ?? this.fechaCreacion,
       fechaActualizacion: fechaActualizacion ?? this.fechaActualizacion,
     );
+  }
+
+  // Para uso local
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'apellidoPaterno': apellidoPaterno,
+      'apellidoMaterno': apellidoMaterno,
+      'nombres': nombres,
+      'ci': ci,
+      'carrera': carrera,
+      'turno': turno,
+      'email': email,
+      'telefono': telefono,
+      'estado': estado,
+      'fechaCreacion': fechaCreacion?.millisecondsSinceEpoch,
+      'fechaActualizacion': fechaActualizacion?.millisecondsSinceEpoch,
+    };
+  }
+
+  // Para Firestore - CORREGIDO
+  Map<String, dynamic> toFirestore() {
+    final map = {
+      'apellidoPaterno': apellidoPaterno,
+      'apellidoMaterno': apellidoMaterno,
+      'nombres': nombres,
+      'ci': ci,
+      'carrera': carrera,
+      'turno': turno,
+      'email': email,
+      'telefono': telefono,
+      'estado': estado,
+      'fechaActualizacion': FieldValue.serverTimestamp(),
+    };
+
+    // Solo agregar fechaCreacion si es nuevo documento
+    if (id.isEmpty) {
+      map['fechaCreacion'] = FieldValue.serverTimestamp();
+    } else if (fechaCreacion != null) {
+      map['fechaCreacion'] = Timestamp.fromDate(fechaCreacion!);
+    }
+
+    return map;
+  }
+
+  // Factory desde Firestore - CORREGIDO
+  factory Docente.fromFirestore(String id, Map<String, dynamic> data) {
+    return Docente(
+      id: id,
+      apellidoPaterno: data['apellidoPaterno'] as String? ?? '',
+      apellidoMaterno: data['apellidoMaterno'] as String? ?? '',
+      nombres: data['nombres'] as String? ?? '',
+      ci: data['ci'] as String? ?? '',
+      carrera: data['carrera'] as String? ?? '',
+      turno: data['turno'] as String? ?? 'MAÑANA',
+      email: data['email'] as String? ?? '',
+      telefono: data['telefono'] as String? ?? '',
+      estado: data['estado'] as String? ?? Estados.activo,
+      fechaCreacion: (data['fechaCreacion'] as Timestamp?)?.toDate(),
+      fechaActualizacion: (data['fechaActualizacion'] as Timestamp?)?.toDate(),
+    );
+  }
+
+  // Factory desde Map local
+  factory Docente.fromMap(Map<String, dynamic> map) {
+    return Docente(
+      id: map['id'] as String,
+      apellidoPaterno: map['apellidoPaterno'] as String,
+      apellidoMaterno: map['apellidoMaterno'] as String,
+      nombres: map['nombres'] as String,
+      ci: map['ci'] as String,
+      carrera: map['carrera'] as String,
+      turno: map['turno'] as String,
+      email: map['email'] as String,
+      telefono: map['telefono'] as String,
+      estado: map['estado'] as String,
+      fechaCreacion: map['fechaCreacion'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['fechaCreacion'] as int)
+          : null,
+      fechaActualizacion: map['fechaActualizacion'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(
+              map['fechaActualizacion'] as int,
+            )
+          : null,
+    );
+  }
+
+  @override
+  String toString() {
+    return 'Docente($id: $nombres $apellidoPaterno $apellidoMaterno)';
   }
 }

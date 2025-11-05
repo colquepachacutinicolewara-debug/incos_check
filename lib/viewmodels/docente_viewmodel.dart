@@ -1,8 +1,7 @@
-// docente_viewmodel.dart
+// docente_viewmodel.dart - VERSIÓN INTEGRADA CON FIRESTORE
 import 'package:flutter/material.dart';
 import 'package:incos_check/models/docente_model.dart';
 import 'package:incos_check/utils/constants.dart';
-import 'package:incos_check/utils/validators.dart';
 import 'package:incos_check/repositories/data_repository.dart';
 
 class DocentesViewModel extends ChangeNotifier {
@@ -55,20 +54,22 @@ class DocentesViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Métodos de inicialización
+  // ✅ MÉTODO DE INICIALIZACIÓN MEJORADO
   void initialize(Map<String, dynamic> carrera) {
     _carreraColor = _parseColor(carrera['color']);
     _selectedCarrera = carrera['nombre'] as String;
     _loadDocentes();
   }
 
+  // ✅ CARGA DE DOCENTES CON STREAM (COMO EN CARRERAS)
   void _loadDocentes() {
     _isLoading = true;
+    _error = null;
     notifyListeners();
 
-    _repository.getDocentesStream().listen(
-      (snapshot) {
-        try {
+    try {
+      _repository.getDocentesStream().listen(
+        (snapshot) {
           _docentes = snapshot.docs.map((doc) {
             final data = doc.data() as Map<String, dynamic>;
             return Docente.fromFirestore(doc.id, data);
@@ -76,27 +77,30 @@ class DocentesViewModel extends ChangeNotifier {
 
           // Extraer carreras únicas de los docentes
           _carreras = _docentes.map((d) => d.carrera).toSet().toList();
+          _carreras.sort();
 
           // Asegurar que la carrera seleccionada esté en la lista
-          if (!_carreras.contains(_selectedCarrera)) {
+          if (!_carreras.contains(_selectedCarrera) &&
+              _selectedCarrera.isNotEmpty) {
             _carreras.add(_selectedCarrera);
           }
 
           _filterDocentesByCarreraAndTurno();
           _error = null;
-        } catch (e) {
-          _error = 'Error al procesar datos: $e';
-        } finally {
           _isLoading = false;
           notifyListeners();
-        }
-      },
-      onError: (error) {
-        _isLoading = false;
-        _error = 'Error al cargar docentes: $error';
-        notifyListeners();
-      },
-    );
+        },
+        onError: (error) {
+          _error = 'Error al cargar docentes: $error';
+          _isLoading = false;
+          notifyListeners();
+        },
+      );
+    } catch (e) {
+      _error = 'Error inesperado al cargar docentes: $e';
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Color _parseColor(String colorString) {
@@ -107,12 +111,14 @@ class DocentesViewModel extends ChangeNotifier {
     }
   }
 
-  // Métodos de filtrado y búsqueda
+  // ✅ MÉTODOS DE FILTRADO (MANTENIDOS)
   void _filterDocentesByCarreraAndTurno() {
     _filteredDocentes = _docentes.where((docente) {
-      return docente.carrera == _selectedCarrera &&
-          docente.turno == _selectedTurno;
+      final matchesCarrera = docente.carrera == _selectedCarrera;
+      final matchesTurno = docente.turno == _selectedTurno;
+      return matchesCarrera && matchesTurno;
     }).toList();
+
     _sortDocentesAlphabetically();
   }
 
@@ -151,13 +157,14 @@ class DocentesViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Métodos CRUD - CORREGIDOS
+  // ✅ CRUD ACTUALIZADO CON MANEJO DE ERRORES MEJORADO
   Future<bool> addDocente(Docente docente) async {
     try {
       _guardando = true;
       notifyListeners();
 
-      await _repository.addDocente(docente.toFirestore());
+      final docenteData = docente.toFirestore();
+      await _repository.addDocente(docenteData);
 
       _guardando = false;
       notifyListeners();
@@ -175,7 +182,8 @@ class DocentesViewModel extends ChangeNotifier {
       _guardando = true;
       notifyListeners();
 
-      await _repository.updateDocente(docente.id, docente.toFirestore());
+      final docenteData = docente.toFirestore();
+      await _repository.updateDocente(docente.id, docenteData);
 
       _guardando = false;
       notifyListeners();
@@ -206,6 +214,14 @@ class DocentesViewModel extends ChangeNotifier {
     }
   }
 
+  // ✅ MÉTODO PARA REINTENTAR CARGA (COMO EN CARRERAS)
+  Future<void> reintentarCarga() async {
+    _error = null;
+    _isLoading = true;
+    notifyListeners();
+    _loadDocentes();
+  }
+
   Docente? getDocenteById(String id) {
     try {
       return _docentes.firstWhere((docente) => docente.id == id);
@@ -214,7 +230,7 @@ class DocentesViewModel extends ChangeNotifier {
     }
   }
 
-  // Métodos para estadísticas
+  // ✅ MÉTODOS PARA ESTADÍSTICAS
   Map<String, int> getEstadisticasPorTurno() {
     final docentesCarrera = _docentes
         .where((d) => d.carrera == _selectedCarrera)

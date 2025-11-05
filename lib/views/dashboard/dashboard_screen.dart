@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../viewmodels/dashboard_viewmodel.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../viewmodels/dashboard_viewmodel.dart' as dashboard_vm;
 import '../../viewmodels/carreras_viewmodel.dart';
 import '../../utils/constants.dart';
-import '../../views/gestion/gestion_screen.dart';
-import '../../views/asistencia/asistencia_screen.dart';
-import '../../views/inicio/inicio_screen.dart';
-import '../../views/reportes/reportes_screen.dart';
-import '../../views/configuracion/configuracion_screen.dart';
+import '../gestion/gestion_screen.dart';
+import '../asistencia/asistencia_screen.dart';
+import '../inicio/inicio_screen.dart';
+import '../reportes/reportes_screen.dart';
+import '../configuracion/configuracion_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -20,13 +21,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    // Inicializar datos cuando se monta el screen
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final dashboardVM = context.read<DashboardViewModel>();
+      final dashboardVM = context.read<dashboard_vm.DashboardViewModel>();
       final carrerasVM = context.read<CarrerasViewModel>();
-
       dashboardVM.loadDashboardData();
-      // Los streams de carreras se inicializan automáticamente en el ViewModel
     });
   }
 
@@ -39,6 +37,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
         elevation: 4,
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        actions: [
+          Consumer<dashboard_vm.DashboardViewModel>(
+            builder: (context, dashboardVM, child) {
+              if (dashboardVM.currentUser != null) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 16.0),
+                  child: CircleAvatar(
+                    radius: 16,
+                    backgroundColor: Colors.white,
+                    backgroundImage: dashboardVM.currentUser!.photoURL != null
+                        ? NetworkImage(dashboardVM.currentUser!.photoURL!)
+                        : null,
+                    child: dashboardVM.currentUser!.photoURL == null
+                        ? Icon(Icons.person, size: 16, color: AppColors.primary)
+                        : null,
+                  ),
+                );
+              }
+              return const SizedBox();
+            },
+          ),
+        ],
       ),
       drawer: _buildDrawer(context),
       body: _buildBody(context),
@@ -47,44 +67,72 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildBody(BuildContext context) {
-    final dashboardVM = Provider.of<DashboardViewModel>(context);
+    final dashboardVM = Provider.of<dashboard_vm.DashboardViewModel>(context);
 
-    // Mostrar loading si está cargando
     if (dashboardVM.loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    // Mostrar error si hay error
-    if (dashboardVM.error.isNotEmpty) {
-      return Center(
+      return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Error: ${dashboardVM.error}'),
-            ElevatedButton(
-              onPressed: () => dashboardVM.loadDashboardData(),
-              child: const Text('Reintentar'),
-            ),
+            CircularProgressIndicator(),
+            SizedBox(height: AppSpacing.medium),
+            Text('Cargando datos...', style: AppTextStyles.body),
           ],
         ),
       );
     }
 
+    if (dashboardVM.error.isNotEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.large),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 64, color: AppColors.error),
+              const SizedBox(height: AppSpacing.medium),
+              Text(
+                'Error al cargar datos',
+                style: AppTextStyles.heading2.copyWith(color: AppColors.error),
+              ),
+              const SizedBox(height: AppSpacing.small),
+              Text(
+                dashboardVM.error,
+                style: AppTextStyles.body,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.large),
+              ElevatedButton.icon(
+                onPressed: () => dashboardVM.loadDashboardData(),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Reintentar'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final List<Widget> pages = [
-      GestionScreen(), // 0 - Gestión
-      AsistenciaScreen(), // 1 - Asistencia
-      InicioScreen(), // 2 - Inicio
-      ReportesScreen(), // 3 - Reportes
-      ConfiguracionScreen(), // 4 - Configuración
+      const GestionScreen(),
+      const AsistenciaScreen(),
+      const InicioScreen(),
+      const ReportesScreen(),
+      const ConfiguracionScreen(),
     ];
 
     return pages[dashboardVM.selectedIndex];
   }
 
   Drawer _buildDrawer(BuildContext context) {
-    final dashboardVM = Provider.of<DashboardViewModel>(context);
+    final dashboardVM = Provider.of<dashboard_vm.DashboardViewModel>(context);
     final carrerasVM = Provider.of<CarrerasViewModel>(context);
     final theme = Theme.of(context);
+    final user = dashboardVM.currentUser;
 
     return Drawer(
       backgroundColor:
@@ -102,19 +150,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
                 accountName: Text(
-                  "Usuario Ejemplo",
-                  style: AppTextStyles.body.copyWith(color: Colors.white),
+                  user?.displayName ?? 'Usuario',
+                  style: AppTextStyles.body.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 accountEmail: Text(
-                  "usuario@correo.com",
+                  user?.email ?? 'usuario@incos.edu.bo',
                   style: AppTextStyles.body.copyWith(color: Colors.white70),
                 ),
                 currentAccountPicture: CircleAvatar(
                   radius: 28,
                   backgroundColor: AppColors.accent,
-                  child: Icon(Icons.person, size: 40, color: AppColors.primary),
+                  backgroundImage: user?.photoURL != null
+                      ? NetworkImage(user!.photoURL!)
+                      : null,
+                  child: user?.photoURL == null
+                      ? Icon(Icons.person, size: 40, color: AppColors.primary)
+                      : null,
                 ),
               ),
+
               _buildDrawerItem(context, Icons.home, "Inicio", 2, dashboardVM),
 
               _buildExpansionDrawerItem(
@@ -185,17 +242,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 4,
                 dashboardVM,
               ),
+
+              _buildSystemInfo(context, dashboardVM),
+
               const SizedBox(height: AppSpacing.large),
               Divider(height: 1, color: _getDividerColor(context)),
+
               ListTile(
                 leading: Icon(Icons.logout, color: _getErrorColor(context)),
                 title: Text(
                   AppStrings.logout,
                   style: AppTextStyles.body.copyWith(
                     color: _getErrorColor(context),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 onTap: () {
+                  Navigator.pop(context);
                   _showLogoutDialog(context);
                 },
               ),
@@ -207,11 +270,71 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Widget _buildSystemInfo(
+    BuildContext context,
+    dashboard_vm.DashboardViewModel dashboardVM,
+  ) {
+    final stats = dashboardVM.dashboardData['stats'] ?? {};
+
+    return Container(
+      margin: const EdgeInsets.all(AppSpacing.medium),
+      padding: const EdgeInsets.all(AppSpacing.medium),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(AppRadius.medium),
+        border: Border.all(color: AppColors.primary.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Resumen del Sistema',
+            style: AppTextStyles.body.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.small),
+          _buildStatItem('Estudiantes', stats['estudiantes'] ?? 0),
+          _buildStatItem('Docentes', stats['docentes'] ?? 0),
+          _buildStatItem('Carreras', stats['carreras'] ?? 0),
+          _buildStatItem('Asistencias Hoy', stats['asistencias_hoy'] ?? 0),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, int value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.body.copyWith(
+              fontSize: 12,
+              color: _getSecondaryTextColor(context),
+            ),
+          ),
+          Text(
+            value.toString(),
+            style: AppTextStyles.body.copyWith(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildExpansionDrawerItem(
     BuildContext context,
     IconData icon,
     String label,
-    DashboardViewModel dashboardVM, {
+    dashboard_vm.DashboardViewModel dashboardVM, {
     required List<Widget> children,
   }) {
     return ExpansionTile(
@@ -256,18 +379,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _navigateToGestionSubScreen(BuildContext context, String tipo) {
-    final dashboardVM = Provider.of<DashboardViewModel>(context, listen: false);
+    final dashboardVM = context.read<dashboard_vm.DashboardViewModel>();
     dashboardVM.changeIndex(0);
 
-    // Puedes pasar el tipo de gestión si es necesario
-    // Por ejemplo, usando un Provider adicional o Navigator
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Navegando a $tipo'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
   }
 
   void _navigateToAsistenciaSubScreen(BuildContext context, String tipo) {
-    final dashboardVM = Provider.of<DashboardViewModel>(context, listen: false);
+    final dashboardVM = context.read<dashboard_vm.DashboardViewModel>();
     dashboardVM.changeIndex(1);
 
-    // Puedes pasar el tipo de asistencia si es necesario
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Navegando a $tipo'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
   }
 
   ListTile _buildDrawerItem(
@@ -275,7 +407,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     IconData icon,
     String label,
     int index,
-    DashboardViewModel dashboardVM,
+    dashboard_vm.DashboardViewModel dashboardVM,
   ) {
     final bool isSelected = dashboardVM.selectedIndex == index;
 
@@ -283,6 +415,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       leading: Icon(
         icon,
         color: isSelected ? AppColors.primary : _getSecondaryTextColor(context),
+        size: 24,
       ),
       title: Text(
         label,
@@ -301,7 +434,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildResponsiveBottomNavigationBar(BuildContext context) {
-    final dashboardVM = Provider.of<DashboardViewModel>(context);
+    final dashboardVM = Provider.of<dashboard_vm.DashboardViewModel>(context);
     final screenWidth = MediaQuery.of(context).size.width;
 
     if (screenWidth < 600) {
@@ -314,7 +447,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildMobileBottomNavigationBar(
-    DashboardViewModel dashboardVM,
+    dashboard_vm.DashboardViewModel dashboardVM,
     BuildContext context,
   ) {
     return Container(
@@ -327,6 +460,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             offset: const Offset(0, -2),
           ),
         ],
+        border: Border(
+          top: BorderSide(color: _getDividerColor(context), width: 0.5),
+        ),
       ),
       child: SafeArea(
         child: SingleChildScrollView(
@@ -379,7 +515,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildTabletBottomNavigationBar(
-    DashboardViewModel dashboardVM,
+    dashboard_vm.DashboardViewModel dashboardVM,
     BuildContext context,
   ) {
     return Container(
@@ -392,6 +528,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             offset: const Offset(0, -2),
           ),
         ],
+        border: Border(
+          top: BorderSide(color: _getDividerColor(context), width: 0.5),
+        ),
       ),
       child: SafeArea(
         child: Container(
@@ -459,7 +598,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildDesktopBottomNavigationBar(
-    DashboardViewModel dashboardVM,
+    dashboard_vm.DashboardViewModel dashboardVM,
     BuildContext context,
   ) {
     return Container(
@@ -472,6 +611,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             offset: const Offset(0, -2),
           ),
         ],
+        border: Border(
+          top: BorderSide(color: _getDividerColor(context), width: 0.5),
+        ),
       ),
       child: SafeArea(
         child: Container(
@@ -543,7 +685,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     IconData icon,
     String label,
     int index,
-    DashboardViewModel dashboardVM, {
+    dashboard_vm.DashboardViewModel dashboardVM, {
     required DeviceType deviceType,
   }) {
     final bool isSelected = dashboardVM.selectedIndex == index;
@@ -556,12 +698,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            icon,
-            color: isSelected
-                ? AppColors.primary
-                : _getSecondaryTextColor(context),
-            size: sizes.iconSize,
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: isSelected
+                ? BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  )
+                : null,
+            child: Icon(
+              icon,
+              color: isSelected
+                  ? AppColors.primary
+                  : _getSecondaryTextColor(context),
+              size: sizes.iconSize,
+            ),
           ),
           const SizedBox(height: 4),
           Flexible(
@@ -586,7 +737,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildNavItemInicio(
     BuildContext context,
-    DashboardViewModel dashboardVM, {
+    dashboard_vm.DashboardViewModel dashboardVM, {
     required DeviceType deviceType,
   }) {
     final bool isSelected = dashboardVM.selectedIndex == 2;
@@ -600,14 +751,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       child: GestureDetector(
         onTap: () => dashboardVM.changeIndex(2),
-        child: Container(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
           decoration: BoxDecoration(
             color: isSelected ? AppColors.primary : AppColors.success,
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 4,
+                color: Colors.black.withOpacity(isSelected ? 0.3 : 0.2),
+                blurRadius: isSelected ? 8 : 4,
                 offset: const Offset(0, 2),
               ),
             ],
@@ -693,30 +845,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
         : AppColors.error;
   }
 
-  // Método para mostrar diálogo de logout
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Cerrar Sesión'),
-          content: const Text('¿Estás seguro de que quieres cerrar sesión?'),
+          title: Row(
+            children: [
+              Icon(Icons.logout, color: AppColors.error),
+              const SizedBox(width: AppSpacing.small),
+              Text(
+                'Cerrar Sesión',
+                style: AppTextStyles.heading2.copyWith(color: AppColors.error),
+              ),
+            ],
+          ),
+          content: const Text(
+            '¿Estás seguro de que quieres cerrar sesión?',
+            style: AppTextStyles.body,
+          ),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: const Text('Cancelar'),
+              child: Text(
+                'Cancelar',
+                style: AppTextStyles.body.copyWith(color: AppColors.primary),
+              ),
             ),
-            TextButton(
+            ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pop();
                 _performLogout(context);
               },
-              child: const Text(
-                'Cerrar Sesión',
-                style: TextStyle(color: Colors.red),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
               ),
+              child: const Text('Cerrar Sesión'),
             ),
           ],
         );
@@ -724,20 +891,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // Método para realizar logout
-  void _performLogout(BuildContext context) {
-    // TODO: Implementar lógica de logout
-    // Por ejemplo:
-    // - Limpiar datos de sesión
-    // - Navegar a la pantalla de login
-    // - Reiniciar estados
+  void _performLogout(BuildContext context) async {
+    try {
+      final dashboardVM = context.read<dashboard_vm.DashboardViewModel>();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Sesión cerrada correctamente'),
-        backgroundColor: Colors.green,
-      ),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              SizedBox(width: AppSpacing.small),
+              Text('Cerrando sesión...'),
+            ],
+          ),
+          backgroundColor: AppColors.primary,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      await dashboardVM.logout();
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al cerrar sesión: $error'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 }
 

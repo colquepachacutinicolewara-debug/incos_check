@@ -58,10 +58,10 @@ class _DocentesScreenContent extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // Selector de Carrera - RESPONSIVE
+            // Selector de Carrera
             _buildCarreraSelector(context, viewModel),
 
-            // Tarjetas de Turnos - RESPONSIVE
+            // Tarjetas de Turnos
             _buildTurnosCards(context, viewModel, mediaQuery),
 
             // Resumen de la selección actual
@@ -148,7 +148,7 @@ class _DocentesScreenContent extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.medium),
       child: DropdownButtonFormField<String>(
         value: viewModel.selectedCarrera,
-        isExpanded: true, // IMPORTANTE: Para nombres largos de carreras
+        isExpanded: true,
         dropdownColor: _getCardColor(context),
         style: TextStyle(color: _getTextColor(context)),
         decoration: InputDecoration(
@@ -207,7 +207,7 @@ class _DocentesScreenContent extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.small),
           SizedBox(
-            height: isSmallScreen ? 100 : 120, // Altura responsive
+            height: isSmallScreen ? 100 : 120,
             child: Row(
               children: [
                 _buildTurnoCard(
@@ -397,7 +397,7 @@ class _DocentesScreenContent extends StatelessWidget {
       child: viewModel.filteredDocentes.isEmpty
           ? _buildEmptyState(context, viewModel)
           : ListView.builder(
-              padding: const EdgeInsets.only(bottom: 80), // Espacio para FAB
+              padding: const EdgeInsets.only(bottom: 80),
               itemCount: viewModel.filteredDocentes.length,
               itemBuilder: (context, index) {
                 final docente = viewModel.filteredDocentes[index];
@@ -592,7 +592,7 @@ class _DocentesScreenContent extends StatelessWidget {
     );
   }
 
-  // MÉTODO PARA MOSTRAR DETALLES DEL DOCENTE
+  // DIÁLOGO DE DETALLES DEL DOCENTE
   void _showDocenteDetails(BuildContext context, Docente docente) {
     final viewModel = Provider.of<DocentesViewModel>(context, listen: false);
 
@@ -707,7 +707,7 @@ class _DocentesScreenContent extends StatelessWidget {
     );
   }
 
-  // MÉTODO PARA CONFIRMAR ELIMINACIÓN
+  // DIÁLOGO DE CONFIRMACIÓN PARA ELIMINAR
   void _confirmDeleteDocente(
     BuildContext context,
     DocentesViewModel viewModel,
@@ -779,7 +779,7 @@ class _DocentesScreenContent extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context); // Cerrar diálogo de confirmación
+              Navigator.pop(context);
 
               final success = await viewModel.deleteDocente(id);
 
@@ -818,7 +818,7 @@ class _DocentesScreenContent extends StatelessWidget {
     );
   }
 
-  // MÉTODO _showAddEditDocenteDialog CORREGIDO - RESPONSIVE
+  // DIÁLOGO PRINCIPAL PARA AGREGAR/EDITAR DOCENTE
   void _showAddEditDocenteDialog(
     BuildContext context,
     DocentesViewModel viewModel, {
@@ -866,11 +866,11 @@ class _DocentesScreenContent extends StatelessWidget {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => Dialog(
           backgroundColor: _getCardColor(context),
-          insetPadding: const EdgeInsets.all(20), // Padding responsive
+          insetPadding: const EdgeInsets.all(20),
           child: ConstrainedBox(
             constraints: BoxConstraints(
               maxHeight: MediaQuery.of(context).size.height * 0.9,
-              maxWidth: 500, // Ancho máximo para tablets
+              maxWidth: 500,
             ),
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.medium),
@@ -1161,80 +1161,105 @@ class _DocentesScreenContent extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.medium),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: Text(
-                          'Cancelar',
-                          style: AppTextStyles.body.copyWith(
-                            color: _getTextColor(context),
+                  if (viewModel.guardando)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: AppSpacing.medium),
+                      child: CircularProgressIndicator(),
+                    )
+                  else
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text(
+                            'Cancelar',
+                            style: AppTextStyles.body.copyWith(
+                              color: _getTextColor(context),
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: AppSpacing.small),
-                      ElevatedButton(
-                        onPressed: () async {
-                          if (formKey.currentState!.validate()) {
-                            String telefonoFormateado = telefonoController.text;
-                            if (!telefonoFormateado.startsWith('+591')) {
-                              if (RegExp(
-                                r'^\d+$',
-                              ).hasMatch(telefonoFormateado)) {
-                                telefonoFormateado = '+591$telefonoFormateado';
+                        const SizedBox(width: AppSpacing.small),
+                        ElevatedButton(
+                          onPressed: () async {
+                            if (formKey.currentState!.validate()) {
+                              String telefonoFormateado =
+                                  telefonoController.text;
+                              if (!telefonoFormateado.startsWith('+591')) {
+                                if (RegExp(
+                                  r'^\d+$',
+                                ).hasMatch(telefonoFormateado)) {
+                                  telefonoFormateado =
+                                      '+591$telefonoFormateado';
+                                }
+                              }
+
+                              final nuevoDocente = Docente(
+                                id: isEditing ? docente!.id : '',
+                                ci: ciController.text,
+                                apellidoPaterno: apellidoPaternoController.text
+                                    .trim()
+                                    .toUpperCase(),
+                                apellidoMaterno: apellidoMaternoController.text
+                                    .trim()
+                                    .toUpperCase(),
+                                nombres: nombresController.text
+                                    .trim()
+                                    .toUpperCase(),
+                                carrera: selectedCarrera,
+                                turno: selectedTurno,
+                                email: emailController.text.trim(),
+                                telefono: telefonoFormateado,
+                                estado: selectedEstado,
+                              );
+
+                              final success = isEditing
+                                  ? await viewModel.updateDocente(nuevoDocente)
+                                  : await viewModel.addDocente(nuevoDocente);
+
+                              if (success && context.mounted) {
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      isEditing
+                                          ? 'Docente actualizado correctamente'
+                                          : 'Docente agregado correctamente',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    backgroundColor: AppColors.success,
+                                    duration: const Duration(seconds: 3),
+                                  ),
+                                );
+                              } else if (context.mounted &&
+                                  viewModel.error != null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Error: ${viewModel.error}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    backgroundColor: AppColors.error,
+                                    duration: const Duration(seconds: 3),
+                                  ),
+                                );
                               }
                             }
-
-                            final nuevoDocente = Docente(
-                              id: isEditing ? docente!.id : '',
-                              ci: ciController.text,
-                              apellidoPaterno: apellidoPaternoController.text
-                                  .trim()
-                                  .toUpperCase(),
-                              apellidoMaterno: apellidoMaternoController.text
-                                  .trim()
-                                  .toUpperCase(),
-                              nombres: nombresController.text
-                                  .trim()
-                                  .toUpperCase(),
-                              carrera: selectedCarrera,
-                              turno: selectedTurno,
-                              email: emailController.text.trim(),
-                              telefono: telefonoFormateado,
-                              estado: selectedEstado,
-                            );
-
-                            final success = isEditing
-                                ? await viewModel.updateDocente(nuevoDocente)
-                                : await viewModel.addDocente(nuevoDocente);
-
-                            if (success && context.mounted) {
-                              Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    isEditing
-                                        ? 'Docente actualizado correctamente'
-                                        : 'Docente agregado correctamente',
-                                    style: const TextStyle(color: Colors.white),
-                                  ),
-                                  backgroundColor: AppColors.success,
-                                ),
-                              );
-                            }
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: viewModel.carreraColor,
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: viewModel.carreraColor,
+                          ),
+                          child: Text(
+                            isEditing ? 'Actualizar' : 'Guardar',
+                            style: const TextStyle(color: Colors.white),
+                          ),
                         ),
-                        child: Text(
-                          isEditing ? 'Actualizar' : 'Guardar',
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
                 ],
               ),
             ),

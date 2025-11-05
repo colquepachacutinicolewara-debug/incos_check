@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../viewmodels/configuracion_viewmodel.dart';
+import '../../viewmodels/dashboard_viewmodel.dart' as dashboard_vm;
 import '../../utils/constants.dart';
 import '../../utils/helpers.dart';
 import '../../services/theme_service.dart';
@@ -11,10 +13,7 @@ class ConfiguracionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => ConfiguracionViewModel(),
-      child: const _ConfiguracionView(),
-    );
+    return _ConfiguracionView();
   }
 }
 
@@ -148,14 +147,14 @@ class _ConfiguracionView extends StatelessWidget {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              await Future.delayed(const Duration(seconds: 2));
+              await Future.delayed(Duration(seconds: 2));
               Helpers.showSnackBar(
                 context,
                 '✅ Copia de seguridad creada exitosamente',
                 type: 'success',
               );
             },
-            child: Text('Crear Backup', style: AppTextStyles.button),
+            child: Text('Crear Backup'),
           ),
         ],
       ),
@@ -163,6 +162,10 @@ class _ConfiguracionView extends StatelessWidget {
   }
 
   void _showChangePasswordDialog(BuildContext context) {
+    final _currentPasswordController = TextEditingController();
+    final _newPasswordController = TextEditingController();
+    final _confirmPasswordController = TextEditingController();
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -175,6 +178,7 @@ class _ConfiguracionView extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
+                controller: _currentPasswordController,
                 decoration: InputDecoration(
                   labelText: 'Contraseña actual',
                   border: OutlineInputBorder(),
@@ -182,29 +186,24 @@ class _ConfiguracionView extends StatelessWidget {
                     Icons.lock_outline,
                     color: AppColors.primary,
                   ),
-                  labelStyle: AppTextStyles.bodyDark(context),
                 ),
                 obscureText: true,
-                style: AppTextStyles.bodyDark(context),
               ),
               SizedBox(height: AppSpacing.medium),
               TextField(
+                controller: _newPasswordController,
                 decoration: InputDecoration(
                   labelText: 'Nueva contraseña',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.lock_reset, color: AppColors.primary),
                   hintText:
-                      'Mín. 5 chars, mayúscula, minúscula, carácter especial',
-                  labelStyle: AppTextStyles.bodyDark(context),
-                  hintStyle: AppTextStyles.bodyDark(
-                    context,
-                  ).copyWith(color: AppColors.textSecondaryDark(context)),
+                      'Mín. 6 caracteres, mayúscula, minúscula, carácter especial',
                 ),
                 obscureText: true,
-                style: AppTextStyles.bodyDark(context),
               ),
               SizedBox(height: AppSpacing.medium),
               TextField(
+                controller: _confirmPasswordController,
                 decoration: InputDecoration(
                   labelText: 'Confirmar nueva contraseña',
                   border: OutlineInputBorder(),
@@ -212,10 +211,8 @@ class _ConfiguracionView extends StatelessWidget {
                     Icons.verified_user,
                     color: AppColors.primary,
                   ),
-                  labelStyle: AppTextStyles.bodyDark(context),
                 ),
                 obscureText: true,
-                style: AppTextStyles.bodyDark(context),
               ),
               SizedBox(height: AppSpacing.small),
               Container(
@@ -229,24 +226,17 @@ class _ConfiguracionView extends StatelessWidget {
                   children: [
                     Text(
                       'Requisitos de contraseña:',
-                      style: AppTextStyles.bodyDark(context).copyWith(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                         color: AppColors.primary,
                       ),
                     ),
                     SizedBox(height: 4),
-                    _buildSimpleRequirement(context, 'Mínimo 5 caracteres'),
+                    _buildSimpleRequirement('Mínimo 6 caracteres'),
+                    _buildSimpleRequirement('Una letra mayúscula (A-Z)'),
+                    _buildSimpleRequirement('Una letra minúscula (a-z)'),
                     _buildSimpleRequirement(
-                      context,
-                      'Una letra mayúscula (A-Z)',
-                    ),
-                    _buildSimpleRequirement(
-                      context,
-                      'Una letra minúscula (a-z)',
-                    ),
-                    _buildSimpleRequirement(
-                      context,
                       'Un carácter especial (!@#\$% etc.)',
                     ),
                   ],
@@ -258,35 +248,81 @@ class _ConfiguracionView extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar', style: AppTextStyles.bodyDark(context)),
+            child: Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Helpers.showSnackBar(
-                context,
-                '✅ Contraseña cambiada exitosamente',
-                type: 'success',
-              );
+            onPressed: () async {
+              final currentPassword = _currentPasswordController.text;
+              final newPassword = _newPasswordController.text;
+              final confirmPassword = _confirmPasswordController.text;
+
+              if (newPassword != confirmPassword) {
+                Helpers.showSnackBar(
+                  context,
+                  '❌ Las contraseñas no coinciden',
+                  type: 'error',
+                );
+                return;
+              }
+
+              if (newPassword.length < 6) {
+                Helpers.showSnackBar(
+                  context,
+                  '❌ La contraseña debe tener al menos 6 caracteres',
+                  type: 'error',
+                );
+                return;
+              }
+
+              try {
+                final user = FirebaseAuth.instance.currentUser;
+                if (user != null) {
+                  final cred = EmailAuthProvider.credential(
+                    email: user.email!,
+                    password: currentPassword,
+                  );
+
+                  await user.reauthenticateWithCredential(cred);
+                  await user.updatePassword(newPassword);
+
+                  _currentPasswordController.clear();
+                  _newPasswordController.clear();
+                  _confirmPasswordController.clear();
+
+                  Navigator.pop(context);
+                  Helpers.showSnackBar(
+                    context,
+                    '✅ Contraseña cambiada exitosamente',
+                    type: 'success',
+                  );
+                }
+              } on FirebaseAuthException catch (e) {
+                Helpers.showSnackBar(
+                  context,
+                  '❌ Error: ${e.message}',
+                  type: 'error',
+                );
+              } catch (e) {
+                Helpers.showSnackBar(
+                  context,
+                  '❌ Error al cambiar contraseña',
+                  type: 'error',
+                );
+              }
             },
-            child: Text('Cambiar Contraseña', style: AppTextStyles.button),
+            child: Text('Cambiar Contraseña'),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSimpleRequirement(BuildContext context, String text) {
+  Widget _buildSimpleRequirement(String text) {
     return Row(
       children: [
         Icon(Icons.check_circle_outline, size: 14, color: AppColors.primary),
         SizedBox(width: 4),
-        Text(
-          text,
-          style: AppTextStyles.bodyDark(
-            context,
-          ).copyWith(fontSize: 11, color: AppColors.textSecondaryDark(context)),
-        ),
+        Text(text, style: TextStyle(fontSize: 11)),
       ],
     );
   }
@@ -314,16 +350,17 @@ class _ConfiguracionView extends StatelessWidget {
             SizedBox(height: AppSpacing.small),
             Text(
               'Se liberarán ${viewModel.configuracion.cacheSize} de espacio de almacenamiento',
-              style: AppTextStyles.bodyDark(
-                context,
-              ).copyWith(color: AppColors.primary, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar', style: AppTextStyles.bodyDark(context)),
+            child: Text('Cancelar'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -335,7 +372,7 @@ class _ConfiguracionView extends StatelessWidget {
                 type: 'success',
               );
             },
-            child: Text('Limpiar', style: AppTextStyles.button),
+            child: Text('Limpiar'),
           ),
         ],
       ),
@@ -367,41 +404,31 @@ class _ConfiguracionView extends StatelessWidget {
               SizedBox(height: AppSpacing.medium),
               Text(
                 'IncosCheck v1.0.0',
-                style: AppTextStyles.heading1Dark(
-                  context,
-                ).copyWith(fontSize: 18, color: AppColors.primary),
+                style: TextStyle(
+                  fontSize: 18,
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               SizedBox(height: AppSpacing.small),
               Text(
                 'Sistema de Gestión de Asistencias',
-                style: AppTextStyles.bodyDark(
-                  context,
-                ).copyWith(fontWeight: FontWeight.w500),
+                style: TextStyle(fontWeight: FontWeight.w500),
               ),
               SizedBox(height: AppSpacing.medium),
               _buildInfoItem(
-                context,
                 'Desarrollado para:',
                 'Instituto Técnico Comercial INCOS - El Alto',
               ),
               _buildInfoItem(
-                context,
                 'Desarrolladora:',
                 'Est. Nicole Wara Colque Pachacuti\n(Sistemas Informáticos - Proyecto de Grado)',
               ),
-              _buildInfoItem(
-                context,
-                'Contacto:',
-                '+591 75205630\nincos@gmail.com',
-              ),
+              _buildInfoItem('Contacto:', '+591 75205630\nincos@gmail.com'),
               SizedBox(height: AppSpacing.medium),
               Text(
                 '© 2025 Todos los derechos reservados',
-                style: AppTextStyles.bodyDark(context).copyWith(
-                  fontSize: 12,
-                  color: AppColors.textSecondaryDark(context),
-                  fontStyle: FontStyle.italic,
-                ),
+                style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
               ),
             ],
           ),
@@ -409,31 +436,24 @@ class _ConfiguracionView extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cerrar', style: AppTextStyles.bodyDark(context)),
+            child: Text('Cerrar'),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildInfoItem(BuildContext context, String label, String value) {
+  Widget _buildInfoItem(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.small),
+      padding: EdgeInsets.only(bottom: AppSpacing.small),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: AppTextStyles.bodyDark(context).copyWith(
-              fontSize: 12,
-              color: AppColors.textSecondaryDark(context),
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
           ),
-          Text(
-            value,
-            style: AppTextStyles.bodyDark(context).copyWith(fontSize: 14),
-          ),
+          Text(value, style: TextStyle(fontSize: 14)),
           SizedBox(height: 4),
         ],
       ),
@@ -461,39 +481,29 @@ class _ConfiguracionView extends StatelessWidget {
             children: [
               Text(
                 'IncosCheck - Protección de Datos',
-                style: AppTextStyles.bodyDark(
-                  context,
-                ).copyWith(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
               SizedBox(height: AppSpacing.medium),
               _buildPrivacyItem(
-                context,
                 '📊 Datos Recopilados:',
                 '• Registros de asistencia\n• Información de estudiantes\n• Datos de docentes\n• Materias, carreras y horarios\n• Turnos y paralelos',
               ),
               _buildPrivacyItem(
-                context,
                 '🛡️ Protección:',
                 '• Autenticación biométrica\n• Almacenamiento seguro en Firebase\n• Acceso restringido al personal autorizado',
               ),
               _buildPrivacyItem(
-                context,
                 '🚫 Uso de Datos:',
                 '• Exclusivamente para control de asistencia interna\n• No se comparte con terceros\n• Uso educativo institucional',
               ),
               _buildPrivacyItem(
-                context,
                 '📝 Responsabilidad:',
                 '• Instituto Técnico Comercial INCOS - El Alto\n• Cumplimiento de normativas educativas',
               ),
               SizedBox(height: AppSpacing.medium),
               Text(
                 'Esta aplicación garantiza la confidencialidad y seguridad de los datos académicos.',
-                style: AppTextStyles.bodyDark(context).copyWith(
-                  fontSize: 12,
-                  fontStyle: FontStyle.italic,
-                  color: AppColors.textSecondaryDark(context),
-                ),
+                style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
               ),
             ],
           ),
@@ -501,48 +511,83 @@ class _ConfiguracionView extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Entendido', style: AppTextStyles.bodyDark(context)),
+            child: Text('Entendido'),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPrivacyItem(BuildContext context, String title, String content) {
+  Widget _buildPrivacyItem(String title, String content) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.medium),
+      padding: EdgeInsets.only(bottom: AppSpacing.medium),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: AppTextStyles.bodyDark(
-              context,
-            ).copyWith(fontWeight: FontWeight.bold, color: AppColors.primary),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
           ),
           SizedBox(height: 4),
-          Text(
-            content,
-            style: AppTextStyles.bodyDark(context).copyWith(fontSize: 14),
-          ),
+          Text(content, style: TextStyle(fontSize: 14)),
         ],
       ),
     );
+  }
+
+  void _performLogout(BuildContext context) async {
+    try {
+      final dashboardVM = context.read<dashboard_vm.DashboardViewModel>();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              SizedBox(width: AppSpacing.small),
+              Text('Cerrando sesión...'),
+            ],
+          ),
+          backgroundColor: AppColors.primary,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      await dashboardVM.logout();
+
+      Helpers.showSnackBar(
+        context,
+        'Sesión cerrada exitosamente',
+        type: 'success',
+      );
+    } catch (e) {
+      Helpers.showSnackBar(
+        context,
+        'Error al cerrar sesión: $e',
+        type: 'error',
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<ConfiguracionViewModel>();
     final config = viewModel.configuracion;
+    final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Configuración',
-          style: AppTextStyles.heading2Dark(
-            context,
-          ).copyWith(color: Colors.white),
-        ),
+        title: Text('Configuración', style: TextStyle(color: Colors.white)),
         backgroundColor: AppColors.secondary,
         centerTitle: true,
       ),
@@ -556,10 +601,9 @@ class _ConfiguracionView extends StatelessWidget {
             ),
             child: Column(
               children: [
-                _buildUserCard(context, isTablet),
+                _buildUserCard(context, isTablet, user),
                 SizedBox(height: AppSpacing.large),
 
-                // Configuración de notificaciones
                 _buildSettingsSection(
                   context,
                   'Notificaciones',
@@ -598,7 +642,6 @@ class _ConfiguracionView extends StatelessWidget {
 
                 SizedBox(height: AppSpacing.large),
 
-                // Configuración de seguridad
                 _buildSettingsSection(context, 'Seguridad', Icons.security, [
                   _buildSwitchSetting(
                     context,
@@ -641,7 +684,6 @@ class _ConfiguracionView extends StatelessWidget {
 
                 SizedBox(height: AppSpacing.large),
 
-                // Configuración de apariencia
                 _buildSettingsSection(context, 'Apariencia', Icons.palette, [
                   _buildSelectionSetting(
                     context,
@@ -661,7 +703,6 @@ class _ConfiguracionView extends StatelessWidget {
 
                 SizedBox(height: AppSpacing.large),
 
-                // Configuración de datos
                 _buildSettingsSection(
                   context,
                   'Datos y Almacenamiento',
@@ -686,7 +727,6 @@ class _ConfiguracionView extends StatelessWidget {
 
                 SizedBox(height: AppSpacing.large),
 
-                // Información y soporte
                 _buildSettingsSection(context, 'Información', Icons.info, [
                   _buildActionSetting(
                     context,
@@ -720,7 +760,6 @@ class _ConfiguracionView extends StatelessWidget {
 
                 SizedBox(height: AppSpacing.large),
 
-                // Cerrar sesión
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
@@ -731,19 +770,17 @@ class _ConfiguracionView extends StatelessWidget {
                         content: '¿Estás seguro de que deseas cerrar sesión?',
                       ).then((confirmed) {
                         if (confirmed) {
-                          Helpers.showSnackBar(
-                            context,
-                            'Sesión cerrada exitosamente',
-                            type: 'success',
-                          );
+                          _performLogout(context);
                         }
                       });
                     },
                     icon: Icon(Icons.exit_to_app, color: Colors.white),
-                    label: Text('Cerrar Sesión', style: AppTextStyles.button),
+                    label: Text(
+                      'Cerrar Sesión',
+                      style: TextStyle(color: Colors.white),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.error,
-                      foregroundColor: Colors.white,
                       padding: EdgeInsets.symmetric(
                         vertical: AppSpacing.medium,
                         horizontal: AppSpacing.large,
@@ -758,10 +795,7 @@ class _ConfiguracionView extends StatelessWidget {
                 SizedBox(height: AppSpacing.large),
                 Text(
                   'Versión 1.0.0',
-                  style: AppTextStyles.bodyDark(context).copyWith(
-                    color: AppColors.textSecondaryDark(context),
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                 ),
               ],
             ),
@@ -771,7 +805,7 @@ class _ConfiguracionView extends StatelessWidget {
     );
   }
 
-  Widget _buildUserCard(BuildContext context, bool isTablet) {
+  Widget _buildUserCard(BuildContext context, bool isTablet, User? user) {
     return Card(
       elevation: 4,
       child: Padding(
@@ -781,11 +815,16 @@ class _ConfiguracionView extends StatelessWidget {
             CircleAvatar(
               radius: isTablet ? 40 : 30,
               backgroundColor: AppColors.primary,
-              child: Icon(
-                Icons.person,
-                size: isTablet ? 30 : 20,
-                color: Colors.white,
-              ),
+              backgroundImage: user?.photoURL != null
+                  ? NetworkImage(user!.photoURL!)
+                  : null,
+              child: user?.photoURL == null
+                  ? Icon(
+                      Icons.person,
+                      size: isTablet ? 30 : 20,
+                      color: Colors.white,
+                    )
+                  : null,
             ),
             SizedBox(width: AppSpacing.medium),
             Expanded(
@@ -793,17 +832,16 @@ class _ConfiguracionView extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Usuario Demo',
-                    style: AppTextStyles.heading2Dark(
-                      context,
-                    ).copyWith(fontSize: isTablet ? 20 : 18),
+                    user?.displayName ?? 'Usuario',
+                    style: TextStyle(
+                      fontSize: isTablet ? 20 : 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   SizedBox(height: AppSpacing.small),
                   Text(
-                    'administrador@incos.edu.bo',
-                    style: AppTextStyles.bodyDark(
-                      context,
-                    ).copyWith(color: AppColors.textSecondaryDark(context)),
+                    user?.email ?? 'No email',
+                    style: TextStyle(color: Colors.grey.shade600),
                   ),
                   SizedBox(height: AppSpacing.small),
                   Chip(
@@ -851,9 +889,10 @@ class _ConfiguracionView extends StatelessWidget {
                 SizedBox(width: AppSpacing.small),
                 Text(
                   title,
-                  style: AppTextStyles.heading2Dark(
-                    context,
-                  ).copyWith(color: AppColors.primary),
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -875,19 +914,16 @@ class _ConfiguracionView extends StatelessWidget {
     return Column(
       children: [
         SwitchListTile(
-          title: Text(title, style: AppTextStyles.bodyDark(context)),
+          title: Text(title),
           subtitle: Text(
             subtitle,
-            style: AppTextStyles.bodyDark(context).copyWith(
-              color: AppColors.textSecondaryDark(context),
-              fontSize: 14,
-            ),
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
           ),
           value: value,
           onChanged: onChanged,
-          activeThumbColor: AppColors.primary,
+          activeColor: AppColors.primary,
         ),
-        Divider(color: AppColors.background),
+        Divider(height: 1),
       ],
     );
   }
@@ -903,22 +939,15 @@ class _ConfiguracionView extends StatelessWidget {
       children: [
         ListTile(
           leading: Icon(icon, color: AppColors.primary),
-          title: Text(title, style: AppTextStyles.bodyDark(context)),
+          title: Text(title),
           subtitle: Text(
             subtitle,
-            style: AppTextStyles.bodyDark(context).copyWith(
-              color: AppColors.textSecondaryDark(context),
-              fontSize: 14,
-            ),
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
           ),
-          trailing: Icon(
-            Icons.arrow_forward_ios,
-            size: 16,
-            color: AppColors.textSecondaryDark(context),
-          ),
+          trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
           onTap: onTap,
         ),
-        Divider(color: AppColors.background),
+        Divider(height: 1),
       ],
     );
   }
@@ -934,21 +963,15 @@ class _ConfiguracionView extends StatelessWidget {
       children: [
         ListTile(
           leading: Icon(icon, color: AppColors.primary),
-          title: Text(title, style: AppTextStyles.bodyDark(context)),
+          title: Text(title),
           subtitle: Text(
             value,
-            style: AppTextStyles.bodyDark(
-              context,
-            ).copyWith(color: AppColors.primary, fontSize: 14),
+            style: TextStyle(color: AppColors.primary, fontSize: 14),
           ),
-          trailing: Icon(
-            Icons.arrow_forward_ios,
-            size: 16,
-            color: AppColors.textSecondaryDark(context),
-          ),
+          trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
           onTap: onTap,
         ),
-        Divider(color: AppColors.background),
+        Divider(height: 1),
       ],
     );
   }
