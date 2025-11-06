@@ -7,83 +7,76 @@ import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import 'dart:io';
 import 'dart:async';
-
-// AGREGAR: Importar DataRepository y Firestore
-import '../repositories/data_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../repositories/data_repository.dart';
+import '../models/estudiante_model.dart';
+
 class EstudiantesViewModel with ChangeNotifier {
-  List<Map<String, dynamic>> _estudiantes = [];
-  List<Map<String, dynamic>> _estudiantesFiltrados = [];
+  List<Estudiante> _estudiantes = [];
+  List<Estudiante> _estudiantesFiltrados = [];
   final TextEditingController searchController = TextEditingController();
 
-  // AGREGADO: DataRepository y StreamSubscription
   final DataRepository _repository;
   StreamSubscription? _estudiantesSubscription;
 
-  // Datos del contexto
   final String tipo;
   final Map<String, dynamic> carrera;
   final Map<String, dynamic> turno;
   final Map<String, dynamic> nivel;
   final Map<String, dynamic> paralelo;
 
-  // Estado de carga
   bool _isLoading = true;
   bool get isLoading => _isLoading;
 
   String? _error;
   String? get error => _error;
 
-  // CORREGIDO: Constructor con DataRepository (sin _ en parámetro)
   EstudiantesViewModel({
     required this.tipo,
     required this.carrera,
     required this.turno,
     required this.nivel,
     required this.paralelo,
-    required DataRepository repository, // CORREGIDO: sin _
+    required DataRepository repository,
   }) : _repository = repository {
-    // ASIGNACIÓN en initializer list
     _inicializarViewModel();
   }
 
   void _inicializarViewModel() {
-    _cargarEstudiantesDesdeFirestore(); // NUEVO: Cargar desde Firestore
+    _cargarEstudiantesDesdeFirestore();
     searchController.addListener(_filtrarEstudiantes);
   }
 
   // Getters
-  List<Map<String, dynamic>> get estudiantes => _estudiantes;
-  List<Map<String, dynamic>> get estudiantesFiltrados => _estudiantesFiltrados;
+  List<Estudiante> get estudiantes => _estudiantes;
+  List<Estudiante> get estudiantesFiltrados => _estudiantesFiltrados;
 
-  // NUEVO: Cargar estudiantes desde Firestore
+  // ✅ CARGA DESDE FIRESTORE
   void _cargarEstudiantesDesdeFirestore() {
     try {
       _isLoading = true;
       _error = null;
       notifyListeners();
 
-      // Usar el stream específico por grupo si tenemos los IDs
-      if (carrera['id'] != null &&
-          turno['id'] != null &&
-          nivel['id'] != null &&
-          paralelo['id'] != null) {
-        _estudiantesSubscription = _repository
-            .getEstudiantesByGrupoStream(
-              carreraId: carrera['id'],
-              turnoId: turno['id'],
-              nivelId: nivel['id'],
-              paraleloId: paralelo['id'],
-            )
-            .listen(_onEstudiantesSnapshot, onError: _onEstudiantesError);
-      } else {
-        // Fallback: cargar todos los estudiantes
-        _estudiantesSubscription = _repository.getEstudiantesStream().listen(
-          _onEstudiantesSnapshot,
-          onError: _onEstudiantesError,
-        );
-      }
+      print('🔄 Cargando estudiantes desde Firestore...');
+      print('   - Carrera: ${carrera['id']}');
+      print('   - Turno: ${turno['id']}');
+      print('   - Nivel: ${nivel['id']}');
+      print('   - Paralelo: ${paralelo['id']}');
+
+      // Cancelar suscripción anterior si existe
+      _estudiantesSubscription?.cancel();
+
+      // Usar el stream específico por grupo
+      _estudiantesSubscription = _repository
+          .getEstudiantesByGrupoStream(
+            carreraId: carrera['id']?.toString() ?? '',
+            turnoId: turno['id']?.toString() ?? '',
+            nivelId: nivel['id']?.toString() ?? '',
+            paraleloId: paralelo['id']?.toString() ?? '',
+          )
+          .listen(_onEstudiantesSnapshot, onError: _onEstudiantesError);
     } catch (e) {
       _onEstudiantesError(e);
     }
@@ -91,74 +84,40 @@ class EstudiantesViewModel with ChangeNotifier {
 
   void _onEstudiantesSnapshot(QuerySnapshot snapshot) {
     try {
+      print('📥 Recibidos ${snapshot.docs.length} estudiantes de Firestore');
+
       _estudiantes = snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        return {
-          'id': doc.id, // Usar el ID de Firestore
-          'nombres': data['nombres'] ?? '',
-          'apellidoPaterno': data['apellidoPaterno'] ?? '',
-          'apellidoMaterno': data['apellidoMaterno'] ?? '',
-          'ci': data['ci'] ?? '',
-          'fechaRegistro': data['fechaRegistro'] ?? '',
-          'huellasRegistradas': data['huellasRegistradas'] ?? 0,
-          'carreraId': data['carreraId'] ?? '',
-          'turnoId': data['turnoId'] ?? '',
-          'nivelId': data['nivelId'] ?? '',
-          'paraleloId': data['paraleloId'] ?? '',
-        };
+        return Estudiante.fromFirestore(
+          doc.id,
+          doc.data() as Map<String, dynamic>,
+        );
       }).toList();
 
       _isLoading = false;
       _error = null;
       _ordenarEstudiantes();
       notifyListeners();
+
+      print('✅ Estudiantes cargados: ${_estudiantes.length}');
     } catch (e) {
       _onEstudiantesError(e);
     }
   }
 
   void _onEstudiantesError(dynamic error) {
-    print('Error cargando estudiantes: $error');
+    print('❌ Error cargando estudiantes: $error');
     _isLoading = false;
     _error = 'Error al cargar estudiantes: $error';
-
-    // Cargar datos locales de respaldo
-    _cargarDatosLocalesDeRespaldo();
     notifyListeners();
-  }
-
-  // NUEVO: Datos de respaldo locales
-  void _cargarDatosLocalesDeRespaldo() {
-    _estudiantes = [
-      {
-        'id': 'local_1',
-        'nombres': 'Juan Carlos',
-        'apellidoPaterno': 'Pérez',
-        'apellidoMaterno': 'Gómez',
-        'ci': '1234567',
-        'fechaRegistro': '2024-01-15',
-        'huellasRegistradas': 3,
-      },
-      {
-        'id': 'local_2',
-        'nombres': 'María Elena',
-        'apellidoPaterno': 'López',
-        'apellidoMaterno': 'Martínez',
-        'ci': '7654321',
-        'fechaRegistro': '2024-01-16',
-        'huellasRegistradas': 2,
-      },
-    ];
-    _ordenarEstudiantes();
   }
 
   void _ordenarEstudiantes() {
     _estudiantes.sort((a, b) {
-      int comparacion = a['apellidoPaterno'].compareTo(b['apellidoPaterno']);
+      int comparacion = a.apellidoPaterno.compareTo(b.apellidoPaterno);
       if (comparacion != 0) return comparacion;
-      comparacion = a['apellidoMaterno'].compareTo(b['apellidoMaterno']);
+      comparacion = a.apellidoMaterno.compareTo(b.apellidoMaterno);
       if (comparacion != 0) return comparacion;
-      return a['nombres'].compareTo(b['nombres']);
+      return a.nombres.compareTo(b.nombres);
     });
     _filtrarEstudiantes();
   }
@@ -169,105 +128,166 @@ class EstudiantesViewModel with ChangeNotifier {
       _estudiantesFiltrados = List.from(_estudiantes);
     } else {
       _estudiantesFiltrados = _estudiantes.where((estudiante) {
-        return estudiante['nombres'].toLowerCase().contains(query) ||
-            estudiante['apellidoPaterno'].toLowerCase().contains(query) ||
-            estudiante['apellidoMaterno'].toLowerCase().contains(query) ||
-            estudiante['ci'].contains(query);
+        return estudiante.nombres.toLowerCase().contains(query) ||
+            estudiante.apellidoPaterno.toLowerCase().contains(query) ||
+            estudiante.apellidoMaterno.toLowerCase().contains(query) ||
+            estudiante.ci.contains(query);
       }).toList();
     }
     notifyListeners();
   }
 
-  // MODIFICADO: Agregar estudiante con Firestore
-  Future<void> agregarEstudiante({
+  // ✅ AGREGAR ESTUDIANTE
+  Future<bool> agregarEstudiante({
     required String nombres,
     required String paterno,
     required String materno,
     required String ci,
   }) async {
     try {
-      final data = {
-        'nombres': nombres.trim(),
-        'apellidoPaterno': paterno.trim(),
-        'apellidoMaterno': materno.trim(),
-        'ci': ci.trim(),
-        'fechaRegistro': DateTime.now().toString().split(' ')[0],
-        'huellasRegistradas': 0,
-        'carreraId': carrera['id'] ?? '',
-        'turnoId': turno['id'] ?? '',
-        'nivelId': nivel['id'] ?? '',
-        'paraleloId': paralelo['id'] ?? '',
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
+      _isLoading = true;
+      notifyListeners();
 
-      await _repository.addDocument('estudiantes', data);
+      print('🔄 Agregando estudiante: $nombres $paterno $materno');
 
-      // El stream se actualizará automáticamente con el nuevo estudiante
+      // Crear el estudiante
+      final nuevoEstudiante = Estudiante(
+        id: '', // ID vacío para nuevo documento
+        nombres: nombres.trim(),
+        apellidoPaterno: paterno.trim(),
+        apellidoMaterno: materno.trim(),
+        ci: ci.trim(),
+        fechaRegistro: DateTime.now().toString().split(' ')[0],
+        huellasRegistradas: 0,
+        carreraId: carrera['id']?.toString(),
+        turnoId: turno['id']?.toString(),
+        nivelId: nivel['id']?.toString(),
+        paraleloId: paralelo['id']?.toString(),
+      );
+
+      // Agregar a Firestore
+      await _repository.addEstudiante(nuevoEstudiante.toFirestore());
+
+      _isLoading = false;
+      notifyListeners();
+
+      print('✅ Estudiante agregado exitosamente');
+      return true;
     } catch (e) {
-      print('Error agregando estudiante: $e');
-      throw Exception('Error al agregar estudiante: $e');
+      print('❌ Error agregando estudiante: $e');
+      _error = 'Error al agregar estudiante: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
     }
   }
 
-  // MODIFICADO: Editar estudiante con Firestore
-  Future<void> editarEstudiante({
-    required String id, // Cambiado de int a String para Firestore ID
+  // ✅ EDITAR ESTUDIANTE
+  Future<bool> editarEstudiante({
+    required String id,
     required String nombres,
     required String paterno,
     required String materno,
     required String ci,
   }) async {
     try {
-      final data = {
-        'nombres': nombres.trim(),
-        'apellidoPaterno': paterno.trim(),
-        'apellidoMaterno': materno.trim(),
-        'ci': ci.trim(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
+      _isLoading = true;
+      notifyListeners();
 
-      await _repository.updateDocument('estudiantes', id, data);
+      print('🔄 Editando estudiante: $id');
 
-      // El stream se actualizará automáticamente
+      // Buscar el estudiante actual
+      final estudianteExistente = _estudiantes.firstWhere(
+        (e) => e.id == id,
+        orElse: () => throw Exception('Estudiante no encontrado'),
+      );
+
+      // Crear estudiante actualizado
+      final estudianteActualizado = estudianteExistente.copyWith(
+        nombres: nombres.trim(),
+        apellidoPaterno: paterno.trim(),
+        apellidoMaterno: materno.trim(),
+        ci: ci.trim(),
+      );
+
+      // Actualizar en Firestore
+      await _repository.updateEstudiante(
+        id,
+        estudianteActualizado.toFirestore(),
+      );
+
+      _isLoading = false;
+      notifyListeners();
+
+      print('✅ Estudiante editado exitosamente');
+      return true;
     } catch (e) {
-      print('Error editando estudiante: $e');
-      throw Exception('Error al editar estudiante: $e');
+      print('❌ Error editando estudiante: $e');
+      _error = 'Error al editar estudiante: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
     }
   }
 
-  // MODIFICADO: Eliminar estudiante con Firestore
-  Future<void> eliminarEstudiante(String id) async {
-    // Cambiado de int a String
+  // ✅ ELIMINAR ESTUDIANTE
+  Future<bool> eliminarEstudiante(String id) async {
     try {
-      await _repository.db.collection('estudiantes').doc(id).delete();
+      _isLoading = true;
+      notifyListeners();
 
-      // El stream se actualizará automáticamente
+      print('🔄 Eliminando estudiante: $id');
+
+      await _repository.deleteEstudiante(id);
+
+      _isLoading = false;
+      notifyListeners();
+
+      print('✅ Estudiante eliminado exitosamente');
+      return true;
     } catch (e) {
-      print('Error eliminando estudiante: $e');
-      throw Exception('Error al eliminar estudiante: $e');
+      print('❌ Error eliminando estudiante: $e');
+      _error = 'Error al eliminar estudiante: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
     }
   }
 
-  // MODIFICADO: Actualizar huellas con Firestore
-  Future<void> actualizarHuellasEstudiante(
+  // ✅ ACTUALIZAR HUELLAS
+  Future<bool> actualizarHuellasEstudiante(
     String id,
     int huellasRegistradas,
   ) async {
     try {
-      await _repository.updateDocument('estudiantes', id, {
+      print(
+        '🔄 Actualizando huellas del estudiante: $id a $huellasRegistradas',
+      );
+
+      await _repository.updateEstudiante(id, {
         'huellasRegistradas': huellasRegistradas,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'fechaActualizacion': FieldValue.serverTimestamp(),
       });
 
-      // El stream se actualizará automáticamente
+      print('✅ Huellas actualizadas exitosamente');
+      return true;
     } catch (e) {
-      print('Error actualizando huellas: $e');
-      throw Exception('Error al actualizar huellas: $e');
+      print('❌ Error actualizando huellas: $e');
+      _error = 'Error al actualizar huellas: $e';
+      notifyListeners();
+      return false;
     }
   }
 
-  // MÉTODOS DE EXPORTACIÓN (SIN CAMBIOS - se mantiene toda la funcionalidad)
+  // ✅ REINTENTAR CARGA
+  Future<void> reintentarCarga() async {
+    _error = null;
+    _isLoading = true;
+    notifyListeners();
+    _cargarEstudiantesDesdeFirestore();
+  }
+
+  // ✅ MÉTODOS DE EXPORTACIÓN (MANTENIDOS)
   Future<void> exportarExcel({
     bool simple = true,
     String asignatura = 'BASE DE DATOS II',
@@ -282,20 +302,19 @@ class EstudiantesViewModel with ChangeNotifier {
 
       final estudiantesExportar = _estudiantesFiltrados;
       estudiantesExportar.sort((a, b) {
-        int c = a['apellidoPaterno'].compareTo(b['apellidoPaterno']);
+        int c = a.apellidoPaterno.compareTo(b.apellidoPaterno);
         if (c != 0) return c;
-        c = a['apellidoMaterno'].compareTo(b['apellidoMaterno']);
+        c = a.apellidoMaterno.compareTo(b.apellidoMaterno);
         if (c != 0) return c;
-        return a['nombres'].compareTo(b['nombres']);
+        return a.nombres.compareTo(b.nombres);
       });
 
       if (simple) {
         sb.writeln('NRO,ESTUDIANTE');
         int nro = 1;
         for (var e in estudiantesExportar) {
-          final name =
-              '${e['apellidoPaterno']} ${e['apellidoMaterno']} ${e['nombres']}'
-                  .replaceAll(',', '');
+          final name = '${e.apellidoPaterno} ${e.apellidoMaterno} ${e.nombres}'
+              .replaceAll(',', '');
           sb.writeln('$nro,"$name"');
           nro++;
         }
@@ -303,11 +322,10 @@ class EstudiantesViewModel with ChangeNotifier {
         sb.writeln('NRO,ESTUDIANTE,CI,FECHA REGISTRO,HUELLAS');
         int nro = 1;
         for (var e in estudiantesExportar) {
-          final name =
-              '${e['apellidoPaterno']} ${e['apellidoMaterno']} ${e['nombres']}'
-                  .replaceAll(',', '');
+          final name = '${e.apellidoPaterno} ${e.apellidoMaterno} ${e.nombres}'
+              .replaceAll(',', '');
           sb.writeln(
-            '$nro,"$name",${e['ci']},${e['fechaRegistro']},${e['huellasRegistradas']}/3',
+            '$nro,"$name",${e.ci},${e.fechaRegistro},${e.huellasRegistradas}/3',
           );
           nro++;
         }
@@ -342,18 +360,18 @@ class EstudiantesViewModel with ChangeNotifier {
   }
 
   pw.Document buildPdfDocument(
-    List<Map<String, dynamic>> estudiantes,
+    List<Estudiante> estudiantes,
     bool simple,
     String asignatura,
   ) {
     final doc = pw.Document();
 
     estudiantes.sort((a, b) {
-      int c = a['apellidoPaterno'].compareTo(b['apellidoPaterno']);
+      int c = a.apellidoPaterno.compareTo(b.apellidoPaterno);
       if (c != 0) return c;
-      c = a['apellidoMaterno'].compareTo(b['apellidoMaterno']);
+      c = a.apellidoMaterno.compareTo(b.apellidoMaterno);
       if (c != 0) return c;
-      return a['nombres'].compareTo(b['nombres']);
+      return a.nombres.compareTo(b.nombres);
     });
 
     doc.addPage(
@@ -402,7 +420,7 @@ class EstudiantesViewModel with ChangeNotifier {
                       final e = estudiantes[i];
                       return [
                         '${i + 1}',
-                        '${e['apellidoPaterno']} ${e['apellidoMaterno']} ${e['nombres']}',
+                        '${e.apellidoPaterno} ${e.apellidoMaterno} ${e.nombres}',
                       ];
                     }),
                   ),
@@ -417,10 +435,10 @@ class EstudiantesViewModel with ChangeNotifier {
                       final e = estudiantes[i];
                       return [
                         '${i + 1}',
-                        '${e['apellidoPaterno']} ${e['apellidoMaterno']} ${e['nombres']}',
-                        e['ci'],
-                        e['fechaRegistro'],
-                        '${e['huellasRegistradas']}/3',
+                        '${e.apellidoPaterno} ${e.apellidoMaterno} ${e.nombres}',
+                        e.ci,
+                        e.fechaRegistro,
+                        '${e.huellasRegistradas}/3',
                       ];
                     }),
                   ),
@@ -444,20 +462,19 @@ class EstudiantesViewModel with ChangeNotifier {
 
     final estudiantesExportar = _estudiantesFiltrados;
     estudiantesExportar.sort((a, b) {
-      int c = a['apellidoPaterno'].compareTo(b['apellidoPaterno']);
+      int c = a.apellidoPaterno.compareTo(b.apellidoPaterno);
       if (c != 0) return c;
-      c = a['apellidoMaterno'].compareTo(b['apellidoMaterno']);
+      c = a.apellidoMaterno.compareTo(b.apellidoMaterno);
       if (c != 0) return c;
-      return a['nombres'].compareTo(b['nombres']);
+      return a.nombres.compareTo(b.nombres);
     });
 
     if (simple) {
       sb.writeln('NRO,ESTUDIANTE');
       int nro = 1;
       for (var e in estudiantesExportar) {
-        final name =
-            '${e['apellidoPaterno']} ${e['apellidoMaterno']} ${e['nombres']}'
-                .replaceAll(',', '');
+        final name = '${e.apellidoPaterno} ${e.apellidoMaterno} ${e.nombres}'
+            .replaceAll(',', '');
         sb.writeln('$nro,"$name"');
         nro++;
       }
@@ -465,11 +482,10 @@ class EstudiantesViewModel with ChangeNotifier {
       sb.writeln('NRO,ESTUDIANTE,CI,FECHA REGISTRO,HUELLAS');
       int nro = 1;
       for (var e in estudiantesExportar) {
-        final name =
-            '${e['apellidoPaterno']} ${e['apellidoMaterno']} ${e['nombres']}'
-                .replaceAll(',', '');
+        final name = '${e.apellidoPaterno} ${e.apellidoMaterno} ${e.nombres}'
+            .replaceAll(',', '');
         sb.writeln(
-          '$nro,"$name",${e['ci']},${e['fechaRegistro']},${e['huellasRegistradas']}/3',
+          '$nro,"$name",${e.ci},${e.fechaRegistro},${e.huellasRegistradas}/3',
         );
         nro++;
       }
@@ -480,7 +496,7 @@ class EstudiantesViewModel with ChangeNotifier {
 
   @override
   void dispose() {
-    _estudiantesSubscription?.cancel(); // AGREGADO: Cancelar subscription
+    _estudiantesSubscription?.cancel();
     searchController.dispose();
     super.dispose();
   }

@@ -28,13 +28,31 @@ class CarreraConfig {
 
   factory CarreraConfig.fromMap(Map<String, dynamic> map) {
     return CarreraConfig(
-      id: map['id'],
-      nombre: map['nombre'],
-      color: map['color'],
-      icon: IconData(map['icon'], fontFamily: 'MaterialIcons'),
-      activa: map['activa'],
+      id: map['id'] ?? 0,
+      nombre: map['nombre'] ?? '',
+      color: map['color'] ?? '#1565C0',
+      icon: _getIconFromCode(map['icon'] ?? Icons.school.codePoint),
+      activa: map['activa'] ?? true,
     );
   }
+
+  static IconData _getIconFromCode(int codePoint) {
+    try {
+      return IconData(codePoint, fontFamily: 'MaterialIcons');
+    } catch (e) {
+      return Icons.school;
+    }
+  }
+
+  // Para comparación y evitar duplicados
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is CarreraConfig && other.nombre == nombre;
+  }
+
+  @override
+  int get hashCode => nombre.hashCode;
 }
 
 class GestionEstado {

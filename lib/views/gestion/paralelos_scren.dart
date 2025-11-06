@@ -1,8 +1,9 @@
+// paralelos_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:incos_check/utils/constants.dart';
 import 'package:incos_check/viewmodels/paralelos_viewmodel.dart';
-import 'package:incos_check/models/paralelo_model.dart'; // IMPORTACIÓN AGREGADA
+import 'package:incos_check/models/paralelo_model.dart';
 import 'package:incos_check/views/gestion/estudiantes_screen.dart';
 
 class ParalelosScreen extends StatefulWidget {
@@ -32,7 +33,6 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
 
   void _inicializarViewModel() {
     final viewModel = Provider.of<ParalelosViewModel>(context, listen: false);
-
     viewModel.inicializarYcargarParalelos(
       widget.carrera['id'].toString(),
       widget.carrera['nombre'],
@@ -229,13 +229,7 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
             Switch(
               value: paralelo.activo,
               onChanged: (value) {
-                viewModel.cambiarEstadoParalelo(
-                  paralelo,
-                  value,
-                  widget.carrera['id'].toString(),
-                  widget.turno['id'].toString(),
-                  widget.nivel['id'].toString(),
-                );
+                _cambiarEstadoParalelo(viewModel, paralelo, value);
               },
               activeColor: color,
             ),
@@ -279,6 +273,29 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
         },
       ),
     );
+  }
+
+  void _cambiarEstadoParalelo(
+    ParalelosViewModel viewModel,
+    Paralelo paralelo,
+    bool nuevoEstado,
+  ) async {
+    final success = await viewModel.cambiarEstadoParalelo(
+      paralelo,
+      nuevoEstado,
+      widget.carrera['id'].toString(),
+      widget.turno['id'].toString(),
+      widget.nivel['id'].toString(),
+    );
+
+    if (!success && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${viewModel.error}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _handleMenuAction(
@@ -385,16 +402,27 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
           ElevatedButton(
             onPressed: viewModel.isLoading
                 ? null
-                : () {
+                : () async {
                     if (viewModel.nombreController.text.trim().isNotEmpty) {
-                      viewModel.agregarParalelo(
+                      final success = await viewModel.agregarParalelo(
                         viewModel.nombreController.text.trim().toUpperCase(),
                         widget.carrera['id'].toString(),
                         widget.turno['id'].toString(),
                         widget.nivel['id'].toString(),
                         context,
                       );
-                      Navigator.pop(context);
+
+                      if (success && context.mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Paralelo ${viewModel.nombreController.text} agregado correctamente',
+                            ),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
                     }
                   },
             style: ElevatedButton.styleFrom(
@@ -505,11 +533,11 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
           ElevatedButton(
             onPressed: viewModel.isLoading
                 ? null
-                : () {
+                : () async {
                     if (viewModel.editarNombreController.text
                         .trim()
                         .isNotEmpty) {
-                      viewModel.editarParalelo(
+                      final success = await viewModel.editarParalelo(
                         paralelo,
                         viewModel.editarNombreController.text
                             .trim()
@@ -519,7 +547,18 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
                         widget.nivel['id'].toString(),
                         context,
                       );
-                      Navigator.pop(context);
+
+                      if (success && context.mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Paralelo actualizado a ${viewModel.editarNombreController.text}',
+                            ),
+                            backgroundColor: Colors.blue,
+                          ),
+                        );
+                      }
                     }
                   },
             style: ElevatedButton.styleFrom(
@@ -569,15 +608,26 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
           TextButton(
             onPressed: viewModel.isLoading
                 ? null
-                : () {
-                    viewModel.eliminarParalelo(
+                : () async {
+                    final success = await viewModel.eliminarParalelo(
                       paralelo,
                       widget.carrera['id'].toString(),
                       widget.turno['id'].toString(),
                       widget.nivel['id'].toString(),
                       context,
                     );
-                    Navigator.pop(context);
+
+                    if (success && context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Paralelo ${paralelo.nombre} eliminado',
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
                   },
             child: viewModel.isLoading
                 ? const SizedBox(

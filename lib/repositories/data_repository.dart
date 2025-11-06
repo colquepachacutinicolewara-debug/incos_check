@@ -85,14 +85,6 @@ class DataRepository {
     }
   }
 
-  Future<void> eliminarCarrera(String carreraId) async {
-    try {
-      await _db.collection('carreras').doc(carreraId).delete();
-    } catch (e) {
-      throw _handleFirestoreError('carreras', e);
-    }
-  }
-
   // -----------------------------------------------------------------
   // MÉTODOS PARA Turnos
   // -----------------------------------------------------------------
@@ -320,6 +312,26 @@ class DataRepository {
     }
   }
 
+  Future<QuerySnapshot> getParalelos(
+    String carreraId,
+    String turnoId,
+    String nivelId,
+  ) async {
+    try {
+      return await _db
+          .collection('carreras')
+          .doc(carreraId)
+          .collection('turnos')
+          .doc(turnoId)
+          .collection('niveles')
+          .doc(nivelId)
+          .collection('paralelos')
+          .get();
+    } catch (e) {
+      throw _handleFirestoreError('paralelos', e);
+    }
+  }
+
   // -----------------------------------------------------------------
   // MÉTODOS PARA EstudiantesViewModel
   // -----------------------------------------------------------------
@@ -385,10 +397,8 @@ class DataRepository {
     }
   }
 
-  // EN TU DataRepository EXISTENTE - AGREGAR ESTOS MÉTODOS:
-
   // -----------------------------------------------------------------
-  // MÉTODOS MEJORADOS PARA DocenteViewModel
+  // MÉTODOS PARA DocentesViewModel
   // -----------------------------------------------------------------
 
   Stream<QuerySnapshot> getDocentesStream() {

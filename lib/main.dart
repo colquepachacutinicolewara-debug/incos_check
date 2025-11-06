@@ -14,7 +14,7 @@ import 'viewmodels/carreras_viewmodel.dart';
 import 'viewmodels/configuracion_viewmodel.dart';
 import 'viewmodels/estudiantes_viewmodel.dart';
 import 'viewmodels/paralelos_viewmodel.dart';
-import '../../viewmodels/docente_viewmodel.dart';
+import 'viewmodels/docente_viewmodel.dart';
 
 // Services
 import 'services/theme_service.dart';
@@ -86,7 +86,6 @@ class MyApp extends StatelessWidget {
             repository: Provider.of<DataRepository>(context, listen: false),
           ),
         ),
-        // PROVIDER DE DOCENTES AGREGADO
         ChangeNotifierProvider<DocentesViewModel>(
           create: (context) => DocentesViewModel(
             Provider.of<DataRepository>(context, listen: false),

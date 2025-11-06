@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../viewmodels/dashboard_viewmodel.dart' as dashboard_vm;
@@ -18,14 +19,34 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  // Cache para las páginas
+  final List<Widget> _pages = [];
+
   @override
   void initState() {
     super.initState();
+    _initializePages();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final dashboardVM = context.read<dashboard_vm.DashboardViewModel>();
-      final carrerasVM = context.read<CarrerasViewModel>();
-      dashboardVM.loadDashboardData();
+      _loadInitialData();
     });
+  }
+
+  void _initializePages() {
+    _pages.addAll([
+      const GestionScreen(),
+      const AsistenciaScreen(),
+      const InicioScreen(),
+      const ReportesScreen(),
+      const ConfiguracionScreen(),
+    ]);
+  }
+
+  void _loadInitialData() {
+    final dashboardVM = context.read<dashboard_vm.DashboardViewModel>();
+    final carrerasVM = context.read<CarrerasViewModel>();
+
+    // Cargar datos solo si es necesario
+    dashboardVM.loadDashboardData();
   }
 
   @override
@@ -37,28 +58,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         elevation: 4,
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
-        actions: [
-          Consumer<dashboard_vm.DashboardViewModel>(
-            builder: (context, dashboardVM, child) {
-              if (dashboardVM.currentUser != null) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: 16.0),
-                  child: CircleAvatar(
-                    radius: 16,
-                    backgroundColor: Colors.white,
-                    backgroundImage: dashboardVM.currentUser!.photoURL != null
-                        ? NetworkImage(dashboardVM.currentUser!.photoURL!)
-                        : null,
-                    child: dashboardVM.currentUser!.photoURL == null
-                        ? Icon(Icons.person, size: 16, color: AppColors.primary)
-                        : null,
-                  ),
-                );
-              }
-              return const SizedBox();
-            },
-          ),
-        ],
+        actions: [_buildUserAvatar()],
       ),
       drawer: _buildDrawer(context),
       body: _buildBody(context),
@@ -66,241 +66,261 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildBody(BuildContext context) {
-    final dashboardVM = Provider.of<dashboard_vm.DashboardViewModel>(context);
+  Widget _buildUserAvatar() {
+    return Consumer<dashboard_vm.DashboardViewModel>(
+      builder: (context, dashboardVM, child) {
+        final user = dashboardVM.currentUser;
+        if (user == null) return const SizedBox();
 
-    if (dashboardVM.loading) {
-      return const Center(
+        return Padding(
+          padding: const EdgeInsets.only(right: 16.0),
+          child: CircleAvatar(
+            radius: 16,
+            backgroundColor: Colors.white,
+            backgroundImage: user.photoURL != null
+                ? NetworkImage(user.photoURL!)
+                : null,
+            child: user.photoURL == null
+                ? Icon(Icons.person, size: 16, color: AppColors.primary)
+                : null,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
+    return Consumer<dashboard_vm.DashboardViewModel>(
+      builder: (context, dashboardVM, child) {
+        if (dashboardVM.loading && dashboardVM.dashboardData.isEmpty) {
+          return _buildLoadingState();
+        }
+
+        if (dashboardVM.error.isNotEmpty) {
+          return _buildErrorState(dashboardVM);
+        }
+
+        return _buildContent(dashboardVM);
+      },
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: AppSpacing.medium),
+          Text('Cargando datos...', style: AppTextStyles.body),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(dashboard_vm.DashboardViewModel dashboardVM) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.large),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: AppSpacing.medium),
-            Text('Cargando datos...', style: AppTextStyles.body),
+            Icon(Icons.error_outline, size: 64, color: AppColors.error),
+            const SizedBox(height: AppSpacing.medium),
+            Text(
+              'Error al cargar datos',
+              style: AppTextStyles.heading2.copyWith(color: AppColors.error),
+            ),
+            const SizedBox(height: AppSpacing.small),
+            Text(
+              dashboardVM.error,
+              style: AppTextStyles.body,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.large),
+            ElevatedButton.icon(
+              onPressed: () =>
+                  dashboardVM.loadDashboardData(forceRefresh: true),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Reintentar'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+            ),
           ],
-        ),
-      );
-    }
-
-    if (dashboardVM.error.isNotEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.large),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 64, color: AppColors.error),
-              const SizedBox(height: AppSpacing.medium),
-              Text(
-                'Error al cargar datos',
-                style: AppTextStyles.heading2.copyWith(color: AppColors.error),
-              ),
-              const SizedBox(height: AppSpacing.small),
-              Text(
-                dashboardVM.error,
-                style: AppTextStyles.body,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.large),
-              ElevatedButton.icon(
-                onPressed: () => dashboardVM.loadDashboardData(),
-                icon: const Icon(Icons.refresh),
-                label: const Text('Reintentar'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    final List<Widget> pages = [
-      const GestionScreen(),
-      const AsistenciaScreen(),
-      const InicioScreen(),
-      const ReportesScreen(),
-      const ConfiguracionScreen(),
-    ];
-
-    return pages[dashboardVM.selectedIndex];
-  }
-
-  Drawer _buildDrawer(BuildContext context) {
-    final dashboardVM = Provider.of<dashboard_vm.DashboardViewModel>(context);
-    final carrerasVM = Provider.of<CarrerasViewModel>(context);
-    final theme = Theme.of(context);
-    final user = dashboardVM.currentUser;
-
-    return Drawer(
-      backgroundColor:
-          theme.drawerTheme.backgroundColor ?? _getDrawerColor(context),
-      child: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              UserAccountsDrawerHeader(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppColors.primary, AppColors.secondary],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                accountName: Text(
-                  user?.displayName ?? 'Usuario',
-                  style: AppTextStyles.body.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                accountEmail: Text(
-                  user?.email ?? 'usuario@incos.edu.bo',
-                  style: AppTextStyles.body.copyWith(color: Colors.white70),
-                ),
-                currentAccountPicture: CircleAvatar(
-                  radius: 28,
-                  backgroundColor: AppColors.accent,
-                  backgroundImage: user?.photoURL != null
-                      ? NetworkImage(user!.photoURL!)
-                      : null,
-                  child: user?.photoURL == null
-                      ? Icon(Icons.person, size: 40, color: AppColors.primary)
-                      : null,
-                ),
-              ),
-
-              _buildDrawerItem(context, Icons.home, "Inicio", 2, dashboardVM),
-
-              _buildExpansionDrawerItem(
-                context,
-                Icons.school,
-                "Gestión Académica",
-                dashboardVM,
-                children: [
-                  _buildSubDrawerItem(
-                    context,
-                    Icons.people,
-                    "Estudiantes",
-                    () => _navigateToGestionSubScreen(context, 'Estudiantes'),
-                  ),
-                  _buildSubDrawerItem(
-                    context,
-                    Icons.book,
-                    "Cursos",
-                    () => _navigateToGestionSubScreen(context, 'Cursos'),
-                  ),
-                  _buildSubDrawerItem(
-                    context,
-                    Icons.school,
-                    "Carreras",
-                    () => _navigateToGestionSubScreen(context, 'Carreras'),
-                  ),
-                  _buildSubDrawerItem(
-                    context,
-                    Icons.person,
-                    "Docentes",
-                    () => _navigateToGestionSubScreen(context, 'Docentes'),
-                  ),
-                ],
-              ),
-
-              _buildExpansionDrawerItem(
-                context,
-                Icons.event_note,
-                "Registro de Asistencia",
-                dashboardVM,
-                children: [
-                  _buildSubDrawerItem(
-                    context,
-                    Icons.fingerprint,
-                    "Registrar Asistencia",
-                    () => _navigateToAsistenciaSubScreen(context, 'Registrar'),
-                  ),
-                  _buildSubDrawerItem(
-                    context,
-                    Icons.history,
-                    "Historial de Asistencia",
-                    () => _navigateToAsistenciaSubScreen(context, 'Historial'),
-                  ),
-                ],
-              ),
-
-              _buildDrawerItem(
-                context,
-                Icons.assignment,
-                "Reporte General",
-                3,
-                dashboardVM,
-              ),
-              _buildDrawerItem(
-                context,
-                Icons.settings,
-                "Configuración y Soporte",
-                4,
-                dashboardVM,
-              ),
-
-              _buildSystemInfo(context, dashboardVM),
-
-              const SizedBox(height: AppSpacing.large),
-              Divider(height: 1, color: _getDividerColor(context)),
-
-              ListTile(
-                leading: Icon(Icons.logout, color: _getErrorColor(context)),
-                title: Text(
-                  AppStrings.logout,
-                  style: AppTextStyles.body.copyWith(
-                    color: _getErrorColor(context),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showLogoutDialog(context);
-                },
-              ),
-              const SizedBox(height: AppSpacing.medium),
-            ],
-          ),
         ),
       ),
     );
   }
 
-  Widget _buildSystemInfo(
-    BuildContext context,
-    dashboard_vm.DashboardViewModel dashboardVM,
-  ) {
-    final stats = dashboardVM.dashboardData['stats'] ?? {};
+  Widget _buildContent(dashboard_vm.DashboardViewModel dashboardVM) {
+    // Usar IndexedStack para mantener el estado de las páginas
+    return IndexedStack(index: dashboardVM.selectedIndex, children: _pages);
+  }
 
-    return Container(
-      margin: const EdgeInsets.all(AppSpacing.medium),
-      padding: const EdgeInsets.all(AppSpacing.medium),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(AppRadius.medium),
-        border: Border.all(color: AppColors.primary.withOpacity(0.1)),
+  Drawer _buildDrawer(BuildContext context) {
+    return Drawer(
+      backgroundColor: _getDrawerColor(context),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(child: _buildDrawerContent(context)),
+            ),
+            _buildLogoutButton(context),
+          ],
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Resumen del Sistema',
-            style: AppTextStyles.body.copyWith(
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
+    );
+  }
+
+  Widget _buildDrawerContent(BuildContext context) {
+    final dashboardVM = Provider.of<dashboard_vm.DashboardViewModel>(
+      context,
+      listen: false,
+    );
+    final user = dashboardVM.currentUser;
+
+    return Column(
+      children: [
+        UserAccountsDrawerHeader(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppColors.primary, AppColors.secondary],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
           ),
-          const SizedBox(height: AppSpacing.small),
-          _buildStatItem('Estudiantes', stats['estudiantes'] ?? 0),
-          _buildStatItem('Docentes', stats['docentes'] ?? 0),
-          _buildStatItem('Carreras', stats['carreras'] ?? 0),
-          _buildStatItem('Asistencias Hoy', stats['asistencias_hoy'] ?? 0),
-        ],
-      ),
+          accountName: Text(
+            user?.displayName ?? 'Usuario',
+            style: AppTextStyles.body.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          accountEmail: Text(
+            user?.email ?? 'usuario@incos.edu.bo',
+            style: AppTextStyles.body.copyWith(color: Colors.white70),
+          ),
+          currentAccountPicture: CircleAvatar(
+            radius: 28,
+            backgroundColor: AppColors.accent,
+            backgroundImage: user?.photoURL != null
+                ? NetworkImage(user!.photoURL!)
+                : null,
+            child: user?.photoURL == null
+                ? Icon(Icons.person, size: 40, color: AppColors.primary)
+                : null,
+          ),
+        ),
+
+        _buildDrawerItem(context, Icons.home, "Inicio", 2, dashboardVM),
+
+        _buildExpansionDrawerItem(
+          context,
+          Icons.school,
+          "Gestión Académica",
+          children: [
+            _buildSubDrawerItem(
+              context,
+              Icons.people,
+              "Estudiantes",
+              () => _navigateToSection(context, 0, 'Estudiantes'),
+            ),
+            _buildSubDrawerItem(
+              context,
+              Icons.book,
+              "Cursos",
+              () => _navigateToSection(context, 0, 'Cursos'),
+            ),
+            _buildSubDrawerItem(
+              context,
+              Icons.school,
+              "Carreras",
+              () => _navigateToSection(context, 0, 'Carreras'),
+            ),
+            _buildSubDrawerItem(
+              context,
+              Icons.person,
+              "Docentes",
+              () => _navigateToSection(context, 0, 'Docentes'),
+            ),
+          ],
+        ),
+
+        _buildExpansionDrawerItem(
+          context,
+          Icons.event_note,
+          "Registro de Asistencia",
+          children: [
+            _buildSubDrawerItem(
+              context,
+              Icons.fingerprint,
+              "Registrar Asistencia",
+              () => _navigateToSection(context, 1, 'Registrar'),
+            ),
+            _buildSubDrawerItem(
+              context,
+              Icons.history,
+              "Historial de Asistencia",
+              () => _navigateToSection(context, 1, 'Historial'),
+            ),
+          ],
+        ),
+
+        _buildDrawerItem(
+          context,
+          Icons.assignment,
+          "Reporte General",
+          3,
+          dashboardVM,
+        ),
+        _buildDrawerItem(
+          context,
+          Icons.settings,
+          "Configuración y Soporte",
+          4,
+          dashboardVM,
+        ),
+
+        _buildSystemInfo(context),
+      ],
+    );
+  }
+
+  Widget _buildSystemInfo(BuildContext context) {
+    return Consumer<dashboard_vm.DashboardViewModel>(
+      builder: (context, dashboardVM, child) {
+        final stats = dashboardVM.dashboardData['stats'] ?? {};
+
+        return Container(
+          margin: const EdgeInsets.all(AppSpacing.medium),
+          padding: const EdgeInsets.all(AppSpacing.medium),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(AppRadius.medium),
+            border: Border.all(color: AppColors.primary.withOpacity(0.1)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Resumen del Sistema',
+                style: AppTextStyles.body.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.small),
+              _buildStatItem('Estudiantes', stats['estudiantes'] ?? 0),
+              _buildStatItem('Docentes', stats['docentes'] ?? 0),
+              _buildStatItem('Carreras', stats['carreras'] ?? 0),
+              _buildStatItem('Asistencias Hoy', stats['asistencias_hoy'] ?? 0),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -333,8 +353,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildExpansionDrawerItem(
     BuildContext context,
     IconData icon,
-    String label,
-    dashboard_vm.DashboardViewModel dashboardVM, {
+    String label, {
     required List<Widget> children,
   }) {
     return ExpansionTile(
@@ -378,28 +397,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  void _navigateToGestionSubScreen(BuildContext context, String tipo) {
+  void _navigateToSection(BuildContext context, int index, String section) {
     final dashboardVM = context.read<dashboard_vm.DashboardViewModel>();
-    dashboardVM.changeIndex(0);
+    dashboardVM.changeIndex(index);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Navegando a $tipo'),
-        duration: const Duration(seconds: 1),
-      ),
-    );
-  }
+    Navigator.pop(context); // Cerrar drawer
 
-  void _navigateToAsistenciaSubScreen(BuildContext context, String tipo) {
-    final dashboardVM = context.read<dashboard_vm.DashboardViewModel>();
-    dashboardVM.changeIndex(1);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Navegando a $tipo'),
-        duration: const Duration(seconds: 1),
-      ),
-    );
+    // Mostrar snackbar solo en debug
+    if (kDebugMode) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Navegando a $section'),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
   }
 
   ListTile _buildDrawerItem(
@@ -430,6 +442,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
         dashboardVM.changeIndex(index);
         Navigator.pop(context);
       },
+    );
+  }
+
+  Widget _buildLogoutButton(BuildContext context) {
+    return Column(
+      children: [
+        const SizedBox(height: AppSpacing.large),
+        Divider(height: 1, color: _getDividerColor(context)),
+        ListTile(
+          leading: Icon(Icons.logout, color: _getErrorColor(context)),
+          title: Text(
+            AppStrings.logout,
+            style: AppTextStyles.body.copyWith(
+              color: _getErrorColor(context),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          onTap: () {
+            Navigator.pop(context);
+            _showLogoutDialog(context);
+          },
+        ),
+        const SizedBox(height: AppSpacing.medium),
+      ],
     );
   }
 
@@ -925,6 +961,49 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       );
     }
+  }
+
+  // CORRECCIÓN PARA EL ERROR DEL DROPDOWN
+  // Añade este método en tu CarrerasViewModel o donde uses DropdownButton
+  Widget _buildFixedDropdown(
+    List<String> items,
+    String? selectedValue,
+    Function(String?) onChanged,
+  ) {
+    // Asegurar que los valores sean únicos
+    final uniqueItems = _ensureUniqueDropdownItems(items);
+
+    return DropdownButton<String>(
+      value: selectedValue,
+      onChanged: onChanged,
+      items: uniqueItems.map<DropdownMenuItem<String>>((String value) {
+        return DropdownMenuItem<String>(value: value, child: Text(value));
+      }).toList(),
+      isExpanded: true,
+    );
+  }
+
+  List<String> _ensureUniqueDropdownItems(List<String> originalItems) {
+    final uniqueItems = <String>[];
+    final seenItems = <String>{};
+
+    for (final item in originalItems) {
+      if (!seenItems.contains(item)) {
+        uniqueItems.add(item);
+        seenItems.add(item);
+      } else {
+        // Manejar duplicados añadiendo un identificador
+        int counter = 1;
+        String newItem = item;
+        while (seenItems.contains(newItem)) {
+          newItem = '$item (${counter++})';
+        }
+        uniqueItems.add(newItem);
+        seenItems.add(newItem);
+      }
+    }
+
+    return uniqueItems;
   }
 }
 

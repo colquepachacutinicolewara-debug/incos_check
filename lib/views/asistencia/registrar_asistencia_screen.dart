@@ -1,3 +1,4 @@
+// views/registrar_asistencia_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/registrar_asistencia_viewmodel.dart';
@@ -61,6 +62,114 @@ class _RegistrarAsistenciaView extends StatelessWidget {
     );
   }
 
+  void _mostrarEstadisticas(BuildContext context) {
+    final viewModel = context.read<AsistenciaViewModel>();
+    final stats = viewModel.getEstadisticas();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: viewModel.getCardColor(context),
+        title: Text(
+          "Estadísticas de Asistencia",
+          style: TextStyle(
+            color: viewModel.getTextColor(context),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildStatRow("Total Estudiantes:", "${stats['total']}", context),
+            _buildStatRow(
+              "Presentes:",
+              "${stats['presentes']}",
+              context,
+              Colors.green,
+            ),
+            _buildStatRow(
+              "Ausentes:",
+              "${stats['ausentes']}",
+              context,
+              Colors.red,
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                "Porcentaje: ${stats['porcentaje'].toStringAsFixed(1)}%",
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              "Cerrar",
+              style: TextStyle(color: viewModel.getTextColor(context)),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              viewModel.limpiarAsistencias();
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text("Asistencias reiniciadas"),
+                  backgroundColor: AppColors.primary,
+                ),
+              );
+            },
+            child: const Text("Reiniciar", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatRow(
+    String label,
+    String value,
+    BuildContext context, [
+    Color? color,
+  ]) {
+    final viewModel = context.read<AsistenciaViewModel>();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: viewModel.getTextColor(context),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: color ?? viewModel.getTextColor(context),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<AsistenciaViewModel>();
@@ -81,6 +190,11 @@ class _RegistrarAsistenciaView extends StatelessWidget {
         elevation: 2,
         centerTitle: true,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.analytics, color: Colors.white),
+            onPressed: () => _mostrarEstadisticas(context),
+            tooltip: 'Ver estadísticas',
+          ),
           IconButton(
             icon: const Icon(Icons.info_outline, color: Colors.white),
             onPressed: () => _mostrarInfoHuella(context),
@@ -241,6 +355,8 @@ class _RegistrarAsistenciaView extends StatelessWidget {
     BuildContext context,
     AsistenciaViewModel viewModel,
   ) {
+    final stats = viewModel.getEstadisticas();
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -249,19 +365,40 @@ class _RegistrarAsistenciaView extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.small),
         border: Border.all(color: viewModel.getAccentColor(context)),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Asistencias registradas:',
-            style: AppTextStyles.body.copyWith(
-              fontWeight: FontWeight.w600,
-              color: viewModel.getTextColor(context),
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Asistencias registradas:',
+                style: AppTextStyles.body.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: viewModel.getTextColor(context),
+                ),
+              ),
+              Text(
+                '${viewModel.totalAsistencias}/${viewModel.totalEstudiantes}',
+                style: AppTextStyles.heading2.copyWith(
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
           ),
+          const SizedBox(height: 4),
+          LinearProgressIndicator(
+            value: stats['total'] > 0 ? stats['presentes'] / stats['total'] : 0,
+            backgroundColor: viewModel.getBorderColor(context),
+            color: AppColors.primary,
+          ),
+          const SizedBox(height: 4),
           Text(
-            '${viewModel.totalAsistencias}/${viewModel.totalEstudiantes}',
-            style: AppTextStyles.heading2.copyWith(color: AppColors.primary),
+            '${stats['porcentaje'].toStringAsFixed(1)}% de asistencia',
+            style: AppTextStyles.body.copyWith(
+              fontSize: 12,
+              color: viewModel.getSecondaryTextColor(context),
+            ),
           ),
         ],
       ),

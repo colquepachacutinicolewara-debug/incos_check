@@ -1,14 +1,13 @@
 // views/estudiantes_list_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:printing/printing.dart';
 import '../../viewmodels/estudiantes_viewmodel.dart';
+import '../../models/estudiante_model.dart'; // ✅ IMPORT AGREGADO
 import 'package:incos_check/utils/constants.dart';
 import 'package:incos_check/utils/validators.dart';
 import 'package:incos_check/utils/helpers.dart';
-import 'package:printing/printing.dart';
 import '../../views/biometrico/registro_huella_screen.dart';
-
-// AGREGAR: Importar DataRepository
 import '../../repositories/data_repository.dart';
 
 class EstudiantesListScreen extends StatefulWidget {
@@ -36,7 +35,6 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (context) {
-        // CORREGIDO: Obtener DataRepository del contexto
         final repository = context.read<DataRepository>();
         return EstudiantesViewModel(
           tipo: widget.tipo,
@@ -44,7 +42,7 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
           turno: widget.turno,
           nivel: widget.nivel,
           paralelo: widget.paralelo,
-          repository: repository, // AGREGADO
+          repository: repository,
         );
       },
       child: _EstudiantesListContent(
@@ -110,7 +108,16 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
           ),
           backgroundColor: carreraColor,
         ),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Cargando estudiantes...'),
+            ],
+          ),
+        ),
       );
     }
 
@@ -132,22 +139,18 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
               SizedBox(height: AppSpacing.medium),
               Text('Error al cargar estudiantes', style: heading3Style),
               SizedBox(height: AppSpacing.small),
-              Text(
-                viewModel.error!,
-                style: bodyStyle,
-                textAlign: TextAlign.center,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                child: Text(
+                  viewModel.error!,
+                  style: bodyStyle,
+                  textAlign: TextAlign.center,
+                ),
               ),
               SizedBox(height: AppSpacing.medium),
               ElevatedButton(
-                onPressed: () {
-                  // Recargar datos
-                  final viewModel = Provider.of<EstudiantesViewModel>(
-                    context,
-                    listen: false,
-                  );
-                  // El ViewModel se recargará automáticamente a través del stream
-                },
-                child: Text('Reintentar'),
+                onPressed: () => viewModel.reintentarCarga(),
+                child: const Text('Reintentar'),
               ),
             ],
           ),
@@ -274,14 +277,13 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
 
   Widget _buildEstudianteCard(
     BuildContext context,
-    Map<String, dynamic> estudiante,
+    Estudiante estudiante, // ✅ AHORA RECONOCE LA CLASE
     int index,
     Color color,
     TextStyle heading3Style,
     TextStyle bodyStyle,
   ) {
     final viewModel = Provider.of<EstudiantesViewModel>(context, listen: false);
-    int huellasRegistradas = estudiante['huellasRegistradas'] ?? 0;
 
     return Card(
       elevation: 4,
@@ -290,31 +292,33 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
         leading: CircleAvatar(
           backgroundColor: color,
           child: Text(
-            estudiante['nombres'][0],
+            estudiante.nombres[0],
             style: TextStyle(color: Colors.white),
           ),
         ),
         title: Text(
-          '${estudiante['apellidoPaterno']} ${estudiante['apellidoMaterno']} ${estudiante['nombres']}',
+          '${estudiante.apellidoPaterno} ${estudiante.apellidoMaterno} ${estudiante.nombres}',
           style: heading3Style,
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('CI: ${estudiante['ci']}', style: bodyStyle),
-            Text('Registro: ${estudiante['fechaRegistro']}', style: bodyStyle),
+            Text('CI: ${estudiante.ci}', style: bodyStyle),
+            Text('Registro: ${estudiante.fechaRegistro}', style: bodyStyle),
             Row(
               children: [
                 Icon(
                   Icons.fingerprint,
                   size: 14,
-                  color: huellasRegistradas == 3 ? Colors.green : Colors.orange,
+                  color: estudiante.huellasRegistradas == 3
+                      ? Colors.green
+                      : Colors.orange,
                 ),
                 SizedBox(width: 4),
                 Text(
-                  'Huellas: $huellasRegistradas/3',
+                  'Huellas: ${estudiante.huellasRegistradas}/3',
                   style: bodyStyle.copyWith(
-                    color: huellasRegistradas == 3
+                    color: estudiante.huellasRegistradas == 3
                         ? Colors.green
                         : Colors.orange,
                     fontSize: 12,
@@ -327,7 +331,7 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (huellasRegistradas < 3)
+            if (estudiante.huellasRegistradas < 3)
               IconButton(
                 icon: Icon(Icons.fingerprint, color: Colors.blue),
                 onPressed: () =>
@@ -402,7 +406,7 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
   void _handleMenuAction(
     BuildContext context,
     String action,
-    Map<String, dynamic> estudiante,
+    Estudiante estudiante, // ✅ AHORA RECONOCE LA CLASE
     EstudiantesViewModel viewModel,
   ) {
     switch (action) {
@@ -460,22 +464,24 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
       builder: (context) => _EstudianteDialog(
         title: 'Agregar Estudiante',
         onSave: (nombres, paterno, materno, ci) async {
-          try {
-            await viewModel.agregarEstudiante(
-              nombres: nombres,
-              paterno: paterno,
-              materno: materno,
-              ci: ci,
-            );
+          final success = await viewModel.agregarEstudiante(
+            nombres: nombres,
+            paterno: paterno,
+            materno: materno,
+            ci: ci,
+          );
+
+          if (success && context.mounted) {
+            Navigator.pop(context);
             Helpers.showSnackBar(
               context,
               'Estudiante agregado exitosamente',
               type: 'success',
             );
-          } catch (e) {
+          } else if (context.mounted) {
             Helpers.showSnackBar(
               context,
-              'Error al agregar estudiante: $e',
+              'Error al agregar estudiante: ${viewModel.error}',
               type: 'error',
             );
           }
@@ -486,35 +492,37 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
 
   void _showEditarEstudianteDialog(
     BuildContext context,
-    Map<String, dynamic> estudiante,
+    Estudiante estudiante, // ✅ AHORA RECONOCE LA CLASE
     EstudiantesViewModel viewModel,
   ) {
     showDialog(
       context: context,
       builder: (context) => _EstudianteDialog(
         title: 'Modificar Estudiante',
-        nombresInicial: estudiante['nombres'],
-        paternoInicial: estudiante['apellidoPaterno'],
-        maternoInicial: estudiante['apellidoMaterno'],
-        ciInicial: estudiante['ci'],
+        nombresInicial: estudiante.nombres,
+        paternoInicial: estudiante.apellidoPaterno,
+        maternoInicial: estudiante.apellidoMaterno,
+        ciInicial: estudiante.ci,
         onSave: (nombres, paterno, materno, ci) async {
-          try {
-            await viewModel.editarEstudiante(
-              id: estudiante['id'], // Ahora es String (Firestore ID)
-              nombres: nombres,
-              paterno: paterno,
-              materno: materno,
-              ci: ci,
-            );
+          final success = await viewModel.editarEstudiante(
+            id: estudiante.id,
+            nombres: nombres,
+            paterno: paterno,
+            materno: materno,
+            ci: ci,
+          );
+
+          if (success && context.mounted) {
+            Navigator.pop(context);
             Helpers.showSnackBar(
               context,
               'Estudiante actualizado exitosamente',
               type: 'success',
             );
-          } catch (e) {
+          } else if (context.mounted) {
             Helpers.showSnackBar(
               context,
-              'Error al actualizar estudiante: $e',
+              'Error al actualizar estudiante: ${viewModel.error}',
               type: 'error',
             );
           }
@@ -525,27 +533,27 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
 
   void _showEliminarEstudianteDialog(
     BuildContext context,
-    Map<String, dynamic> estudiante,
+    Estudiante estudiante, // ✅ AHORA RECONOCE LA CLASE
     EstudiantesViewModel viewModel,
   ) {
     Helpers.showConfirmationDialog(
       context,
       title: 'Eliminar Estudiante',
       content:
-          '¿Estás seguro de eliminar a ${estudiante['nombres']} ${estudiante['apellidoPaterno']}?',
+          '¿Estás seguro de eliminar a ${estudiante.nombres} ${estudiante.apellidoPaterno}?',
     ).then((confirmed) async {
-      if (confirmed) {
-        try {
-          await viewModel.eliminarEstudiante(estudiante['id']);
+      if (confirmed && context.mounted) {
+        final success = await viewModel.eliminarEstudiante(estudiante.id);
+        if (success) {
           Helpers.showSnackBar(
             context,
             'Estudiante eliminado exitosamente',
             type: 'success',
           );
-        } catch (e) {
+        } else {
           Helpers.showSnackBar(
             context,
-            'Error al eliminar estudiante: $e',
+            'Error al eliminar estudiante: ${viewModel.error}',
             type: 'error',
           );
         }
@@ -555,29 +563,30 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
 
   void _registrarHuellas(
     BuildContext context,
-    Map<String, dynamic> estudiante,
+    Estudiante estudiante, // ✅ AHORA RECONOCE LA CLASE
     EstudiantesViewModel viewModel,
   ) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => RegistroHuellasScreen(
-          estudiante: estudiante,
+          estudiante: estudiante.toMap(),
           onHuellasRegistradas: (int huellasRegistradas) async {
-            try {
-              await viewModel.actualizarHuellasEstudiante(
-                estudiante['id'], // Ahora es String (Firestore ID)
-                huellasRegistradas,
-              );
+            final success = await viewModel.actualizarHuellasEstudiante(
+              estudiante.id,
+              huellasRegistradas,
+            );
+
+            if (success && context.mounted) {
               Helpers.showSnackBar(
                 context,
                 'Huellas actualizadas exitosamente',
                 type: 'success',
               );
-            } catch (e) {
+            } else if (context.mounted) {
               Helpers.showSnackBar(
                 context,
-                'Error al actualizar huellas: $e',
+                'Error al actualizar huellas: ${viewModel.error}',
                 type: 'error',
               );
             }
@@ -685,17 +694,21 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
                       asignatura: asignatura,
                     );
                   }
-                  Helpers.showSnackBar(
-                    context,
-                    'Exportación completada',
-                    type: 'success',
-                  );
+                  if (context.mounted) {
+                    Helpers.showSnackBar(
+                      context,
+                      'Exportación completada',
+                      type: 'success',
+                    );
+                  }
                 } catch (e) {
-                  Helpers.showSnackBar(
-                    context,
-                    'Error en exportación: ${e.toString()}',
-                    type: 'error',
-                  );
+                  if (context.mounted) {
+                    Helpers.showSnackBar(
+                      context,
+                      'Error en exportación: ${e.toString()}',
+                      type: 'error',
+                    );
+                  }
                 }
               },
               child: Text('Descargar'),
