@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:printing/printing.dart';
 import '../../viewmodels/estudiantes_viewmodel.dart';
-import '../../models/estudiante_model.dart'; // ✅ IMPORT AGREGADO
+import '../../models/estudiante_model.dart';
 import 'package:incos_check/utils/constants.dart';
 import 'package:incos_check/utils/validators.dart';
 import 'package:incos_check/utils/helpers.dart';

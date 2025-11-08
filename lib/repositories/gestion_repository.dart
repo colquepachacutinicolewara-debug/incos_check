@@ -1,4 +1,3 @@
-// repositories/gestion_repository.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/gestion_model.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +11,9 @@ class GestionRepository {
   static const String estudiantesCollection = 'estudiantes';
   static const String docentesCollection = 'docentes';
   static const String cursosCollection = 'cursos';
+  static const String turnosCollection = 'turnos';
+  static const String paralelosCollection = 'paralelos';
+  static const String nivelesCollection = 'niveles';
 
   // ========== CARRERAS ==========
   Future<List<CarreraConfig>> getCarreras() async {
@@ -116,14 +118,26 @@ class GestionRepository {
     }
   }
 
-  // repositories/gestion_repository.dart (AGREGAR ESTOS MÉTODOS)
-  // ... métodos anteriores ...
-
   // ========== TURNOS ==========
+  Future<int> getTurnosCount(String carrera) async {
+    try {
+      final snapshot = await _firestore
+          .collection(turnosCollection)
+          .where('carrera', isEqualTo: carrera)
+          .where('activo', isEqualTo: true)
+          .count()
+          .get();
+      return snapshot.count ?? 0;
+    } catch (e) {
+      print('Error getting turnos count: $e');
+      return 0;
+    }
+  }
+
   Future<List<String>> getTurnos(String carrera) async {
     try {
       final snapshot = await _firestore
-          .collection('turnos')
+          .collection(turnosCollection)
           .where('carrera', isEqualTo: carrera)
           .where('activo', isEqualTo: true)
           .orderBy('nombre')
@@ -140,7 +154,7 @@ class GestionRepository {
 
   Future<void> addTurno(String carrera, String turno) async {
     try {
-      await _firestore.collection('turnos').add({
+      await _firestore.collection(turnosCollection).add({
         'carrera': carrera,
         'nombre': turno,
         'activo': true,
@@ -154,7 +168,7 @@ class GestionRepository {
 
   Future<void> deleteTurno(String docId) async {
     try {
-      await _firestore.collection('turnos').doc(docId).update({
+      await _firestore.collection(turnosCollection).doc(docId).update({
         'activo': false,
       });
     } catch (e) {
@@ -164,10 +178,25 @@ class GestionRepository {
   }
 
   // ========== PARALELOS ==========
+  Future<int> getParalelosCount(String carrera) async {
+    try {
+      final snapshot = await _firestore
+          .collection(paralelosCollection)
+          .where('carrera', isEqualTo: carrera)
+          .where('activo', isEqualTo: true)
+          .count()
+          .get();
+      return snapshot.count ?? 0;
+    } catch (e) {
+      print('Error getting paralelos count: $e');
+      return 0;
+    }
+  }
+
   Future<List<String>> getParalelos(String carrera) async {
     try {
       final snapshot = await _firestore
-          .collection('paralelos')
+          .collection(paralelosCollection)
           .where('carrera', isEqualTo: carrera)
           .where('activo', isEqualTo: true)
           .orderBy('nombre')
@@ -184,7 +213,7 @@ class GestionRepository {
 
   Future<void> addParalelo(String carrera, String paralelo) async {
     try {
-      await _firestore.collection('paralelos').add({
+      await _firestore.collection(paralelosCollection).add({
         'carrera': carrera,
         'nombre': paralelo,
         'activo': true,
@@ -198,7 +227,7 @@ class GestionRepository {
 
   Future<void> deleteParalelo(String docId) async {
     try {
-      await _firestore.collection('paralelos').doc(docId).update({
+      await _firestore.collection(paralelosCollection).doc(docId).update({
         'activo': false,
       });
     } catch (e) {
@@ -208,10 +237,25 @@ class GestionRepository {
   }
 
   // ========== NIVELES ==========
+  Future<int> getNivelesCount(String carrera) async {
+    try {
+      final snapshot = await _firestore
+          .collection(nivelesCollection)
+          .where('carrera', isEqualTo: carrera)
+          .where('activo', isEqualTo: true)
+          .count()
+          .get();
+      return snapshot.count ?? 0;
+    } catch (e) {
+      print('Error getting niveles count: $e');
+      return 0;
+    }
+  }
+
   Future<List<String>> getNiveles(String carrera) async {
     try {
       final snapshot = await _firestore
-          .collection('niveles')
+          .collection(nivelesCollection)
           .where('carrera', isEqualTo: carrera)
           .where('activo', isEqualTo: true)
           .orderBy('orden')

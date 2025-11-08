@@ -1,4 +1,3 @@
-// viewmodels/gestion_viewmodel.dart (ACTUALIZADO)
 import 'package:flutter/material.dart';
 import '../models/gestion_model.dart';
 import '../repositories/gestion_repository.dart';
@@ -113,12 +112,14 @@ class GestionViewModel extends ChangeNotifier {
       final cursoCount = await _repository.getCursosCount(carrera);
       final turnoCount = await _getTurnosCount(carrera);
       final paraleloCount = await _getParalelosCount(carrera);
+      final nivelCount = await _getNivelesCount(carrera);
 
       _counts['${carrera}_estudiantes'] = estudianteCount;
       _counts['${carrera}_docentes'] = docenteCount;
       _counts['${carrera}_cursos'] = cursoCount;
       _counts['${carrera}_turnos'] = turnoCount;
       _counts['${carrera}_paralelos'] = paraleloCount;
+      _counts['${carrera}_niveles'] = nivelCount;
     } catch (e) {
       print('Error loading counts for $carrera: $e');
       _counts['${carrera}_estudiantes'] = 0;
@@ -126,6 +127,7 @@ class GestionViewModel extends ChangeNotifier {
       _counts['${carrera}_cursos'] = 0;
       _counts['${carrera}_turnos'] = 0;
       _counts['${carrera}_paralelos'] = 0;
+      _counts['${carrera}_niveles'] = 0;
     }
   }
 
@@ -142,6 +144,15 @@ class GestionViewModel extends ChangeNotifier {
     try {
       final paralelos = await _repository.getParalelos(carrera);
       return paralelos.length;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  Future<int> _getNivelesCount(String carrera) async {
+    try {
+      final niveles = await _repository.getNiveles(carrera);
+      return niveles.length;
     } catch (e) {
       return 0;
     }
@@ -241,6 +252,10 @@ class GestionViewModel extends ChangeNotifier {
 
   int getParalelosCount(String carrera) {
     return _counts['${carrera}_paralelos'] ?? 0;
+  }
+
+  int getNivelesCount(String carrera) {
+    return _counts['${carrera}_niveles'] ?? 0;
   }
 
   // ========== CARRERA CONFIG ==========

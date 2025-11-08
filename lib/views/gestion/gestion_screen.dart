@@ -1,4 +1,3 @@
-// views/gestion_screen.dart
 import 'package:flutter/material.dart';
 import 'package:incos_check/utils/constants.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +7,9 @@ import 'turnos_screen.dart';
 import '../../views/gestion/materias_screen.dart';
 import '../../views/gestion/programas/programas_screen.dart';
 import 'docentes_screen.dart';
+import 'niveles_screen.dart';
+import '../gestion/paralelos_scren.dart';
+import '../gestion/estudiantes_screen.dart';
 
 class GestionScreen extends StatefulWidget {
   const GestionScreen({super.key});
@@ -100,7 +102,7 @@ class _GestionScreenState extends State<GestionScreen> {
   Widget _buildContent(BuildContext context, GestionViewModel viewModel) {
     return Column(
       children: [
-        // Selector de Carrera - CORREGIDO
+        // Selector de Carrera
         Padding(
           padding: const EdgeInsets.all(AppSpacing.medium),
           child: Container(
@@ -131,7 +133,7 @@ class _GestionScreenState extends State<GestionScreen> {
 
         const SizedBox(height: AppSpacing.medium),
 
-        // Grid de opciones de gestión
+        // Grid de opciones de gestión (7 CARDS)
         Expanded(
           child: GridView.count(
             crossAxisCount: 2,
@@ -174,6 +176,33 @@ class _GestionScreenState extends State<GestionScreen> {
                 viewModel.getDocentesCount(viewModel.carreraSeleccionada),
                 () => _navigateToDocentes(context, viewModel),
               ),
+              _buildMenuCard(
+                context,
+                viewModel,
+                'Turnos',
+                Icons.schedule,
+                Colors.orange,
+                viewModel.getTurnosCount(viewModel.carreraSeleccionada),
+                () => _navigateToTurnos(context, viewModel),
+              ),
+              _buildMenuCard(
+                context,
+                viewModel,
+                'Grados',
+                Icons.layers,
+                Colors.purple,
+                viewModel.getNivelesCount(viewModel.carreraSeleccionada),
+                () => _navigateToNiveles(context, viewModel),
+              ),
+              _buildMenuCard(
+                context,
+                viewModel,
+                'Paralelos',
+                Icons.groups,
+                Colors.teal,
+                viewModel.getParalelosCount(viewModel.carreraSeleccionada),
+                () => _navigateToParalelos(context, viewModel),
+              ),
             ],
           ),
         ),
@@ -185,7 +214,6 @@ class _GestionScreenState extends State<GestionScreen> {
     GestionViewModel viewModel,
     BuildContext context,
   ) {
-    // CORRECCIÓN: Asegurar que no hay valores duplicados
     final carrerasUnicas = viewModel.carreras.toSet().toList();
 
     return DropdownButton<String>(
@@ -286,7 +314,8 @@ class _GestionScreenState extends State<GestionScreen> {
     );
   }
 
-  // Funciones de navegación (mantener igual)
+  // ========== FUNCIONES DE NAVEGACIÓN CORREGIDAS ==========
+
   void _navigateToEstudiantes(
     BuildContext context,
     GestionViewModel viewModel,
@@ -294,11 +323,33 @@ class _GestionScreenState extends State<GestionScreen> {
     final carreraConfig = viewModel.getCarreraConfig(
       viewModel.carreraSeleccionada,
     );
+    
+    // ✅ CORREGIDO: Ahora navega directamente a EstudiantesListScreen
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            TurnosScreen(tipo: 'Estudiantes', carrera: carreraConfig.toMap()),
+        builder: (context) => EstudiantesListScreen(
+          tipo: 'Gestión', // O el tipo que necesites
+          carrera: carreraConfig.toMap(),
+          turno: {
+            'id': 'general',
+            'nombre': 'General',
+            'color': carreraConfig.color,
+            'icon': Icons.schedule.codePoint,
+          },
+          nivel: {
+            'id': 'general', 
+            'nombre': 'General',
+            'orden': 1,
+            'activo': true,
+          },
+          paralelo: {
+            'id': 'general',
+            'nombre': 'General',
+            'activo': true,
+            'estudiantes': [],
+          },
+        ),
       ),
     );
   }
@@ -333,6 +384,54 @@ class _GestionScreenState extends State<GestionScreen> {
           tipo: 'Gestión',
           carreraSeleccionada: viewModel.carreraSeleccionada,
           onCarrerasActualizadas: viewModel.actualizarCarreras,
+        ),
+      ),
+    );
+  }
+
+  void _navigateToTurnos(BuildContext context, GestionViewModel viewModel) {
+    final carreraConfig = viewModel.getCarreraConfig(
+      viewModel.carreraSeleccionada,
+    );
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TurnosScreen(
+          tipo: 'Gestión',
+          carrera: carreraConfig.toMap(),
+        ),
+      ),
+    );
+  }
+
+  void _navigateToNiveles(BuildContext context, GestionViewModel viewModel) {
+    final carreraConfig = viewModel.getCarreraConfig(
+      viewModel.carreraSeleccionada,
+    );
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => NivelesScreen(
+          tipo: 'Gestión',
+          carrera: carreraConfig.toMap(),
+          turno: {'id': '0', 'nombre': 'General'},
+        ),
+      ),
+    );
+  }
+
+  void _navigateToParalelos(BuildContext context, GestionViewModel viewModel) {
+    final carreraConfig = viewModel.getCarreraConfig(
+      viewModel.carreraSeleccionada,
+    );
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ParalelosScreen(
+          tipo: 'Gestión',
+          carrera: carreraConfig.toMap(),
+          turno: {'id': '0', 'nombre': 'General'},
+          nivel: {'id': '0', 'nombre': 'General'},
         ),
       ),
     );
