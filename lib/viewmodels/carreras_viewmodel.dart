@@ -1,3 +1,5 @@
+// viewmodels/carreras_viewmodel.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/carrera_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -8,6 +10,7 @@ class CarrerasViewModel extends ChangeNotifier {
   List<CarreraModel> _carreras = [];
   bool _isLoading = false;
   String? _error;
+  StreamSubscription? _carrerasSubscription;
 
   CarrerasViewModel(this._repository) {
     _loadCarreras();
@@ -25,13 +28,20 @@ class CarrerasViewModel extends ChangeNotifier {
     return carrerasActivas.map((carrera) => carrera.nombre).toList();
   }
 
-  // ✅ Escucha el stream con manejo de errores mejorado
+  @override
+  void dispose() {
+    _carrerasSubscription?.cancel();
+    super.dispose();
+  }
+
   void _loadCarreras() {
     _isLoading = true;
     notifyListeners();
 
+    _carrerasSubscription?.cancel();
+    
     try {
-      _repository.getCarrerasStream().listen(
+      _carrerasSubscription = _repository.getCarrerasStream().listen(
         (snapshot) {
           _carreras = snapshot.docs.map((doc) {
             final data = doc.data() as Map<String, dynamic>;
@@ -62,7 +72,6 @@ class CarrerasViewModel extends ChangeNotifier {
     }
   }
 
-  // 🔁 Método para reintentar carga manualmente
   Future<void> reintentarCarga() async {
     _error = null;
     _isLoading = true;
@@ -79,8 +88,13 @@ class CarrerasViewModel extends ChangeNotifier {
       _isLoading = true;
       notifyListeners();
 
+      // Validación
+      if (nombre.isEmpty) {
+        throw Exception('El nombre de la carrera no puede estar vacío');
+      }
+
       final carreraData = {
-        'nombre': nombre,
+        'nombre': nombre.trim(),
         'color': color,
         'icon': _iconDataToString(icono),
         'activa': true,
@@ -90,7 +104,7 @@ class CarrerasViewModel extends ChangeNotifier {
 
       await _repository.addCarrera(carreraData);
     } catch (e) {
-      _error = 'Error al agregar carrera: $e';
+      _error = 'Error al agregar carrera: ${e.toString()}';
       notifyListeners();
       rethrow;
     } finally {
@@ -109,8 +123,13 @@ class CarrerasViewModel extends ChangeNotifier {
       _isLoading = true;
       notifyListeners();
 
+      // Validación
+      if (nombre.isEmpty) {
+        throw Exception('El nombre de la carrera no puede estar vacío');
+      }
+
       final updateData = {
-        'nombre': nombre,
+        'nombre': nombre.trim(),
         'color': color,
         'icon': _iconDataToString(icono),
         'fechaActualizacion': FieldValue.serverTimestamp(),
@@ -118,7 +137,7 @@ class CarrerasViewModel extends ChangeNotifier {
 
       await _repository.updateCarrera(id, updateData);
     } catch (e) {
-      _error = 'Error al editar carrera: $e';
+      _error = 'Error al editar carrera: ${e.toString()}';
       notifyListeners();
       rethrow;
     } finally {
@@ -139,7 +158,7 @@ class CarrerasViewModel extends ChangeNotifier {
 
       await _repository.updateCarrera(id, updateData);
     } catch (e) {
-      _error = 'Error al cambiar estado de carrera: $e';
+      _error = 'Error al cambiar estado de carrera: ${e.toString()}';
       notifyListeners();
       rethrow;
     }
@@ -152,7 +171,7 @@ class CarrerasViewModel extends ChangeNotifier {
 
       await _repository.deleteCarrera(id);
     } catch (e) {
-      _error = 'Error al eliminar carrera: $e';
+      _error = 'Error al eliminar carrera: ${e.toString()}';
       notifyListeners();
       rethrow;
     } finally {
@@ -179,11 +198,18 @@ class CarrerasViewModel extends ChangeNotifier {
   }
 
   String _iconDataToString(IconData icon) {
-    return icon.codePoint.toString();
+    return '${icon.codePoint}:${icon.fontFamily ?? "MaterialIcons"}';
   }
 
   IconData _stringToIconData(String iconString) {
-    return IconData(int.parse(iconString), fontFamily: 'MaterialIcons');
+    try {
+      final parts = iconString.split(':');
+      final codePoint = int.parse(parts[0]);
+      final fontFamily = parts.length > 1 ? parts[1] : 'MaterialIcons';
+      return IconData(codePoint, fontFamily: fontFamily);
+    } catch (e) {
+      return Icons.school; // Icono por defecto
+    }
   }
 
   void clearError() {

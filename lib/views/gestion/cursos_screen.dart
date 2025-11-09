@@ -1,4 +1,4 @@
-// views/cursos_scren.dart
+// views/cursos_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../utils/constants.dart';
@@ -87,7 +87,7 @@ class _CursosScreenState extends State<CursosScreen> {
           _buildFiltrosSection(context, viewModel),
           Expanded(
             child: materiasFiltradas.isEmpty
-                ? _buildEmptyState(context)
+                ? _buildEmptyState(context, viewModel)
                 : _buildMateriasList(materiasFiltradas, context, viewModel),
           ),
         ],
@@ -213,22 +213,15 @@ class _CursosScreenState extends State<CursosScreen> {
             isExpanded: true,
             dropdownColor: _getDropdownBackgroundColor(context),
             style: TextStyle(color: _getTextColor(context)),
-            items: [
-              DropdownMenuItem(
-                value: 'Todas',
+            items: viewModel.carrerasFiltro.map((carrera) {
+              return DropdownMenuItem<String>(
+                value: carrera,
                 child: Text(
-                  'Todas',
+                  carrera,
                   style: TextStyle(color: _getTextColor(context)),
                 ),
-              ),
-              DropdownMenuItem(
-                value: 'Sistemas Informáticos',
-                child: Text(
-                  'Sistemas',
-                  style: TextStyle(color: _getTextColor(context)),
-                ),
-              ),
-            ],
+              );
+            }).toList(),
             onChanged: (value) => viewModel.setCarreraFiltro(value!),
           ),
         ],
@@ -256,7 +249,7 @@ class _CursosScreenState extends State<CursosScreen> {
             isExpanded: true,
             dropdownColor: _getDropdownBackgroundColor(context),
             style: TextStyle(color: _getTextColor(context)),
-            items: viewModel.paralelos.map((String value) {
+            items: viewModel.paralelosFiltro.map((String value) {
               return DropdownMenuItem<String>(
                 value: value,
                 child: Row(
@@ -303,7 +296,7 @@ class _CursosScreenState extends State<CursosScreen> {
             isExpanded: true,
             dropdownColor: _getDropdownBackgroundColor(context),
             style: TextStyle(color: _getTextColor(context)),
-            items: viewModel.turnos.map((String value) {
+            items: viewModel.turnosFiltro.map((String value) {
               return DropdownMenuItem<String>(
                 value: value,
                 child: Row(
@@ -357,24 +350,38 @@ class _CursosScreenState extends State<CursosScreen> {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
+  Widget _buildEmptyState(BuildContext context, MateriaViewModel viewModel) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.school, size: 64, color: _getSecondaryTextColor(context)),
+          Icon(
+            Icons.school, 
+            size: 64, 
+            color: _getSecondaryTextColor(context)
+          ),
           const SizedBox(height: AppSpacing.medium),
           Text(
-            'No hay materias registradas',
+            viewModel.materias.isEmpty 
+                ? 'No hay materias registradas'
+                : 'No hay materias que coincidan con los filtros',
             style: TextStyle(color: _getSecondaryTextColor(context)),
           ),
+          if (viewModel.materias.isEmpty)
+            Text(
+              'Agrega materias desde la pantalla de Gestión Académica',
+              style: TextStyle(
+                color: _getSecondaryTextColor(context),
+                fontSize: 12,
+              ),
+            ),
         ],
       ),
     );
   }
 
   Widget _buildMateriasList(
-    List materias,
+    List<dynamic> materias,
     BuildContext context,
     MateriaViewModel viewModel,
   ) {
@@ -409,6 +416,9 @@ class _CursosScreenState extends State<CursosScreen> {
           style: TextStyle(
             fontWeight: FontWeight.w500,
             color: _getTextColor(context),
+            decoration: materia.activo 
+                ? TextDecoration.none 
+                : TextDecoration.lineThrough,
           ),
         ),
         subtitle: Column(
@@ -416,7 +426,12 @@ class _CursosScreenState extends State<CursosScreen> {
           children: [
             Text(
               'Código: ${materia.codigo}',
-              style: TextStyle(color: _getSecondaryTextColor(context)),
+              style: TextStyle(
+                color: _getSecondaryTextColor(context),
+                decoration: materia.activo 
+                    ? TextDecoration.none 
+                    : TextDecoration.lineThrough,
+              ),
             ),
             const SizedBox(height: 4),
             Wrap(
@@ -428,20 +443,24 @@ class _CursosScreenState extends State<CursosScreen> {
                   viewModel.getColorAnio(materia.anio),
                   context,
                 ),
-                if (viewModel.paraleloFiltro != 'Todos')
-                  _buildInfoChip(
-                    'Paralelo ${viewModel.paraleloFiltro}',
-                    Icons.groups,
-                    viewModel.getColorParalelo(viewModel.paraleloFiltro),
-                    context,
-                  ),
-                if (viewModel.turnoFiltro != 'Todos')
-                  _buildInfoChip(
-                    'Turno ${viewModel.turnoFiltro}',
-                    viewModel.obtenerIconoTurno(viewModel.turnoFiltro),
-                    Colors.orange,
-                    context,
-                  ),
+                _buildInfoChip(
+                  'Paralelo ${materia.paralelo}',
+                  Icons.groups,
+                  viewModel.getColorParalelo(materia.paralelo),
+                  context,
+                ),
+                _buildInfoChip(
+                  'Turno ${materia.turno}',
+                  viewModel.obtenerIconoTurno(materia.turno),
+                  Colors.orange,
+                  context,
+                ),
+                _buildInfoChip(
+                  materia.activo ? 'Activo' : 'Inactivo',
+                  materia.activo ? Icons.check_circle : Icons.cancel,
+                  materia.activo ? Colors.green : Colors.red,
+                  context,
+                ),
               ],
             ),
           ],

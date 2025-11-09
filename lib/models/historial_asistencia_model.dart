@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 class FiltroHistorial {
   final bool mostrarTodasMaterias;
   final String queryBusqueda;

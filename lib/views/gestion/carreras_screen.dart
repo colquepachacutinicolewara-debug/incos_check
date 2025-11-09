@@ -1,4 +1,4 @@
-// views/carreras_scren.dart
+// views/carreras_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:incos_check/utils/constants.dart';
@@ -39,11 +39,40 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
   void _notificarCambiosCarreras() {
     if (widget.onCarrerasActualizadas != null) {
       final viewModel = context.read<CarrerasViewModel>();
-      // Esperar a que se carguen las carreras
       if (!viewModel.isLoading) {
         widget.onCarrerasActualizadas!(viewModel.nombresCarrerasActivas);
       }
     }
+  }
+
+  @override
+  void didUpdateWidget(CarrerasScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.tipo != widget.tipo || 
+        oldWidget.mostrarInformacionCarreras != widget.mostrarInformacionCarreras) {
+      _notificarCambiosCarreras();
+    }
+  }
+
+  void _navegarADocentes(CarreraModel carrera) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DocentesScreen(carrera: carrera.toMap()),
+      ),
+    );
+  }
+
+  void _navegarATurnos(CarreraModel carrera) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TurnosScreen(
+          tipo: widget.tipo,
+          carrera: carrera.toMap(),
+        ),
+      ),
+    );
   }
 
   @override
@@ -55,6 +84,17 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
       },
       child: Consumer<CarrerasViewModel>(
         builder: (context, viewModel, child) {
+          // Manejar navegación a ProgramasScreen
+          if (widget.mostrarInformacionCarreras) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => ProgramasScreen()),
+              );
+            });
+            return _buildLoadingState();
+          }
+
           // Manejar estados de carga y error
           if (viewModel.isLoading && viewModel.carreras.isEmpty) {
             return _buildLoadingState();
@@ -68,10 +108,6 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _notificarCambiosCarreras();
           });
-
-          if (widget.mostrarInformacionCarreras) {
-            return ProgramasScreen();
-          }
 
           return Scaffold(
             appBar: AppBar(
@@ -166,7 +202,7 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
             SizedBox(height: AppSpacing.medium),
             ElevatedButton(
               onPressed: () {
-                viewModel.clearError();
+                viewModel.reintentarCarga();
               },
               child: Text('Reintentar'),
             ),
@@ -365,23 +401,9 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
           onTap: isActiva
               ? () {
                   if (widget.tipo == 'Docentes') {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            DocentesScreen(carrera: carrera.toMap()),
-                      ),
-                    );
+                    _navegarADocentes(carrera);
                   } else {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => TurnosScreen(
-                          tipo: widget.tipo,
-                          carrera: carrera.toMap(),
-                        ),
-                      ),
-                    );
+                    _navegarATurnos(carrera);
                   }
                 }
               : null,
@@ -729,6 +751,31 @@ class _CarreraDialogState extends State<_CarreraDialog> {
     });
   }
 
+  void _guardarCarrera() {
+    final nombre = _nombreController.text.trim();
+    if (nombre.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('El nombre de la carrera es requerido'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    if (nombre.length < 3) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('El nombre debe tener al menos 3 caracteres'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+
+    widget.onSave(nombre, _colorController.text, _iconoSeleccionado);
+  }
+
   Color _getTextColor(BuildContext context) {
     return Theme.of(context).brightness == Brightness.dark
         ? Colors.white
@@ -1025,15 +1072,7 @@ class _CarreraDialogState extends State<_CarreraDialog> {
           ),
         ),
         ElevatedButton(
-          onPressed: () {
-            if (_nombreController.text.isNotEmpty) {
-              widget.onSave(
-                _nombreController.text,
-                _colorController.text,
-                _iconoSeleccionado,
-              );
-            }
-          },
+          onPressed: _guardarCarrera,
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,

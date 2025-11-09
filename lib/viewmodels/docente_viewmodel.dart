@@ -1,4 +1,4 @@
-// docente_viewmodel.dart - VERSIÓN INTEGRADA CON FIRESTORE
+// docente_viewmodel.dart
 import 'package:flutter/material.dart';
 import 'package:incos_check/models/docente_model.dart';
 import 'package:incos_check/utils/constants.dart';

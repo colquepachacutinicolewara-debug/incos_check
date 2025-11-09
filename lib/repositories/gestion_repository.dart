@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/gestion_model.dart';
 import 'package:flutter/material.dart';
-import '../utils/constants.dart';
 
 class GestionRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;

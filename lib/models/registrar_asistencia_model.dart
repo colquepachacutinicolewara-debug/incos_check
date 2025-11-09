@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 class Estudiante {
   final String nombre;
   final String curso;

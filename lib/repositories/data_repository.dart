@@ -198,6 +198,109 @@ class DataRepository {
     }
   }
 
+  // Agrega estos métodos al DataRepository existente
+
+// -----------------------------------------------------------------
+// MÉTODOS PARA MateriaViewModel
+// -----------------------------------------------------------------
+
+Stream<QuerySnapshot> getMateriasStream() {
+  return _db
+      .collection('materias')
+      .orderBy('carrera', descending: false)
+      .orderBy('anio', descending: false)
+      .orderBy('paralelo', descending: false)
+      .orderBy('turno', descending: false)
+      .snapshots()
+      .handleError((error) {
+        throw _handleFirestoreError('materias', error);
+      });
+}
+
+Future<String> addMateria(Map<String, dynamic> data) async {
+  try {
+    final docRef = await _db.collection('materias').add({
+      ...data,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    return docRef.id;
+  } catch (e) {
+    throw _handleFirestoreError('materias', e);
+  }
+}
+
+Future<void> updateMateria(String materiaId, Map<String, dynamic> data) async {
+  try {
+    await _db.collection('materias').doc(materiaId).update({
+      ...data,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  } catch (e) {
+    throw _handleFirestoreError('materias', e);
+  }
+}
+
+Future<void> deleteMateria(String materiaId) async {
+  try {
+    await _db.collection('materias').doc(materiaId).delete();
+  } catch (e) {
+    throw _handleFirestoreError('materias', e);
+  }
+}
+
+Future<bool> materiaExists(Map<String, dynamic> filters) async {
+  try {
+    Query query = _db.collection('materias');
+    
+    if (filters['codigo'] != null) {
+      query = query.where('codigo', isEqualTo: filters['codigo']);
+    }
+    if (filters['paralelo'] != null) {
+      query = query.where('paralelo', isEqualTo: filters['paralelo']);
+    }
+    if (filters['turno'] != null) {
+      query = query.where('turno', isEqualTo: filters['turno']);
+    }
+    if (filters['anio'] != null) {
+      query = query.where('anio', isEqualTo: filters['anio']);
+    }
+    if (filters['carrera'] != null) {
+      query = query.where('carrera', isEqualTo: filters['carrera']);
+    }
+    if (filters['excludeId'] != null) {
+      query = query.where(FieldPath.documentId, isNotEqualTo: filters['excludeId']);
+    }
+
+    final snapshot = await query.get();
+    return snapshot.docs.isNotEmpty;
+  } catch (e) {
+    throw _handleFirestoreError('materias', e);
+  }
+}
+
+Future<List<Map<String, dynamic>>> getCarrerasActivas() async {
+  try {
+    final snapshot = await _db
+        .collection('carreras')
+        .where('activa', isEqualTo: true)
+        .orderBy('nombre')
+        .get();
+    
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      return {
+        'id': doc.id,
+        'nombre': data['nombre'] ?? '',
+        'color': data['color'] ?? '#1565C0',
+        'activa': data['activa'] ?? true,
+      };
+    }).toList();
+  } catch (e) {
+    throw _handleFirestoreError('carreras', e);
+  }
+}
+
   // -----------------------------------------------------------------
   // MÉTODOS PARA ParalelosViewModel
   // -----------------------------------------------------------------

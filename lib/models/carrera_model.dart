@@ -1,3 +1,4 @@
+// models/carrera_model.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -54,24 +55,21 @@ class CarreraModel {
     return {
       'nombre': nombre,
       'color': color,
-      'icon': icon.codePoint.toString(),
+      'icon': _iconToCodePoint(icon),
       'activa': activa,
-      'fechaCreacion': fechaCreacion,
-      'fechaActualizacion': DateTime.now(),
+      'fechaCreacion': fechaCreacion != null 
+          ? Timestamp.fromDate(fechaCreacion!)
+          : FieldValue.serverTimestamp(),
+      'fechaActualizacion': FieldValue.serverTimestamp(),
     };
   }
 
   static CarreraModel fromFirestore(String id, Map<String, dynamic> data) {
     return CarreraModel(
       id: id,
-      nombre: data['nombre'] as String,
-      color: data['color'] as String,
-      icon: IconData(
-        int.parse(
-          data['icon']?.toString() ?? Icons.school.codePoint.toString(),
-        ),
-        fontFamily: 'MaterialIcons',
-      ),
+      nombre: data['nombre'] ?? '',
+      color: data['color'] ?? '#1565C0',
+      icon: _codePointToIcon(data['icon']),
       activa: data['activa'] as bool? ?? true,
       fechaCreacion: (data['fechaCreacion'] as Timestamp?)?.toDate(),
       fechaActualizacion: (data['fechaActualizacion'] as Timestamp?)?.toDate(),
@@ -86,5 +84,20 @@ class CarreraModel {
       icon: map['icon'] as IconData,
       activa: map['activa'] as bool,
     );
+  }
+
+  static String _iconToCodePoint(IconData icon) {
+    return '${icon.codePoint}:${icon.fontFamily ?? "MaterialIcons"}';
+  }
+
+  static IconData _codePointToIcon(String iconString) {
+    try {
+      final parts = iconString.split(':');
+      final codePoint = int.parse(parts[0]);
+      final fontFamily = parts.length > 1 ? parts[1] : 'MaterialIcons';
+      return IconData(codePoint, fontFamily: fontFamily);
+    } catch (e) {
+      return Icons.school; // Icono por defecto en caso de error
+    }
   }
 }

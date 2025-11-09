@@ -1,6 +1,5 @@
 // services/asistencia_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/estudiante_model.dart';
 import 'biometrico_service.dart';
 
 class AsistenciaService {

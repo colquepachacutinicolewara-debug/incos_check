@@ -277,7 +277,7 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
 
   Widget _buildEstudianteCard(
     BuildContext context,
-    Estudiante estudiante, // ✅ AHORA RECONOCE LA CLASE
+    Estudiante estudiante,
     int index,
     Color color,
     TextStyle heading3Style,
@@ -292,7 +292,7 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
         leading: CircleAvatar(
           backgroundColor: color,
           child: Text(
-            estudiante.nombres[0],
+            estudiante.nombres.isNotEmpty ? estudiante.nombres[0] : '?',
             style: TextStyle(color: Colors.white),
           ),
         ),
@@ -310,7 +310,7 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
                 Icon(
                   Icons.fingerprint,
                   size: 14,
-                  color: estudiante.huellasRegistradas == 3
+                  color: estudiante.tieneTodasLasHuellas
                       ? Colors.green
                       : Colors.orange,
                 ),
@@ -318,7 +318,7 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
                 Text(
                   'Huellas: ${estudiante.huellasRegistradas}/3',
                   style: bodyStyle.copyWith(
-                    color: estudiante.huellasRegistradas == 3
+                    color: estudiante.tieneTodasLasHuellas
                         ? Colors.green
                         : Colors.orange,
                     fontSize: 12,
@@ -331,7 +331,7 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (estudiante.huellasRegistradas < 3)
+            if (!estudiante.tieneTodasLasHuellas)
               IconButton(
                 icon: Icon(Icons.fingerprint, color: Colors.blue),
                 onPressed: () =>
@@ -406,7 +406,7 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
   void _handleMenuAction(
     BuildContext context,
     String action,
-    Estudiante estudiante, // ✅ AHORA RECONOCE LA CLASE
+    Estudiante estudiante,
     EstudiantesViewModel viewModel,
   ) {
     switch (action) {
@@ -478,10 +478,10 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
               'Estudiante agregado exitosamente',
               type: 'success',
             );
-          } else if (context.mounted) {
+          } else if (context.mounted && viewModel.error != null) {
             Helpers.showSnackBar(
               context,
-              'Error al agregar estudiante: ${viewModel.error}',
+              viewModel.error!,
               type: 'error',
             );
           }
@@ -492,7 +492,7 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
 
   void _showEditarEstudianteDialog(
     BuildContext context,
-    Estudiante estudiante, // ✅ AHORA RECONOCE LA CLASE
+    Estudiante estudiante,
     EstudiantesViewModel viewModel,
   ) {
     showDialog(
@@ -519,10 +519,10 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
               'Estudiante actualizado exitosamente',
               type: 'success',
             );
-          } else if (context.mounted) {
+          } else if (context.mounted && viewModel.error != null) {
             Helpers.showSnackBar(
               context,
-              'Error al actualizar estudiante: ${viewModel.error}',
+              viewModel.error!,
               type: 'error',
             );
           }
@@ -533,7 +533,7 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
 
   void _showEliminarEstudianteDialog(
     BuildContext context,
-    Estudiante estudiante, // ✅ AHORA RECONOCE LA CLASE
+    Estudiante estudiante,
     EstudiantesViewModel viewModel,
   ) {
     Helpers.showConfirmationDialog(
@@ -550,10 +550,10 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
             'Estudiante eliminado exitosamente',
             type: 'success',
           );
-        } else {
+        } else if (context.mounted && viewModel.error != null) {
           Helpers.showSnackBar(
             context,
-            'Error al eliminar estudiante: ${viewModel.error}',
+            viewModel.error!,
             type: 'error',
           );
         }
@@ -563,7 +563,7 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
 
   void _registrarHuellas(
     BuildContext context,
-    Estudiante estudiante, // ✅ AHORA RECONOCE LA CLASE
+    Estudiante estudiante,
     EstudiantesViewModel viewModel,
   ) {
     Navigator.push(
@@ -583,10 +583,10 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
                 'Huellas actualizadas exitosamente',
                 type: 'success',
               );
-            } else if (context.mounted) {
+            } else if (context.mounted && viewModel.error != null) {
               Helpers.showSnackBar(
                 context,
-                'Error al actualizar huellas: ${viewModel.error}',
+                viewModel.error!,
                 type: 'error',
               );
             }
@@ -883,7 +883,6 @@ class _EstudianteDialogState extends State<_EstudianteDialog> {
         Validators.formatName(_maternoController.text),
         _ciController.text.trim(),
       );
-      Navigator.pop(context);
     }
   }
 }

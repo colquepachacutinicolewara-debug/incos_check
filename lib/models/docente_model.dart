@@ -1,4 +1,4 @@
-// docente_model.dart - VERSIÓN MEJORADA
+// docente_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/constants.dart';
 

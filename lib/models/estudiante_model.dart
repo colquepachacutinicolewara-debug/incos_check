@@ -52,10 +52,10 @@ class Estudiante {
 
   Map<String, dynamic> toFirestore() {
     final map = {
-      'nombres': nombres,
-      'apellidoPaterno': apellidoPaterno,
-      'apellidoMaterno': apellidoMaterno,
-      'ci': ci,
+      'nombres': nombres.trim(),
+      'apellidoPaterno': apellidoPaterno.trim(),
+      'apellidoMaterno': apellidoMaterno.trim(),
+      'ci': ci.trim(),
       'fechaRegistro': fechaRegistro,
       'huellasRegistradas': huellasRegistradas,
       'carreraId': carreraId,
@@ -65,6 +65,7 @@ class Estudiante {
       'fechaActualizacion': FieldValue.serverTimestamp(),
     };
 
+    // Solo agregar fechaCreacion si es nuevo documento o si ya existe
     if (id.isEmpty) {
       map['fechaCreacion'] = FieldValue.serverTimestamp();
     } else if (fechaCreacion != null) {
@@ -81,10 +82,9 @@ class Estudiante {
       apellidoPaterno: data['apellidoPaterno'] as String? ?? '',
       apellidoMaterno: data['apellidoMaterno'] as String? ?? '',
       ci: data['ci'] as String? ?? '',
-      fechaRegistro:
-          data['fechaRegistro'] as String? ??
+      fechaRegistro: data['fechaRegistro'] as String? ?? 
           DateTime.now().toString().split(' ')[0],
-      huellasRegistradas: data['huellasRegistradas'] as int? ?? 0,
+      huellasRegistradas: (data['huellasRegistradas'] as num?)?.toInt() ?? 0,
       carreraId: data['carreraId'] as String?,
       turnoId: data['turnoId'] as String?,
       nivelId: data['nivelId'] as String?,

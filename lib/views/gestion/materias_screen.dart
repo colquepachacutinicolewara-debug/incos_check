@@ -1,8 +1,10 @@
+// views/materia_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../utils/constants.dart';
 import '../../../models/materia_model.dart';
 import '../../../viewmodels/materia_viewmodel.dart';
+import '../../../repositories/data_repository.dart';
 
 class MateriasScreen extends StatefulWidget {
   const MateriasScreen({super.key});
@@ -15,7 +17,10 @@ class _MateriasScreenState extends State<MateriasScreen> {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) => MateriaViewModel(),
+      create: (context) {
+        final repository = context.read<DataRepository>();
+        return MateriaViewModel(repository);
+      },
       child: Scaffold(
         backgroundColor: _getBackgroundColor(context),
         appBar: AppBar(
@@ -31,8 +36,7 @@ class _MateriasScreenState extends State<MateriasScreen> {
               builder: (context, viewModel, child) {
                 return IconButton(
                   icon: const Icon(Icons.add),
-                  onPressed: () =>
-                      _mostrarFormularioMateria(context, viewModel),
+                  onPressed: () => _mostrarFormularioMateria(context, viewModel),
                   tooltip: 'Agregar nueva materia',
                 );
               },
@@ -41,327 +45,27 @@ class _MateriasScreenState extends State<MateriasScreen> {
         ),
         body: Consumer<MateriaViewModel>(
           builder: (context, viewModel, child) {
+            if (viewModel.isLoading && viewModel.materias.isEmpty) {
+              return _buildLoadingState();
+            }
+
+            if (viewModel.error != null && viewModel.materias.isEmpty) {
+              return _buildErrorState(viewModel.error!, viewModel);
+            }
+
             return Stack(
               children: [
                 Column(
                   children: [
                     // Filtros mejorados
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      color: _getFilterBackgroundColor(context),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Filtrar cursos:',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: _getTextColor(context),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          // ... (mantener todos los filtros existentes)
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Nivel:',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: _getSecondaryTextColor(context),
-                                      ),
-                                    ),
-                                    DropdownButton<int>(
-                                      value: viewModel.anioFiltro,
-                                      isExpanded: true,
-                                      dropdownColor:
-                                          _getDropdownBackgroundColor(context),
-                                      style: TextStyle(
-                                        color: _getTextColor(context),
-                                      ),
-                                      items: [
-                                        DropdownMenuItem(
-                                          value: 0,
-                                          child: Text(
-                                            'Todos',
-                                            style: TextStyle(
-                                              color: _getTextColor(context),
-                                            ),
-                                          ),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 1,
-                                          child: Text(
-                                            '1° Año',
-                                            style: TextStyle(
-                                              color: _getTextColor(context),
-                                            ),
-                                          ),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 2,
-                                          child: Text(
-                                            '2° Año',
-                                            style: TextStyle(
-                                              color: _getTextColor(context),
-                                            ),
-                                          ),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 3,
-                                          child: Text(
-                                            '3° Año',
-                                            style: TextStyle(
-                                              color: _getTextColor(context),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                      onChanged: (value) =>
-                                          viewModel.setAnioFiltro(value!),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Carrera:',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: _getSecondaryTextColor(context),
-                                      ),
-                                    ),
-                                    DropdownButton<String>(
-                                      value: viewModel.carreraFiltro,
-                                      isExpanded: true,
-                                      dropdownColor:
-                                          _getDropdownBackgroundColor(context),
-                                      style: TextStyle(
-                                        color: _getTextColor(context),
-                                      ),
-                                      items: [
-                                        DropdownMenuItem(
-                                          value: 'Todas',
-                                          child: Text(
-                                            'Todas',
-                                            style: TextStyle(
-                                              color: _getTextColor(context),
-                                            ),
-                                          ),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 'Sistemas Informáticos',
-                                          child: Text(
-                                            'Sistemas',
-                                            style: TextStyle(
-                                              color: _getTextColor(context),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                      onChanged: (value) =>
-                                          viewModel.setCarreraFiltro(value!),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Paralelo:',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: _getSecondaryTextColor(context),
-                                      ),
-                                    ),
-                                    DropdownButton<String>(
-                                      value: viewModel.paraleloFiltro,
-                                      isExpanded: true,
-                                      dropdownColor:
-                                          _getDropdownBackgroundColor(context),
-                                      style: TextStyle(
-                                        color: _getTextColor(context),
-                                      ),
-                                      items: viewModel.paralelos.map((
-                                        String value,
-                                      ) {
-                                        return DropdownMenuItem<String>(
-                                          value: value,
-                                          child: Row(
-                                            children: [
-                                              if (value != 'Todos')
-                                                Container(
-                                                  width: 12,
-                                                  height: 12,
-                                                  decoration: BoxDecoration(
-                                                    color: viewModel
-                                                        .getColorParalelo(
-                                                          value,
-                                                        ),
-                                                    shape: BoxShape.circle,
-                                                  ),
-                                                ),
-                                              if (value != 'Todos')
-                                                const SizedBox(width: 8),
-                                              Text(
-                                                value == 'Todos'
-                                                    ? 'Todos'
-                                                    : 'Paralelo $value',
-                                                style: TextStyle(
-                                                  color: _getTextColor(context),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      }).toList(),
-                                      onChanged: (value) =>
-                                          viewModel.setParaleloFiltro(value!),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Turno:',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: _getSecondaryTextColor(context),
-                                      ),
-                                    ),
-                                    DropdownButton<String>(
-                                      value: viewModel.turnoFiltro,
-                                      isExpanded: true,
-                                      dropdownColor:
-                                          _getDropdownBackgroundColor(context),
-                                      style: TextStyle(
-                                        color: _getTextColor(context),
-                                      ),
-                                      items: viewModel.turnos.map((
-                                        String value,
-                                      ) {
-                                        return DropdownMenuItem<String>(
-                                          value: value,
-                                          child: Row(
-                                            children: [
-                                              if (value != 'Todos')
-                                                Icon(
-                                                  viewModel.obtenerIconoTurno(
-                                                    value,
-                                                  ),
-                                                  size: 16,
-                                                  color: _getTextColor(context),
-                                                ),
-                                              if (value != 'Todos')
-                                                const SizedBox(width: 8),
-                                              Text(
-                                                value == 'Todos'
-                                                    ? 'Todos'
-                                                    : value,
-                                                style: TextStyle(
-                                                  color: _getTextColor(context),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      }).toList(),
-                                      onChanged: (value) =>
-                                          viewModel.setTurnoFiltro(value!),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (viewModel.anioFiltro != 0 ||
-                              viewModel.carreraFiltro != 'Todas' ||
-                              viewModel.paraleloFiltro != 'Todos' ||
-                              viewModel.turnoFiltro != 'Todos')
-                            Container(
-                              margin: const EdgeInsets.only(top: 12),
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.filter_alt,
-                                    color: AppColors.primary,
-                                    size: 16,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      viewModel.obtenerTextoFiltros(),
-                                      style: TextStyle(
-                                        color: AppColors.primary,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
+                    _buildFiltrosSection(viewModel, context),
+                    
+                    // Indicador de resultados
+                    _buildResultadosIndicator(viewModel, context),
+                    
+                    // Lista de materias
                     Expanded(
-                      child: viewModel.materiasFiltradasGestion.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.school,
-                                    size: 64,
-                                    color: _getSecondaryTextColor(context),
-                                  ),
-                                  const SizedBox(height: AppSpacing.medium),
-                                  Text(
-                                    'No hay materias registradas',
-                                    style: TextStyle(
-                                      color: _getSecondaryTextColor(context),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : ListView.builder(
-                              itemCount:
-                                  viewModel.materiasFiltradasGestion.length,
-                              itemBuilder: (context, index) {
-                                final materia =
-                                    viewModel.materiasFiltradasGestion[index];
-                                return _buildMateriaCard(
-                                  materia,
-                                  context,
-                                  viewModel,
-                                );
-                              },
-                            ),
+                      child: _buildMateriasList(viewModel, context),
                     ),
                   ],
                 ),
@@ -379,6 +83,381 @@ class _MateriasScreenState extends State<MateriasScreen> {
           },
         ),
       ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 16),
+          Text(
+            'Cargando materias...',
+            style: TextStyle(
+              color: _getSecondaryTextColor(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String error, MateriaViewModel viewModel) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 64, color: Colors.red),
+          SizedBox(height: 16),
+          Text(
+            'Error al cargar materias',
+            style: TextStyle(
+              color: _getTextColor(context),
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              error,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: _getSecondaryTextColor(context),
+              ),
+            ),
+          ),
+          SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () => viewModel.clearError(),
+            child: Text('Reintentar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFiltrosSection(MateriaViewModel viewModel, BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: _getFilterBackgroundColor(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Filtrar cursos:',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: _getTextColor(context),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Nivel:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _getSecondaryTextColor(context),
+                      ),
+                    ),
+                    DropdownButton<int>(
+                      value: viewModel.anioFiltro,
+                      isExpanded: true,
+                      dropdownColor: _getDropdownBackgroundColor(context),
+                      style: TextStyle(color: _getTextColor(context)),
+                      items: [
+                        DropdownMenuItem(
+                          value: 0,
+                          child: Text(
+                            'Todos',
+                            style: TextStyle(color: _getTextColor(context)),
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 1,
+                          child: Text(
+                            '1° Año',
+                            style: TextStyle(color: _getTextColor(context)),
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 2,
+                          child: Text(
+                            '2° Año',
+                            style: TextStyle(color: _getTextColor(context)),
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 3,
+                          child: Text(
+                            '3° Año',
+                            style: TextStyle(color: _getTextColor(context)),
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) => viewModel.setAnioFiltro(value!),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Carrera:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _getSecondaryTextColor(context),
+                      ),
+                    ),
+                    DropdownButton<String>(
+                      value: viewModel.carreraFiltro,
+                      isExpanded: true,
+                      dropdownColor: _getDropdownBackgroundColor(context),
+                      style: TextStyle(color: _getTextColor(context)),
+                      items: viewModel.carrerasFiltro.map((carrera) {
+                        return DropdownMenuItem(
+                          value: carrera,
+                          child: Text(
+                            carrera,
+                            style: TextStyle(color: _getTextColor(context)),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) => viewModel.setCarreraFiltro(value!),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Paralelo:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _getSecondaryTextColor(context),
+                      ),
+                    ),
+                    DropdownButton<String>(
+                      value: viewModel.paraleloFiltro,
+                      isExpanded: true,
+                      dropdownColor: _getDropdownBackgroundColor(context),
+                      style: TextStyle(color: _getTextColor(context)),
+                      items: viewModel.paralelosFiltro.map((paralelo) {
+                        return DropdownMenuItem(
+                          value: paralelo,
+                          child: Row(
+                            children: [
+                              if (paralelo != 'Todos')
+                                Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: viewModel.getColorParalelo(paralelo),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              if (paralelo != 'Todos') const SizedBox(width: 8),
+                              Text(
+                                paralelo == 'Todos' ? 'Todos' : 'Paralelo $paralelo',
+                                style: TextStyle(color: _getTextColor(context)),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) => viewModel.setParaleloFiltro(value!),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Turno:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _getSecondaryTextColor(context),
+                      ),
+                    ),
+                    DropdownButton<String>(
+                      value: viewModel.turnoFiltro,
+                      isExpanded: true,
+                      dropdownColor: _getDropdownBackgroundColor(context),
+                      style: TextStyle(color: _getTextColor(context)),
+                      items: viewModel.turnosFiltro.map((turno) {
+                        return DropdownMenuItem(
+                          value: turno,
+                          child: Row(
+                            children: [
+                              if (turno != 'Todos')
+                                Icon(
+                                  viewModel.obtenerIconoTurno(turno),
+                                  size: 16,
+                                  color: _getTextColor(context),
+                                ),
+                              if (turno != 'Todos') const SizedBox(width: 8),
+                              Text(
+                                turno == 'Todos' ? 'Todos' : turno,
+                                style: TextStyle(color: _getTextColor(context)),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) => viewModel.setTurnoFiltro(value!),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          _buildFiltrosAplicados(viewModel, context),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFiltrosAplicados(MateriaViewModel viewModel, BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            margin: const EdgeInsets.only(top: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.filter_alt, color: AppColors.primary, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    viewModel.obtenerTextoFiltros(),
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (viewModel.anioFiltro != 0 || 
+            viewModel.carreraFiltro != 'Todas' || 
+            viewModel.paraleloFiltro != 'Todos' || 
+            viewModel.turnoFiltro != 'Todos')
+          IconButton(
+            icon: Icon(Icons.clear, color: AppColors.primary),
+            onPressed: viewModel.limpiarFiltros,
+            tooltip: 'Limpiar filtros',
+          ),
+      ],
+    );
+  }
+
+  Widget _buildResultadosIndicator(MateriaViewModel viewModel, BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: _getFilterBackgroundColor(context),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Resultados: ${viewModel.materiasFiltradasGestion.length} materias',
+            style: TextStyle(
+              color: _getSecondaryTextColor(context),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          if (viewModel.materiasFiltradasGestion.isNotEmpty)
+            Text(
+              _obtenerResumenFiltros(viewModel),
+              style: TextStyle(
+                color: _getSecondaryTextColor(context),
+                fontSize: 10,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _obtenerResumenFiltros(MateriaViewModel viewModel) {
+    List<String> partes = [];
+    if (viewModel.anioFiltro != 0) partes.add('${viewModel.anioFiltro}°');
+    if (viewModel.paraleloFiltro != 'Todos') partes.add(viewModel.paraleloFiltro);
+    if (viewModel.turnoFiltro != 'Todos') partes.add(viewModel.turnoFiltro);
+    return partes.join(' • ');
+  }
+
+  Widget _buildMateriasList(MateriaViewModel viewModel, BuildContext context) {
+    final materiasFiltradas = viewModel.materiasFiltradasGestion;
+
+    if (materiasFiltradas.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.school,
+              size: 64,
+              color: _getSecondaryTextColor(context),
+            ),
+            const SizedBox(height: AppSpacing.medium),
+            Text(
+              viewModel.materias.isEmpty 
+                  ? 'No hay materias registradas'
+                  : 'No hay materias que coincidan con los filtros',
+              style: TextStyle(
+                color: _getSecondaryTextColor(context),
+              ),
+            ),
+            if (viewModel.materias.isEmpty)
+              Text(
+                'Presiona el botón + para agregar una materia',
+                style: TextStyle(
+                  color: _getSecondaryTextColor(context),
+                  fontSize: 12,
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: materiasFiltradas.length,
+      itemBuilder: (context, index) {
+        final materia = materiasFiltradas[index];
+        return _buildMateriaCard(materia, context, viewModel);
+      },
     );
   }
 
@@ -467,6 +546,18 @@ class _MateriasScreenState extends State<MateriasScreen> {
                   materia.anioDisplay,
                   Icons.grade,
                   viewModel.getColorAnio(materia.anio),
+                  context,
+                ),
+                _buildInfoChip(
+                  materia.paraleloDisplay,
+                  Icons.groups,
+                  viewModel.getColorParalelo(materia.paralelo),
+                  context,
+                ),
+                _buildInfoChip(
+                  materia.turnoDisplay,
+                  viewModel.obtenerIconoTurno(materia.turno),
+                  Colors.purple,
                   context,
                 ),
                 _buildInfoChip(
@@ -639,11 +730,27 @@ class _MateriasScreenState extends State<MateriasScreen> {
                   icon: Icons.school,
                 ),
                 const SizedBox(height: 16),
-                _buildFormField(
-                  controller: viewModel.carreraController,
-                  label: 'Carrera',
-                  hint: 'Ej: Sistemas Informáticos',
-                  icon: Icons.work,
+                Text(
+                  'Carrera:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: _getTextColor(context),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  value: viewModel.carreraSeleccionadaForm,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                  items: viewModel.carrerasDisponibles.map((carrera) {
+                    return DropdownMenuItem<String>(
+                      value: carrera,
+                      child: Text(carrera),
+                    );
+                  }).toList(),
+                  onChanged: (value) => viewModel.setCarreraSeleccionadaForm(value!),
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -655,7 +762,7 @@ class _MateriasScreenState extends State<MateriasScreen> {
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<int>(
-                  initialValue: viewModel.anioSeleccionadoForm,
+                  value: viewModel.anioSeleccionadoForm,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12),
@@ -666,8 +773,71 @@ class _MateriasScreenState extends State<MateriasScreen> {
                       child: Text('$anio° Año'),
                     );
                   }).toList(),
-                  onChanged: (value) =>
-                      viewModel.setAnioSeleccionadoForm(value!),
+                  onChanged: (value) => viewModel.setAnioSeleccionadoForm(value!),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Paralelo:',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: _getTextColor(context),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<String>(
+                            value: viewModel.paraleloSeleccionadoForm,
+                            decoration: InputDecoration(
+                              border: OutlineInputBorder(),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                            ),
+                            items: viewModel.paralelosDisponibles.map((paralelo) {
+                              return DropdownMenuItem<String>(
+                                value: paralelo,
+                                child: Text('Paralelo $paralelo'),
+                              );
+                            }).toList(),
+                            onChanged: (value) => viewModel.setParaleloSeleccionadoForm(value!),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Turno:',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: _getTextColor(context),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<String>(
+                            value: viewModel.turnoSeleccionadoForm,
+                            decoration: InputDecoration(
+                              border: OutlineInputBorder(),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                            ),
+                            items: viewModel.turnosDisponibles.map((turno) {
+                              return DropdownMenuItem<String>(
+                                value: turno,
+                                child: Text('Turno $turno'),
+                              );
+                            }).toList(),
+                            onChanged: (value) => viewModel.setTurnoSeleccionadoForm(value!),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -694,20 +864,31 @@ class _MateriasScreenState extends State<MateriasScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {
+                    onPressed: viewModel.isLoading ? null : () {
                       viewModel.agregarMateria();
-                      Navigator.of(context).pop();
+                      if (!viewModel.isLoading) {
+                        Navigator.of(context).pop();
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: Text(
-                      viewModel.materiaEditandoId.isEmpty
-                          ? 'Agregar Materia'
-                          : 'Actualizar Materia',
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
+                    child: viewModel.isLoading
+                        ? SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : Text(
+                            viewModel.materiaEditandoId.isEmpty
+                                ? 'Agregar Materia'
+                                : 'Actualizar Materia',
+                            style: TextStyle(color: Colors.white, fontSize: 16),
+                          ),
                   ),
                 ),
               ],
@@ -771,7 +952,37 @@ class _MateriasScreenState extends State<MateriasScreen> {
     );
   }
 
-  // Mantener todas las funciones de colores del tema...
+  Widget _buildInfoChip(
+    String text,
+    IconData icon,
+    Color color,
+    BuildContext context,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Color _getBackgroundColor(BuildContext context) {
     return Theme.of(context).brightness == Brightness.dark
         ? Colors.grey.shade900
@@ -802,46 +1013,9 @@ class _MateriasScreenState extends State<MateriasScreen> {
         : Colors.grey.shade50;
   }
 
-  Color _getBorderColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade600
-        : Colors.grey.shade300;
-  }
-
   Color _getDropdownBackgroundColor(BuildContext context) {
     return Theme.of(context).brightness == Brightness.dark
         ? Colors.grey.shade800
         : Colors.white;
-  }
-
-  Widget _buildInfoChip(
-    String text,
-    IconData icon,
-    Color color,
-    BuildContext context,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 4),
-          Text(
-            text,
-            style: TextStyle(
-              color: color,
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

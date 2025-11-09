@@ -16,6 +16,7 @@ class EstudiantesViewModel with ChangeNotifier {
   List<Estudiante> _estudiantes = [];
   List<Estudiante> _estudiantesFiltrados = [];
   final TextEditingController searchController = TextEditingController();
+  Timer? _searchDebounce;
 
   final DataRepository _repository;
   StreamSubscription? _estudiantesSubscription;
@@ -123,18 +124,21 @@ class EstudiantesViewModel with ChangeNotifier {
   }
 
   void _filtrarEstudiantes() {
-    final query = searchController.text.toLowerCase();
-    if (query.isEmpty) {
-      _estudiantesFiltrados = List.from(_estudiantes);
-    } else {
-      _estudiantesFiltrados = _estudiantes.where((estudiante) {
-        return estudiante.nombres.toLowerCase().contains(query) ||
-            estudiante.apellidoPaterno.toLowerCase().contains(query) ||
-            estudiante.apellidoMaterno.toLowerCase().contains(query) ||
-            estudiante.ci.contains(query);
-      }).toList();
-    }
-    notifyListeners();
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      final query = searchController.text.toLowerCase().trim();
+      if (query.isEmpty) {
+        _estudiantesFiltrados = List.from(_estudiantes);
+      } else {
+        _estudiantesFiltrados = _estudiantes.where((estudiante) {
+          return estudiante.nombres.toLowerCase().contains(query) ||
+              estudiante.apellidoPaterno.toLowerCase().contains(query) ||
+              estudiante.apellidoMaterno.toLowerCase().contains(query) ||
+              estudiante.ci.contains(query);
+        }).toList();
+      }
+      notifyListeners();
+    });
   }
 
   // ✅ AGREGAR ESTUDIANTE
@@ -149,6 +153,15 @@ class EstudiantesViewModel with ChangeNotifier {
       notifyListeners();
 
       print('🔄 Agregando estudiante: $nombres $paterno $materno');
+
+      // Verificar si ya existe un estudiante con el mismo CI
+      final ciExists = _estudiantes.any((e) => e.ci == ci.trim());
+      if (ciExists) {
+        _error = 'Ya existe un estudiante con este CI';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
 
       // Crear el estudiante
       final nuevoEstudiante = Estudiante(
@@ -169,15 +182,13 @@ class EstudiantesViewModel with ChangeNotifier {
       await _repository.addEstudiante(nuevoEstudiante.toFirestore());
 
       _isLoading = false;
+      _error = null;
       notifyListeners();
 
       print('✅ Estudiante agregado exitosamente');
       return true;
     } catch (e) {
-      print('❌ Error agregando estudiante: $e');
-      _error = 'Error al agregar estudiante: $e';
-      _isLoading = false;
-      notifyListeners();
+      _handleError('agregar estudiante', e);
       return false;
     }
   }
@@ -202,6 +213,17 @@ class EstudiantesViewModel with ChangeNotifier {
         orElse: () => throw Exception('Estudiante no encontrado'),
       );
 
+      // Verificar si el CI ya existe en otro estudiante
+      if (ci.trim() != estudianteExistente.ci) {
+        final ciExists = _estudiantes.any((e) => e.id != id && e.ci == ci.trim());
+        if (ciExists) {
+          _error = 'Ya existe otro estudiante con este CI';
+          _isLoading = false;
+          notifyListeners();
+          return false;
+        }
+      }
+
       // Crear estudiante actualizado
       final estudianteActualizado = estudianteExistente.copyWith(
         nombres: nombres.trim(),
@@ -217,15 +239,13 @@ class EstudiantesViewModel with ChangeNotifier {
       );
 
       _isLoading = false;
+      _error = null;
       notifyListeners();
 
       print('✅ Estudiante editado exitosamente');
       return true;
     } catch (e) {
-      print('❌ Error editando estudiante: $e');
-      _error = 'Error al editar estudiante: $e';
-      _isLoading = false;
-      notifyListeners();
+      _handleError('editar estudiante', e);
       return false;
     }
   }
@@ -241,15 +261,13 @@ class EstudiantesViewModel with ChangeNotifier {
       await _repository.deleteEstudiante(id);
 
       _isLoading = false;
+      _error = null;
       notifyListeners();
 
       print('✅ Estudiante eliminado exitosamente');
       return true;
     } catch (e) {
-      print('❌ Error eliminando estudiante: $e');
-      _error = 'Error al eliminar estudiante: $e';
-      _isLoading = false;
-      notifyListeners();
+      _handleError('eliminar estudiante', e);
       return false;
     }
   }
@@ -285,6 +303,14 @@ class EstudiantesViewModel with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     _cargarEstudiantesDesdeFirestore();
+  }
+
+  // ✅ MÉTODO HELPER PARA ERRORES
+  void _handleError(String operation, dynamic error) {
+    print('❌ Error $operation: $error');
+    _error = 'Error al $operation: ${error.toString()}';
+    _isLoading = false;
+    notifyListeners();
   }
 
   // ✅ MÉTODOS DE EXPORTACIÓN (MANTENIDOS)
@@ -496,6 +522,7 @@ class EstudiantesViewModel with ChangeNotifier {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _estudiantesSubscription?.cancel();
     searchController.dispose();
     super.dispose();
