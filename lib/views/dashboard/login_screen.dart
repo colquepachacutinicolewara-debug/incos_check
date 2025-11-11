@@ -1,8 +1,6 @@
-// views/login_screen.dart - MEJORADO
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../viewmodels/auth_viewmodel.dart';
-import '../../utils/constants.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:incos_check/utils/constants.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,10 +9,13 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> 
+class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
+  final _auth = FirebaseAuth.instance;
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  String? _error;
+  bool _isLoading = false;
   bool _obscurePassword = true;
 
   late AnimationController _animationController;
@@ -33,12 +34,10 @@ class _LoginScreenState extends State<LoginScreen>
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3), 
-      end: Offset.zero
-    ).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
-    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+        );
 
     _animationController.forward();
   }
@@ -53,8 +52,6 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
-    final authViewModel = Provider.of<AuthViewModel>(context);
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -66,9 +63,14 @@ class _LoginScreenState extends State<LoginScreen>
               position: _slideAnimation,
               child: Column(
                 children: [
+                  // Header con logo y título
                   _buildHeader(),
                   const SizedBox(height: AppSpacing.xlarge),
-                  _buildLoginCard(authViewModel),
+
+                  // Tarjeta del formulario
+                  _buildLoginCard(),
+
+                  // Footer
                   const SizedBox(height: AppSpacing.xlarge),
                   _buildFooter(),
                 ],
@@ -83,6 +85,7 @@ class _LoginScreenState extends State<LoginScreen>
   Widget _buildHeader() {
     return Column(
       children: [
+        // Logo container con gradiente
         Container(
           width: 120,
           height: 120,
@@ -118,7 +121,7 @@ class _LoginScreenState extends State<LoginScreen>
         ),
         const SizedBox(height: AppSpacing.small),
         Text(
-          'Sistema de Gestión Académica',
+          'Instituto Comercial Superior El Alto',
           style: AppTextStyles.body.copyWith(
             color: AppColors.textSecondary,
             fontSize: 14,
@@ -129,7 +132,7 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildLoginCard(AuthViewModel authViewModel) {
+  Widget _buildLoginCard() {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.large),
       decoration: BoxDecoration(
@@ -147,7 +150,7 @@ class _LoginScreenState extends State<LoginScreen>
       child: Column(
         children: [
           Text(
-            'Inicio de Sesión',
+            'Bienvenido/a',
             style: AppTextStyles.heading2.copyWith(
               color: AppColors.primary,
               fontSize: 24,
@@ -155,24 +158,25 @@ class _LoginScreenState extends State<LoginScreen>
           ),
           const SizedBox(height: AppSpacing.small),
           Text(
-            'Ingresa con tus credenciales',
+            'Ingresa a tu cuenta',
             style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: AppSpacing.large),
 
+          // Campo de email
           _buildEmailField(),
           const SizedBox(height: AppSpacing.medium),
 
+          // Campo de contraseña
           _buildPasswordField(),
           const SizedBox(height: AppSpacing.medium),
 
-          if (authViewModel.error != null) _buildErrorWidget(authViewModel.error!),
+          // Mensaje de error
+          if (_error != null) _buildErrorWidget(),
           const SizedBox(height: AppSpacing.medium),
 
-          _buildLoginButton(authViewModel),
-          const SizedBox(height: AppSpacing.medium),
-
-          _buildForgotPassword(),
+          // Botón de login
+          _buildLoginButton(),
         ],
       ),
     );
@@ -183,7 +187,7 @@ class _LoginScreenState extends State<LoginScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Correo Institucional',
+          'Correo Electrónico',
           style: AppTextStyles.heading3.copyWith(color: AppColors.textPrimary),
         ),
         const SizedBox(height: AppSpacing.small),
@@ -199,7 +203,7 @@ class _LoginScreenState extends State<LoginScreen>
             style: AppTextStyles.body,
             decoration: const InputDecoration(
               prefixIcon: Icon(Icons.email_rounded, color: AppColors.primary),
-              hintText: 'usuario@incos.edu.bo',
+              hintText: 'ejemplo@incos.edu.bo',
               border: InputBorder.none,
               contentPadding: EdgeInsets.symmetric(
                 horizontal: AppSpacing.medium,
@@ -231,10 +235,15 @@ class _LoginScreenState extends State<LoginScreen>
             obscureText: _obscurePassword,
             style: AppTextStyles.body,
             decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.lock_rounded, color: AppColors.primary),
+              prefixIcon: const Icon(
+                Icons.lock_rounded,
+                color: AppColors.primary,
+              ),
               suffixIcon: IconButton(
                 icon: Icon(
-                  _obscurePassword ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+                  _obscurePassword
+                      ? Icons.visibility_rounded
+                      : Icons.visibility_off_rounded,
                   color: AppColors.textSecondary,
                 ),
                 onPressed: () {
@@ -255,7 +264,7 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildErrorWidget(String error) {
+  Widget _buildErrorWidget() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.medium),
@@ -270,7 +279,7 @@ class _LoginScreenState extends State<LoginScreen>
           const SizedBox(width: AppSpacing.small),
           Expanded(
             child: Text(
-              error,
+              _error!,
               style: AppTextStyles.body.copyWith(color: AppColors.error),
             ),
           ),
@@ -279,13 +288,13 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildLoginButton(AuthViewModel authViewModel) {
+  Widget _buildLoginButton() {
     return SizedBox(
       width: double.infinity,
       child: AnimatedContainer(
         duration: AppDurations.short,
         decoration: BoxDecoration(
-          gradient: authViewModel.isLoading
+          gradient: _isLoading
               ? null
               : const LinearGradient(
                   colors: [AppColors.primary, AppColors.secondary],
@@ -293,7 +302,7 @@ class _LoginScreenState extends State<LoginScreen>
                   end: Alignment.bottomRight,
                 ),
           borderRadius: BorderRadius.circular(AppRadius.small),
-          boxShadow: authViewModel.isLoading
+          boxShadow: _isLoading
               ? []
               : [
                   BoxShadow(
@@ -304,17 +313,17 @@ class _LoginScreenState extends State<LoginScreen>
                 ],
         ),
         child: Material(
-          color: authViewModel.isLoading ? AppColors.textSecondary : Colors.transparent,
+          color: _isLoading ? AppColors.textSecondary : Colors.transparent,
           borderRadius: BorderRadius.circular(AppRadius.small),
           child: InkWell(
-            onTap: authViewModel.isLoading ? null : () => _login(authViewModel),
+            onTap: _isLoading ? null : _login,
             borderRadius: BorderRadius.circular(AppRadius.small),
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (authViewModel.isLoading)
+                  if (_isLoading)
                     SizedBox(
                       width: 20,
                       height: 20,
@@ -324,10 +333,14 @@ class _LoginScreenState extends State<LoginScreen>
                       ),
                     )
                   else
-                    const Icon(Icons.login_rounded, color: Colors.white, size: 20),
+                    const Icon(
+                      Icons.login_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   const SizedBox(width: AppSpacing.small),
                   Text(
-                    authViewModel.isLoading ? 'Verificando...' : 'Iniciar Sesión',
+                    _isLoading ? 'Ingresando...' : AppStrings.login,
                     style: AppTextStyles.button.copyWith(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -342,26 +355,11 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildForgotPassword() {
-    return TextButton(
-      onPressed: () {
-        _showForgotPasswordDialog();
-      },
-      child: Text(
-        '¿Olvidaste tu contraseña?',
-        style: AppTextStyles.body.copyWith(
-          color: AppColors.primary,
-          decoration: TextDecoration.underline,
-        ),
-      ),
-    );
-  }
-
   Widget _buildFooter() {
     return Column(
       children: [
         Text(
-          'Sistema Seguro - INCOS El Alto',
+          'Sistema de Gestión Académica',
           style: AppTextStyles.body.copyWith(
             color: AppColors.textSecondary,
             fontSize: 12,
@@ -381,7 +379,7 @@ class _LoginScreenState extends State<LoginScreen>
             ),
             const SizedBox(width: 6),
             Text(
-              'Conexión Segura',
+              'Sistema Seguro',
               style: AppTextStyles.body.copyWith(
                 color: AppColors.textSecondary,
                 fontSize: 12,
@@ -394,81 +392,44 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  void _login(AuthViewModel authViewModel) async {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
+  void _login() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
 
-    if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(Messages.campoRequerido),
-          backgroundColor: AppColors.error,
-        ),
+    try {
+      final email = _emailController.text.trim();
+      final password = _passwordController.text.trim();
+
+      if (email.isEmpty || password.isEmpty) {
+        setState(() {
+          _error = Messages.campoRequerido;
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
       );
-      return;
-    }
 
-    final success = await authViewModel.signIn(email, password);
-    
-    if (success && context.mounted) {
-      // La navegación se maneja automáticamente por AuthWrapper
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Bienvenido/a ${authViewModel.currentUser?.nombre}'),
-          backgroundColor: AppColors.success,
-        ),
-      );
+      if (userCredential.user != null) {
+        // Navegación manejada por AuthWrapper
+      }
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        _error = 'Error: ${e.message}';
+      });
+    } catch (e) {
+      setState(() {
+        _error = Messages.errorGeneral;
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
-  }
-
-  void _showForgotPasswordDialog() {
-    final emailController = TextEditingController();
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Recuperar Contraseña'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Ingresa tu correo electrónico para restablecer tu contraseña:'),
-            SizedBox(height: AppSpacing.medium),
-            TextField(
-              controller: emailController,
-              decoration: InputDecoration(
-                labelText: 'Correo Electrónico',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final email = emailController.text.trim();
-              if (email.isNotEmpty) {
-                Navigator.pop(context);
-                final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
-                await authViewModel.resetPassword(email);
-                
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Se ha enviado un enlace de recuperación a $email'),
-                      backgroundColor: AppColors.success,
-                    ),
-                  );
-                }
-              }
-            },
-            child: Text('Enviar'),
-          ),
-        ],
-      ),
-    );
   }
 }

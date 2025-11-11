@@ -20,46 +20,82 @@ class ConfiguracionScreen extends StatelessWidget {
 class _ConfiguracionView extends StatelessWidget {
   const _ConfiguracionView();
 
+  // FUNCIONES HELPER para modo oscuro (igual que CarreraContaduria)
+  Color _getTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+  }
+
+  Color _getSecondaryTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white70
+        : Colors.black87;
+  }
+
+  Color _getBackgroundColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : Colors.grey.shade50;
+  }
+
+  Color _getCardColor(BuildContext context) {
+    return Theme.of(context).cardColor;
+  }
+
   void _showLanguageDialog(BuildContext context) {
     final viewModel = context.read<ConfiguracionViewModel>();
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Seleccionar Idioma',
-          style: AppTextStyles.heading2Dark(context),
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: viewModel.languages.length,
-            itemBuilder: (context, index) {
-              final language = viewModel.languages[index];
-              return RadioListTile(
-                title: Text(language, style: AppTextStyles.bodyDark(context)),
-                value: language,
-                groupValue: viewModel.configuracion.selectedLanguage,
-                onChanged: (value) async {
-                  await viewModel.updateLanguage(value!);
-                  Navigator.pop(context);
-                  Helpers.showSnackBar(
-                    context,
-                    'Idioma cambiado a $value',
-                    type: 'success',
-                  );
-                },
-              );
-            },
+      builder: (context) => Builder(
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: _getCardColor(dialogContext),
+          title: Text(
+            'Seleccionar Idioma',
+            style: AppTextStyles.heading2Dark(dialogContext).copyWith(
+              color: _getTextColor(dialogContext),
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar', style: AppTextStyles.bodyDark(context)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: viewModel.languages.length,
+              itemBuilder: (context, index) {
+                final language = viewModel.languages[index];
+                return RadioListTile(
+                  title: Text(
+                    language, 
+                    style: AppTextStyles.bodyDark(context).copyWith(
+                      color: _getTextColor(context),
+                    ),
+                  ),
+                  value: language,
+                  groupValue: viewModel.configuracion.selectedLanguage,
+                  onChanged: (value) async {
+                    await viewModel.updateLanguage(value!);
+                    Navigator.pop(context);
+                    Helpers.showSnackBar(
+                      context,
+                      'Idioma cambiado a $value',
+                      type: 'success',
+                    );
+                  },
+                );
+              },
+            ),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancelar', 
+                style: TextStyle(color: _getTextColor(context)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -70,42 +106,55 @@ class _ConfiguracionView extends StatelessWidget {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Seleccionar Tema',
-          style: AppTextStyles.heading2Dark(context),
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: viewModel.themes.length,
-            itemBuilder: (context, index) {
-              final theme = viewModel.themes[index];
-              return RadioListTile(
-                title: Text(theme, style: AppTextStyles.bodyDark(context)),
-                value: theme,
-                groupValue: viewModel.configuracion.selectedTheme,
-                onChanged: (value) async {
-                  await viewModel.updateTheme(value!);
-                  await themeService.updateTheme(value!);
-                  Navigator.pop(context);
-                  Helpers.showSnackBar(
-                    context,
-                    'Tema cambiado a $value',
-                    type: 'success',
-                  );
-                },
-              );
-            },
+      builder: (context) => Builder(
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: _getCardColor(dialogContext),
+          title: Text(
+            'Seleccionar Tema',
+            style: AppTextStyles.heading2Dark(dialogContext).copyWith(
+              color: _getTextColor(dialogContext),
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar', style: AppTextStyles.bodyDark(context)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: viewModel.themes.length,
+              itemBuilder: (context, index) {
+                final theme = viewModel.themes[index];
+                return RadioListTile(
+                  title: Text(
+                    theme, 
+                    style: AppTextStyles.bodyDark(context).copyWith(
+                      color: _getTextColor(context),
+                    ),
+                  ),
+                  value: theme,
+                  groupValue: viewModel.configuracion.selectedTheme,
+                  onChanged: (value) async {
+                    await viewModel.updateTheme(value!);
+                    await themeService.updateTheme(value!);
+                    Navigator.pop(context);
+                    Helpers.showSnackBar(
+                      context,
+                      'Tema cambiado a $value',
+                      type: 'success',
+                    );
+                  },
+                );
+              },
+            ),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancelar',
+                style: TextStyle(color: _getTextColor(context)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -113,50 +162,60 @@ class _ConfiguracionView extends StatelessWidget {
   void _showBackupDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Copia de Seguridad',
-          style: AppTextStyles.heading2Dark(context),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.backup, size: 60, color: AppColors.primary),
-            SizedBox(height: AppSpacing.medium),
-            Text(
-              '¿Deseas crear una copia de seguridad de todos tus datos de asistencia?',
-              style: AppTextStyles.bodyDark(context),
-              textAlign: TextAlign.center,
+      builder: (context) => Builder(
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: _getCardColor(dialogContext),
+          title: Text(
+            'Copia de Seguridad',
+            style: AppTextStyles.heading2Dark(dialogContext).copyWith(
+              color: _getTextColor(dialogContext),
             ),
-            SizedBox(height: AppSpacing.small),
-            Text(
-              'Se guardarán: estudiantes, docentes, materias y registros de asistencia',
-              style: AppTextStyles.bodyDark(context).copyWith(
-                fontSize: 12,
-                color: AppColors.textSecondaryDark(context),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.backup, size: 60, color: AppColors.primary),
+              SizedBox(height: AppSpacing.medium),
+              Text(
+                '¿Deseas crear una copia de seguridad de todos tus datos de asistencia?',
+                style: AppTextStyles.bodyDark(dialogContext).copyWith(
+                  color: _getTextColor(dialogContext),
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
+              SizedBox(height: AppSpacing.small),
+              Text(
+                'Se guardarán: estudiantes, docentes, materias y registros de asistencia',
+                style: AppTextStyles.bodyDark(dialogContext).copyWith(
+                  fontSize: 12,
+                  color: _getSecondaryTextColor(dialogContext),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancelar',
+                style: TextStyle(color: _getTextColor(context)),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await Future.delayed(Duration(seconds: 2));
+                Helpers.showSnackBar(
+                  context,
+                  '✅ Copia de seguridad creada exitosamente',
+                  type: 'success',
+                );
+              },
+              child: Text('Crear Backup'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar', style: AppTextStyles.bodyDark(context)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await Future.delayed(Duration(seconds: 2));
-              Helpers.showSnackBar(
-                context,
-                '✅ Copia de seguridad creada exitosamente',
-                type: 'success',
-              );
-            },
-            child: Text('Crear Backup'),
-          ),
-        ],
       ),
     );
   }
@@ -168,162 +227,180 @@ class _ConfiguracionView extends StatelessWidget {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Cambiar Contraseña',
-          style: AppTextStyles.heading2Dark(context),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: _currentPasswordController,
-                decoration: InputDecoration(
-                  labelText: 'Contraseña actual',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(
-                    Icons.lock_outline,
-                    color: AppColors.primary,
+      builder: (context) => Builder(
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: _getCardColor(dialogContext),
+          title: Text(
+            'Cambiar Contraseña',
+            style: AppTextStyles.heading2Dark(dialogContext).copyWith(
+              color: _getTextColor(dialogContext),
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: _currentPasswordController,
+                  decoration: InputDecoration(
+                    labelText: 'Contraseña actual',
+                    labelStyle: TextStyle(color: _getTextColor(context)),
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(
+                      Icons.lock_outline,
+                      color: AppColors.primary,
+                    ),
                   ),
+                  obscureText: true,
                 ),
-                obscureText: true,
-              ),
-              SizedBox(height: AppSpacing.medium),
-              TextField(
-                controller: _newPasswordController,
-                decoration: InputDecoration(
-                  labelText: 'Nueva contraseña',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.lock_reset, color: AppColors.primary),
-                  hintText:
-                      'Mín. 6 caracteres, mayúscula, minúscula, carácter especial',
-                ),
-                obscureText: true,
-              ),
-              SizedBox(height: AppSpacing.medium),
-              TextField(
-                controller: _confirmPasswordController,
-                decoration: InputDecoration(
-                  labelText: 'Confirmar nueva contraseña',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(
-                    Icons.verified_user,
-                    color: AppColors.primary,
+                SizedBox(height: AppSpacing.medium),
+                TextField(
+                  controller: _newPasswordController,
+                  decoration: InputDecoration(
+                    labelText: 'Nueva contraseña',
+                    labelStyle: TextStyle(color: _getTextColor(context)),
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.lock_reset, color: AppColors.primary),
+                    hintText: 'Mín. 6 caracteres, mayúscula, minúscula, carácter especial',
+                    hintStyle: TextStyle(color: _getSecondaryTextColor(context)),
                   ),
+                  obscureText: true,
                 ),
-                obscureText: true,
-              ),
-              SizedBox(height: AppSpacing.small),
-              Container(
-                padding: EdgeInsets.all(AppSpacing.small),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(AppRadius.small),
+                SizedBox(height: AppSpacing.medium),
+                TextField(
+                  controller: _confirmPasswordController,
+                  decoration: InputDecoration(
+                    labelText: 'Confirmar nueva contraseña',
+                    labelStyle: TextStyle(color: _getTextColor(context)),
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(
+                      Icons.verified_user,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  obscureText: true,
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Requisitos de contraseña:',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
+                SizedBox(height: AppSpacing.small),
+                Container(
+                  padding: EdgeInsets.all(AppSpacing.small),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(AppRadius.small),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Requisitos de contraseña:',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 4),
-                    _buildSimpleRequirement('Mínimo 6 caracteres'),
-                    _buildSimpleRequirement('Una letra mayúscula (A-Z)'),
-                    _buildSimpleRequirement('Una letra minúscula (a-z)'),
-                    _buildSimpleRequirement(
-                      'Un carácter especial (!@#\$% etc.)',
-                    ),
-                  ],
+                      SizedBox(height: 4),
+                      _buildSimpleRequirement('Mínimo 6 caracteres'),
+                      _buildSimpleRequirement('Una letra mayúscula (A-Z)'),
+                      _buildSimpleRequirement('Una letra minúscula (a-z)'),
+                      _buildSimpleRequirement('Un carácter especial (!@#\$% etc.)'),
+                    ],
+                  ),
                 ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancelar',
+                style: TextStyle(color: _getTextColor(context)),
               ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final currentPassword = _currentPasswordController.text;
-              final newPassword = _newPasswordController.text;
-              final confirmPassword = _confirmPasswordController.text;
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                // ... (código del cambio de contraseña sin cambios)
+                final currentPassword = _currentPasswordController.text;
+                final newPassword = _newPasswordController.text;
+                final confirmPassword = _confirmPasswordController.text;
 
-              if (newPassword != confirmPassword) {
-                Helpers.showSnackBar(
-                  context,
-                  '❌ Las contraseñas no coinciden',
-                  type: 'error',
-                );
-                return;
-              }
-
-              if (newPassword.length < 6) {
-                Helpers.showSnackBar(
-                  context,
-                  '❌ La contraseña debe tener al menos 6 caracteres',
-                  type: 'error',
-                );
-                return;
-              }
-
-              try {
-                final user = FirebaseAuth.instance.currentUser;
-                if (user != null) {
-                  final cred = EmailAuthProvider.credential(
-                    email: user.email!,
-                    password: currentPassword,
-                  );
-
-                  await user.reauthenticateWithCredential(cred);
-                  await user.updatePassword(newPassword);
-
-                  _currentPasswordController.clear();
-                  _newPasswordController.clear();
-                  _confirmPasswordController.clear();
-
-                  Navigator.pop(context);
+                if (newPassword != confirmPassword) {
                   Helpers.showSnackBar(
                     context,
-                    '✅ Contraseña cambiada exitosamente',
-                    type: 'success',
+                    '❌ Las contraseñas no coinciden',
+                    type: 'error',
+                  );
+                  return;
+                }
+
+                if (newPassword.length < 6) {
+                  Helpers.showSnackBar(
+                    context,
+                    '❌ La contraseña debe tener al menos 6 caracteres',
+                    type: 'error',
+                  );
+                  return;
+                }
+
+                try {
+                  final user = FirebaseAuth.instance.currentUser;
+                  if (user != null) {
+                    final cred = EmailAuthProvider.credential(
+                      email: user.email!,
+                      password: currentPassword,
+                    );
+
+                    await user.reauthenticateWithCredential(cred);
+                    await user.updatePassword(newPassword);
+
+                    _currentPasswordController.clear();
+                    _newPasswordController.clear();
+                    _confirmPasswordController.clear();
+
+                    Navigator.pop(context);
+                    Helpers.showSnackBar(
+                      context,
+                      '✅ Contraseña cambiada exitosamente',
+                      type: 'success',
+                    );
+                  }
+                } on FirebaseAuthException catch (e) {
+                  Helpers.showSnackBar(
+                    context,
+                    '❌ Error: ${e.message}',
+                    type: 'error',
+                  );
+                } catch (e) {
+                  Helpers.showSnackBar(
+                    context,
+                    '❌ Error al cambiar contraseña',
+                    type: 'error',
                   );
                 }
-              } on FirebaseAuthException catch (e) {
-                Helpers.showSnackBar(
-                  context,
-                  '❌ Error: ${e.message}',
-                  type: 'error',
-                );
-              } catch (e) {
-                Helpers.showSnackBar(
-                  context,
-                  '❌ Error al cambiar contraseña',
-                  type: 'error',
-                );
-              }
-            },
-            child: Text('Cambiar Contraseña'),
-          ),
-        ],
+              },
+              child: Text('Cambiar Contraseña'),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildSimpleRequirement(String text) {
-    return Row(
-      children: [
-        Icon(Icons.check_circle_outline, size: 14, color: AppColors.primary),
-        SizedBox(width: 4),
-        Text(text, style: TextStyle(fontSize: 11)),
-      ],
+    return Builder(
+      builder: (context) => Row(
+        children: [
+          Icon(Icons.check_circle_outline, size: 14, color: AppColors.primary),
+          SizedBox(width: 4),
+          Text(
+            text, 
+            style: TextStyle(
+              fontSize: 11,
+              color: _getTextColor(context),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -332,49 +409,59 @@ class _ConfiguracionView extends StatelessWidget {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Limpiar Caché',
-          style: AppTextStyles.heading2Dark(context),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.cleaning_services, size: 50, color: AppColors.primary),
-            SizedBox(height: AppSpacing.medium),
-            Text(
-              '¿Estás seguro de que deseas limpiar el caché?',
-              style: AppTextStyles.bodyDark(context),
-              textAlign: TextAlign.center,
+      builder: (context) => Builder(
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: _getCardColor(dialogContext),
+          title: Text(
+            'Limpiar Caché',
+            style: AppTextStyles.heading2Dark(dialogContext).copyWith(
+              color: _getTextColor(dialogContext),
             ),
-            SizedBox(height: AppSpacing.small),
-            Text(
-              'Se liberarán ${viewModel.configuracion.cacheSize} de espacio de almacenamiento',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontWeight: FontWeight.bold,
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.cleaning_services, size: 50, color: AppColors.primary),
+              SizedBox(height: AppSpacing.medium),
+              Text(
+                '¿Estás seguro de que deseas limpiar el caché?',
+                style: AppTextStyles.bodyDark(dialogContext).copyWith(
+                  color: _getTextColor(dialogContext),
+                ),
+                textAlign: TextAlign.center,
               ),
+              SizedBox(height: AppSpacing.small),
+              Text(
+                'Se liberarán ${viewModel.configuracion.cacheSize} de espacio de almacenamiento',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancelar',
+                style: TextStyle(color: _getTextColor(context)),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                viewModel.clearCache();
+                Helpers.showSnackBar(
+                  context,
+                  '✅ Caché limpiado exitosamente',
+                  type: 'success',
+                );
+              },
+              child: Text('Limpiar'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              viewModel.clearCache();
-              Helpers.showSnackBar(
-                context,
-                '✅ Caché limpiado exitosamente',
-                type: 'success',
-              );
-            },
-            child: Text('Limpiar'),
-          ),
-        ],
       ),
     );
   }
@@ -382,68 +469,77 @@ class _ConfiguracionView extends StatelessWidget {
   void _showAboutDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.info, color: AppColors.primary),
-            SizedBox(width: 8),
-            Text(
-              'Acerca de IncosCheck',
-              style: AppTextStyles.heading2Dark(context),
-            ),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
+      builder: (context) => Builder(
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: _getCardColor(dialogContext),
+          title: Row(
             children: [
-              Center(
-                child: Icon(Icons.school, size: 60, color: AppColors.primary),
-              ),
-              SizedBox(height: AppSpacing.medium),
+              Icon(Icons.info, color: AppColors.primary),
+              SizedBox(width: 8),
               Text(
-                'IncosCheck v1.0.0',
-                style: TextStyle(
-                  fontSize: 18,
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
+                'Acerca de IncosCheck',
+                style: AppTextStyles.heading2Dark(dialogContext).copyWith(
+                  color: _getTextColor(dialogContext),
                 ),
-              ),
-              SizedBox(height: AppSpacing.small),
-              Text(
-                'Sistema de Gestión de Asistencias',
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
-              SizedBox(height: AppSpacing.medium),
-              _buildInfoItem(
-                'Desarrollado para:',
-                'Instituto Técnico Comercial INCOS - El Alto',
-              ),
-              _buildInfoItem(
-                'Desarrolladora:',
-                'Est. Nicole Wara Colque Pachacuti\n(Sistemas Informáticos - Proyecto de Grado)',
-              ),
-              _buildInfoItem('Contacto:', '+591 75205630\nincos@gmail.com'),
-              SizedBox(height: AppSpacing.medium),
-              Text(
-                '© 2025 Todos los derechos reservados',
-                style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
               ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cerrar'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Icon(Icons.school, size: 60, color: AppColors.primary),
+                ),
+                SizedBox(height: AppSpacing.medium),
+                Text(
+                  'IncosCheck v1.0.0',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: AppSpacing.small),
+                Text(
+                  'Sistema de Gestión de Asistencias',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                    color: _getTextColor(context),
+                  ),
+                ),
+                SizedBox(height: AppSpacing.medium),
+                _buildInfoItem(context, 'Desarrollado para:', 'Instituto Técnico Comercial INCOS - El Alto'),
+                _buildInfoItem(context, 'Desarrolladora:', 'Est. Nicole Wara Colque Pachacuti\n(Sistemas Informáticos - Proyecto de Grado)'),
+                _buildInfoItem(context, 'Contacto:', '+591 75205630\nincos@gmail.com'),
+                SizedBox(height: AppSpacing.medium),
+                Text(
+                  '© 2025 Todos los derechos reservados',
+                  style: TextStyle(
+                    fontSize: 12, 
+                    fontStyle: FontStyle.italic,
+                    color: _getSecondaryTextColor(context),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cerrar',
+                style: TextStyle(color: _getTextColor(context)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildInfoItem(String label, String value) {
+  Widget _buildInfoItem(BuildContext context, String label, String value) {
     return Padding(
       padding: EdgeInsets.only(bottom: AppSpacing.small),
       child: Column(
@@ -451,9 +547,19 @@ class _ConfiguracionView extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 12, 
+              fontWeight: FontWeight.bold,
+              color: _getTextColor(context),
+            ),
           ),
-          Text(value, style: TextStyle(fontSize: 14)),
+          Text(
+            value, 
+            style: TextStyle(
+              fontSize: 14,
+              color: _getTextColor(context),
+            ),
+          ),
           SizedBox(height: 4),
         ],
       ),
@@ -463,62 +569,65 @@ class _ConfiguracionView extends StatelessWidget {
   void _showPrivacyPolicy(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.privacy_tip, color: AppColors.primary),
-            SizedBox(width: 8),
-            Text(
-              'Política de Privacidad',
-              style: AppTextStyles.heading2Dark(context),
-            ),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
+      builder: (context) => Builder(
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: _getCardColor(dialogContext),
+          title: Row(
             children: [
+              Icon(Icons.privacy_tip, color: AppColors.primary),
+              SizedBox(width: 8),
               Text(
-                'IncosCheck - Protección de Datos',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: AppSpacing.medium),
-              _buildPrivacyItem(
-                '📊 Datos Recopilados:',
-                '• Registros de asistencia\n• Información de estudiantes\n• Datos de docentes\n• Materias, carreras y horarios\n• Turnos y paralelos',
-              ),
-              _buildPrivacyItem(
-                '🛡️ Protección:',
-                '• Autenticación biométrica\n• Almacenamiento seguro en Firebase\n• Acceso restringido al personal autorizado',
-              ),
-              _buildPrivacyItem(
-                '🚫 Uso de Datos:',
-                '• Exclusivamente para control de asistencia interna\n• No se comparte con terceros\n• Uso educativo institucional',
-              ),
-              _buildPrivacyItem(
-                '📝 Responsabilidad:',
-                '• Instituto Técnico Comercial INCOS - El Alto\n• Cumplimiento de normativas educativas',
-              ),
-              SizedBox(height: AppSpacing.medium),
-              Text(
-                'Esta aplicación garantiza la confidencialidad y seguridad de los datos académicos.',
-                style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+                'Política de Privacidad',
+                style: AppTextStyles.heading2Dark(dialogContext).copyWith(
+                  color: _getTextColor(dialogContext),
+                ),
               ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Entendido'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'IncosCheck - Protección de Datos',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: _getTextColor(context),
+                  ),
+                ),
+                SizedBox(height: AppSpacing.medium),
+                _buildPrivacyItem(context, '📊 Datos Recopilados:', '• Registros de asistencia\n• Información de estudiantes\n• Datos de docentes\n• Materias, carreras y horarios\n• Turnos y paralelos'),
+                _buildPrivacyItem(context, '🛡️ Protección:', '• Autenticación biométrica\n• Almacenamiento seguro en Firebase\n• Acceso restringido al personal autorizado'),
+                _buildPrivacyItem(context, '🚫 Uso de Datos:', '• Exclusivamente para control de asistencia interna\n• No se comparte con terceros\n• Uso educativo institucional'),
+                _buildPrivacyItem(context, '📝 Responsabilidad:', '• Instituto Técnico Comercial INCOS - El Alto\n• Cumplimiento de normativas educativas'),
+                SizedBox(height: AppSpacing.medium),
+                Text(
+                  'Esta aplicación garantiza la confidencialidad y seguridad de los datos académicos.',
+                  style: TextStyle(
+                    fontSize: 12, 
+                    fontStyle: FontStyle.italic,
+                    color: _getSecondaryTextColor(context),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Entendido',
+                style: TextStyle(color: _getTextColor(context)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildPrivacyItem(String title, String content) {
+  Widget _buildPrivacyItem(BuildContext context, String title, String content) {
     return Padding(
       padding: EdgeInsets.only(bottom: AppSpacing.medium),
       child: Column(
@@ -532,7 +641,13 @@ class _ConfiguracionView extends StatelessWidget {
             ),
           ),
           SizedBox(height: 4),
-          Text(content, style: TextStyle(fontSize: 14)),
+          Text(
+            content, 
+            style: TextStyle(
+              fontSize: 14,
+              color: _getTextColor(context),
+            ),
+          ),
         ],
       ),
     );
@@ -793,9 +908,14 @@ class _ConfiguracionView extends StatelessWidget {
                 ),
 
                 SizedBox(height: AppSpacing.large),
-                Text(
-                  'Versión 1.0.0',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                Builder(
+                  builder: (context) => Text(
+                    'Versión 1.0.0',
+                    style: TextStyle(
+                      color: _getSecondaryTextColor(context), 
+                      fontSize: 14
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -808,6 +928,7 @@ class _ConfiguracionView extends StatelessWidget {
   Widget _buildUserCard(BuildContext context, bool isTablet, User? user) {
     return Card(
       elevation: 4,
+      color: _getCardColor(context),
       child: Padding(
         padding: EdgeInsets.all(AppSpacing.medium),
         child: Row(
@@ -831,17 +952,22 @@ class _ConfiguracionView extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    user?.displayName ?? 'Usuario',
-                    style: TextStyle(
-                      fontSize: isTablet ? 20 : 18,
-                      fontWeight: FontWeight.bold,
+                  Builder(
+                    builder: (context) => Text(
+                      user?.displayName ?? 'Usuario',
+                      style: TextStyle(
+                        fontSize: isTablet ? 20 : 18,
+                        fontWeight: FontWeight.bold,
+                        color: _getTextColor(context),
+                      ),
                     ),
                   ),
                   SizedBox(height: AppSpacing.small),
-                  Text(
-                    user?.email ?? 'No email',
-                    style: TextStyle(color: Colors.grey.shade600),
+                  Builder(
+                    builder: (context) => Text(
+                      user?.email ?? 'No email',
+                      style: TextStyle(color: _getSecondaryTextColor(context)),
+                    ),
                   ),
                   SizedBox(height: AppSpacing.small),
                   Chip(
@@ -878,6 +1004,7 @@ class _ConfiguracionView extends StatelessWidget {
   ) {
     return Card(
       elevation: 4,
+      color: _getCardColor(context),
       child: Padding(
         padding: EdgeInsets.all(AppSpacing.medium),
         child: Column(
@@ -913,17 +1040,25 @@ class _ConfiguracionView extends StatelessWidget {
   ) {
     return Column(
       children: [
-        SwitchListTile(
-          title: Text(title),
-          subtitle: Text(
-            subtitle,
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+        Builder(
+          builder: (context) => SwitchListTile(
+            title: Text(
+              title,
+              style: TextStyle(color: _getTextColor(context)),
+            ),
+            subtitle: Text(
+              subtitle,
+              style: TextStyle(
+                color: _getSecondaryTextColor(context), 
+                fontSize: 14
+              ),
+            ),
+            value: value,
+            onChanged: onChanged,
+            activeColor: AppColors.primary,
           ),
-          value: value,
-          onChanged: onChanged,
-          activeColor: AppColors.primary,
         ),
-        Divider(height: 1),
+        Divider(height: 1, color: _getSecondaryTextColor(context)),
       ],
     );
   }
@@ -937,17 +1072,25 @@ class _ConfiguracionView extends StatelessWidget {
   ) {
     return Column(
       children: [
-        ListTile(
-          leading: Icon(icon, color: AppColors.primary),
-          title: Text(title),
-          subtitle: Text(
-            subtitle,
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+        Builder(
+          builder: (context) => ListTile(
+            leading: Icon(icon, color: AppColors.primary),
+            title: Text(
+              title,
+              style: TextStyle(color: _getTextColor(context)),
+            ),
+            subtitle: Text(
+              subtitle,
+              style: TextStyle(
+                color: _getSecondaryTextColor(context), 
+                fontSize: 14
+              ),
+            ),
+            trailing: Icon(Icons.arrow_forward_ios, size: 16, color: _getSecondaryTextColor(context)),
+            onTap: onTap,
           ),
-          trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-          onTap: onTap,
         ),
-        Divider(height: 1),
+        Divider(height: 1, color: _getSecondaryTextColor(context)),
       ],
     );
   }
@@ -961,17 +1104,22 @@ class _ConfiguracionView extends StatelessWidget {
   ) {
     return Column(
       children: [
-        ListTile(
-          leading: Icon(icon, color: AppColors.primary),
-          title: Text(title),
-          subtitle: Text(
-            value,
-            style: TextStyle(color: AppColors.primary, fontSize: 14),
+        Builder(
+          builder: (context) => ListTile(
+            leading: Icon(icon, color: AppColors.primary),
+            title: Text(
+              title,
+              style: TextStyle(color: _getTextColor(context)),
+            ),
+            subtitle: Text(
+              value,
+              style: TextStyle(color: AppColors.primary, fontSize: 14),
+            ),
+            trailing: Icon(Icons.arrow_forward_ios, size: 16, color: _getSecondaryTextColor(context)),
+            onTap: onTap,
           ),
-          trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-          onTap: onTap,
         ),
-        Divider(height: 1),
+        Divider(height: 1, color: _getSecondaryTextColor(context)),
       ],
     );
   }

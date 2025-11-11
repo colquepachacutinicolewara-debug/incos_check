@@ -1,177 +1,159 @@
 // services/attendance_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:async';
 
-class AttendanceService {
+class BiometricAttendanceService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // OBJETIVO 4: Automatizar registro de asistencia biométrica
-  Future<void> registrarAsistenciaBiometrica({
-    required String estudianteId,
-    required String materiaId,
-    required String bimestre,
+  // Registrar asistencia con huella digital
+  Future<void> registerBiometricAttendance({
+    required String studentId,
+    required String courseId,
+    required String fingerprintId,
+    required DateTime timestamp,
   }) async {
     try {
-      String recordId =
-          '${estudianteId}_${DateTime.now().millisecondsSinceEpoch}';
+      // Verificar si ya existe registro para hoy
+      final today = DateTime(timestamp.year, timestamp.month, timestamp.day);
+      final attendanceRef = _firestore
+          .collection('attendance')
+          .where('studentId', isEqualTo: studentId)
+          .where('courseId', isEqualTo: courseId)
+          .where('date', isEqualTo: Timestamp.fromDate(today));
 
-      await _firestore.collection('asistencias').doc(recordId).set({
-        'id': recordId,
-        'estudianteId': estudianteId,
-        'materiaId': materiaId,
-        'bimestre': bimestre,
-        'fecha': DateTime.now(),
-        'presente': true,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
+      final existingAttendance = await attendanceRef.get();
 
-      print(
-        'Asistencia registrada exitosamente para el estudiante: $estudianteId',
-      );
-    } catch (e) {
-      print('Error al registrar asistencia: $e');
-      throw e;
-    }
-  }
+      if (existingAttendance.docs.isEmpty) {
+        // Registrar nueva asistencia
+        await _firestore.collection('attendance').add({
+          'studentId': studentId,
+          'courseId': courseId,
+          'fingerprintId': fingerprintId,
+          'timestamp': Timestamp.fromDate(timestamp),
+          'date': Timestamp.fromDate(today),
+          'status': 'present', // presente
+          'biometricVerified': true,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
 
-  // OBJETIVO 5: Cálculo automático DPS (nota sobre 10)
-  Future<double> calcularNotaDPS({
-    required String estudianteId,
-    required String materiaId,
-    required String bimestre,
-  }) async {
-    try {
-      // Obtener asistencias del estudiante
-      QuerySnapshot snapshot = await _firestore
-          .collection('asistencias')
-          .where('estudianteId', isEqualTo: estudianteId)
-          .where('materiaId', isEqualTo: materiaId)
-          .where('bimestre', isEqualTo: bimestre)
-          .get();
-
-      int totalClases = await _obtenerTotalClases(materiaId, bimestre);
-      int asistencias = snapshot.docs.length;
-
-      // Evitar división por cero
-      if (totalClases == 0) return 0.0;
-
-      double porcentaje = (asistencias / totalClases) * 100;
-      return (porcentaje / 100) * 10; // Convertir a nota sobre 10
-    } catch (e) {
-      print('Error al calcular nota DPS: $e');
-      return 0.0;
-    }
-  }
-
-  // Método auxiliar para obtener el total de clases
-  Future<int> _obtenerTotalClases(String materiaId, String bimestre) async {
-    try {
-      // Aquí deberías implementar la lógica para obtener el total de clases
-      // Por ejemplo, desde una colección de configuraciones o horarios
-
-      // Por ahora, retornamos un valor por defecto
-      return 20; // Suponiendo 20 clases en el bimestre
-    } catch (e) {
-      print('Error al obtener total de clases: $e');
-      return 0;
-    }
-  }
-
-  // OBJETIVO 6: Generar reportes de asistencia
-  Future<Map<String, dynamic>> generarReporteAsistencia(
-    String materiaId,
-    String bimestre,
-  ) async {
-    try {
-      // Obtener todas las asistencias de la materia y bimestre
-      QuerySnapshot snapshot = await _firestore
-          .collection('asistencias')
-          .where('materiaId', isEqualTo: materiaId)
-          .where('bimestre', isEqualTo: bimestre)
-          .get();
-
-      // Procesar datos para el reporte
-      Map<String, List<DateTime>> asistenciasPorEstudiante = {};
-
-      for (var doc in snapshot.docs) {
-        String estudianteId = doc['estudianteId'];
-        DateTime fecha = (doc['fecha'] as Timestamp).toDate();
-
-        if (!asistenciasPorEstudiante.containsKey(estudianteId)) {
-          asistenciasPorEstudiante[estudianteId] = [];
-        }
-        asistenciasPorEstudiante[estudianteId]!.add(fecha);
+        print('Asistencia registrada exitosamente para: $studentId');
+      } else {
+        print('Asistencia ya registrada para hoy: $studentId');
+        throw Exception('Asistencia ya registrada para hoy');
       }
+    } catch (e) {
+      print('Error registrando asistencia: $e');
+      throw Exception('Error al registrar asistencia: $e');
+    }
+  }
 
-      // Calcular estadísticas
-      int totalEstudiantes = asistenciasPorEstudiante.length;
-      int totalAsistencias = snapshot.docs.length;
+  // Obtener estadísticas de asistencia
+  Future<Map<String, dynamic>> getAttendanceStats(
+      String courseId, String studentId) async {
+    final now = DateTime.now();
+    final firstDayOfMonth = DateTime(now.year, now.month, 1);
 
+    final attendanceQuery = await _firestore
+        .collection('attendance')
+        .where('studentId', isEqualTo: studentId)
+        .where('courseId', isEqualTo: courseId)
+        .where('timestamp',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(firstDayOfMonth))
+        .get();
+
+    final totalDays = now.day; // Días del mes hasta hoy
+    final presentDays = attendanceQuery.docs.length;
+    final absentDays = totalDays - presentDays;
+    final attendanceRate = (presentDays / totalDays) * 100;
+
+    return {
+      'totalDays': totalDays,
+      'presentDays': presentDays,
+      'absentDays': absentDays,
+      'attendanceRate': attendanceRate,
+      'attendanceScore': calculateAttendanceScore(presentDays, totalDays),
+    };
+  }
+
+  // Calcular nota de asistencia (sobre 10 puntos)
+  double calculateAttendanceScore(int presentDays, int totalDays) {
+    if (totalDays == 0) return 0.0;
+    
+    final attendanceRate = presentDays / totalDays;
+    
+    // Escala: 100% asistencia = 10 puntos
+    // 80% asistencia = 8 puntos, etc.
+    double score = attendanceRate * 10;
+    
+    // Redondear a 2 decimales
+    return double.parse(score.toStringAsFixed(2));
+  }
+
+  // Obtener historial de asistencia de un estudiante
+  Future<List<Map<String, dynamic>>> getStudentAttendanceHistory(
+      String studentId, String courseId) async {
+    final attendanceQuery = await _firestore
+        .collection('attendance')
+        .where('studentId', isEqualTo: studentId)
+        .where('courseId', isEqualTo: courseId)
+        .orderBy('timestamp', descending: true)
+        .get();
+
+    return attendanceQuery.docs.map((doc) {
+      final data = doc.data();
       return {
-        'materiaId': materiaId,
-        'bimestre': bimestre,
-        'totalEstudiantes': totalEstudiantes,
-        'totalAsistencias': totalAsistencias,
-        'asistenciasPorEstudiante': asistenciasPorEstudiante,
-        'fechaGeneracion': DateTime.now(),
+        'id': doc.id,
+        'date': (data['timestamp'] as Timestamp).toDate(),
+        'status': data['status'],
+        'biometricVerified': data['biometricVerified'] ?? false,
       };
-    } catch (e) {
-      print('Error al generar reporte: $e');
-      throw e;
-    }
+    }).toList();
   }
 
-  // Método adicional: Obtener historial de asistencias de un estudiante
-  Future<List<Map<String, dynamic>>> obtenerHistorialAsistencia(
-    String estudianteId,
-    String materiaId,
-    String bimestre,
-  ) async {
-    try {
-      QuerySnapshot snapshot = await _firestore
-          .collection('asistencias')
-          .where('estudianteId', isEqualTo: estudianteId)
-          .where('materiaId', isEqualTo: materiaId)
-          .where('bimestre', isEqualTo: bimestre)
-          .orderBy('timestamp', descending: true)
-          .get();
+  // Obtener reporte de asistencia del curso
+  Future<Map<String, dynamic>> getCourseAttendanceReport(String courseId) async {
+    final attendanceQuery = await _firestore
+        .collection('attendance')
+        .where('courseId', isEqualTo: courseId)
+        .get();
 
-      return snapshot.docs.map((doc) {
-        return {
-          'id': doc['id'],
-          'fecha': (doc['fecha'] as Timestamp).toDate(),
-          'presente': doc['presente'],
-          'timestamp': (doc['timestamp'] as Timestamp).toDate(),
-        };
-      }).toList();
-    } catch (e) {
-      print('Error al obtener historial: $e');
-      return [];
+    // Agrupar por estudiante
+    Map<String, List<DateTime>> studentAttendance = {};
+    
+    for (final doc in attendanceQuery.docs) {
+      final data = doc.data();
+      final studentId = data['studentId'];
+      final timestamp = (data['timestamp'] as Timestamp).toDate();
+      
+      if (!studentAttendance.containsKey(studentId)) {
+        studentAttendance[studentId] = [];
+      }
+      studentAttendance[studentId]!.add(timestamp);
     }
-  }
 
-  // Método adicional: Verificar si ya existe asistencia registrada hoy
-  Future<bool> verificarAsistenciaHoy(
-    String estudianteId,
-    String materiaId,
-  ) async {
-    try {
-      DateTime hoy = DateTime.now();
-      DateTime inicioDia = DateTime(hoy.year, hoy.month, hoy.day);
-      DateTime finDia = DateTime(hoy.year, hoy.month, hoy.day, 23, 59, 59);
-
-      QuerySnapshot snapshot = await _firestore
-          .collection('asistencias')
-          .where('estudianteId', isEqualTo: estudianteId)
-          .where('materiaId', isEqualTo: materiaId)
-          .where('fecha', isGreaterThanOrEqualTo: inicioDia)
-          .where('fecha', isLessThanOrEqualTo: finDia)
-          .get();
-
-      return snapshot.docs.isNotEmpty;
-    } catch (e) {
-      print('Error al verificar asistencia de hoy: $e');
-      return false;
+    // Calcular estadísticas por estudiante
+    final now = DateTime.now();
+    final totalDays = now.day;
+    
+    final studentReports = <Map<String, dynamic>>[];
+    
+    for (final studentId in studentAttendance.keys) {
+      final presentDays = studentAttendance[studentId]!.length;
+      final score = calculateAttendanceScore(presentDays, totalDays);
+      
+      studentReports.add({
+        'studentId': studentId,
+        'presentDays': presentDays,
+        'totalDays': totalDays,
+        'score': score,
+        'attendanceRate': (presentDays / totalDays) * 100,
+      });
     }
+
+    return {
+      'courseId': courseId,
+      'reportDate': DateTime.now(),
+      'totalStudents': studentAttendance.length,
+      'studentReports': studentReports,
+    };
   }
 }

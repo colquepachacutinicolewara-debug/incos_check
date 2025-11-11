@@ -5,7 +5,7 @@ admin.initializeApp();
 
 // Función para asignar rol de ADMIN a un usuario
 exports.assignAdminRole = functions.https.onCall(async (data, context) => {
-  // Verificar que el usuario que llama está autenticado
+  // Verificar que el usuario que llama es admin
   if (!context.auth) {
     throw new functions.https.HttpsError(
       "unauthenticated",
@@ -17,33 +17,31 @@ exports.assignAdminRole = functions.https.onCall(async (data, context) => {
   const targetUid = data.uid;
 
   // Verificar si el caller es admin
-  try {
-    const callerUser = await admin.auth().getUser(callerUid);
-    if (!callerUser.customClaims || callerUser.customClaims.role !== "admin") {
-      throw new functions.https.HttpsError(
-        "permission-denied",
-        "Solo administradores pueden asignar roles"
-      );
-    }
+  const callerUser = await admin.auth().getUser(callerUid);
+  if (!callerUser.customClaims || callerUser.customClaims.role !== "admin") {
+    throw new functions.https.HttpsError(
+      "permission-denied",
+      "Solo administradores pueden asignar roles"
+    );
+  }
 
+  try {
     // Asignar rol de admin al usuario objetivo
     await admin.auth().setCustomUserClaims(targetUid, {
       role: "admin",
-      assignedBy: callerUid,
-      assignedAt: new Date().toISOString()
+      createdAt: new Date().toISOString()
     });
 
     // Actualizar datos en Firestore también
     await admin.firestore().collection("users").doc(targetUid).set({
       role: "admin",
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedBy: callerUid
+      email: data.email || "",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
 
     return {
       success: true,
-      message: `✅ Rol de ADMIN asignado al usuario ${targetUid}`,
-      uid: targetUid
+      message: `Rol de ADMIN asignado al usuario ${targetUid}`
     };
   } catch (error) {
     throw new functions.https.HttpsError("internal", error.message);
@@ -60,12 +58,12 @@ exports.assignUserRole = functions.https.onCall(async (data, context) => {
   const targetUid = data.uid;
 
   // Verificar si el caller es admin
-  try {
-    const callerUser = await admin.auth().getUser(callerUid);
-    if (!callerUser.customClaims || callerUser.customClaims.role !== "admin") {
-      throw new functions.https.HttpsError("permission-denied", "Solo administradores pueden asignar roles");
-    }
+  const callerUser = await admin.auth().getUser(callerUid);
+  if (!callerUser.customClaims || callerUser.customClaims.role !== "admin") {
+    throw new functions.https.HttpsError("permission-denied", "Solo administradores");
+  }
 
+  try {
     // Asignar rol de user normal
     await admin.auth().setCustomUserClaims(targetUid, {
       role: "user"
@@ -73,14 +71,13 @@ exports.assignUserRole = functions.https.onCall(async (data, context) => {
 
     await admin.firestore().collection("users").doc(targetUid).set({
       role: "user",
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedBy: callerUid
+      email: data.email || "",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
 
     return {
       success: true,
-      message: `✅ Rol de USER asignado al usuario ${targetUid}`,
-      uid: targetUid
+      message: `Rol de USER asignado al usuario ${targetUid}`
     };
   } catch (error) {
     throw new functions.https.HttpsError("internal", error.message);
@@ -97,92 +94,38 @@ exports.getUserRole = functions.https.onCall(async (data, context) => {
 
   try {
     const user = await admin.auth().getUser(uid);
-    const userDoc = await admin.firestore().collection("users").doc(uid).get();
-    
     return {
       uid: uid,
       role: user.customClaims?.role || "user",
-      email: user.email,
-      firestoreData: userDoc.exists ? userDoc.data() : null
+      email: user.email
     };
   } catch (error) {
     throw new functions.https.HttpsError("internal", error.message);
   }
 });
 
-// Función para listar todos los usuarios (solo admins)
-exports.listUsers = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError("unauthenticated", "Usuario no autenticado");
-  }
-
-  const callerUid = context.auth.uid;
-
-  // Verificar si el caller es admin
+// Función para hacer admin al primer usuario (setup inicial)
+exports.makeFirstUserAdmin = functions.auth.user().onCreate(async (user) => {
   try {
-    const callerUser = await admin.auth().getUser(callerUid);
-    if (!callerUser.customClaims || callerUser.customClaims.role !== "admin") {
-      throw new functions.https.HttpsError("permission-denied", "Solo administradores pueden listar usuarios");
-    }
-
-    const users = await admin.auth().listUsers();
-    const usersWithRoles = await Promise.all(
-      users.users.map(async (userRecord) => {
-        const userDoc = await admin.firestore().collection("users").doc(userRecord.uid).get();
-        return {
-          uid: userRecord.uid,
-          email: userRecord.email,
-          displayName: userRecord.displayName,
-          role: userRecord.customClaims?.role || "user",
-          firestoreData: userDoc.exists ? userDoc.data() : null,
-          createdAt: userRecord.metadata.creationTime,
-          lastSignIn: userRecord.metadata.lastSignInTime
-        };
-      })
-    );
-
-    return {
-      success: true,
-      users: usersWithRoles
-    };
-  } catch (error) {
-    throw new functions.https.HttpsError("internal", error.message);
-  }
-});
-
-// Función para hacer admin al primer usuario (útil para inicialización)
-exports.makeFirstUserAdmin = functions.https.onRequest(async (req, res) => {
-  try {
-    const users = await admin.auth().listUsers(1);
+    // Verificar si es el primer usuario
+    const users = await admin.auth().listUsers(2); // Solo traer 2 usuarios
     
-    if (users.users.length === 0) {
-      return res.status(400).json({ error: "No hay usuarios en el sistema" });
-    }
-
-    const firstUser = users.users[0];
-    
-    await admin.auth().setCustomUserClaims(firstUser.uid, {
-      role: "admin",
-      isInitialAdmin: true,
-      assignedAt: new Date().toISOString()
-    });
-
-    await admin.firestore().collection("users").doc(firstUser.uid).set({
-      role: "admin",
-      isInitialAdmin: true,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
-
-    res.json({
-      success: true,
-      message: `✅ Usuario ${firstUser.email} ahora es ADMIN`,
-      user: {
-        uid: firstUser.uid,
-        email: firstUser.email,
+    if (users.users.length === 1) {
+      // Es el primer usuario, hacerlo admin
+      await admin.auth().setCustomUserClaims(user.uid, {
         role: "admin"
-      }
-    });
+      });
+      
+      // Guardar en Firestore
+      await admin.firestore().collection("users").doc(user.uid).set({
+        role: "admin",
+        email: user.email,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      
+      console.log(`Usuario ${user.email} asignado como ADMIN (primer usuario)`);
+    }
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Error en makeFirstUserAdmin:", error);
   }
 });

@@ -1,122 +1,54 @@
-// viewmodels/auth_viewmodel.dart
-import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
-import '../models/usuario_model.dart';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthViewModel with ChangeNotifier {
-  final AuthService _authService;
+  bool _isAuthenticated = false;
+  String? _userEmail;
+  String? _userName;
 
-  Usuario? _currentUser;
-  bool _isLoading = false;
-  String? _error;
+  bool get isAuthenticated => _isAuthenticated;
+  String? get userEmail => _userEmail;
+  String? get userName => _userName;
 
-  AuthViewModel(this._authService);
-
-  // Getters
-  Usuario? get currentUser => _currentUser;
-  bool get isLoading => _isLoading;
-  String? get error => _error;
-  bool get isAuthenticated => _currentUser != null;
-
-  // Inicializar usuario actual
-  Future<void> initialize() async {
-    _isLoading = true;
+  // Verificar si el usuario está autenticado al iniciar la app
+  Future<void> checkAuthStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    _isAuthenticated = prefs.getBool('isAuthenticated') ?? false;
+    _userEmail = prefs.getString('userEmail');
+    _userName = prefs.getString('userName');
     notifyListeners();
-
-    try {
-      _currentUser = await _authService.getCurrentUser();
-      _error = null;
-    } catch (e) {
-      _error = 'Error al inicializar sesión: $e';
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
   }
 
-  // Iniciar sesión
-  Future<bool> signIn(String email, String password) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+  // Simular login
+  Future<bool> login(String email, String password) async {
+    // Aquí iría tu lógica real de autenticación
+    await Future.delayed(const Duration(seconds: 1));
 
-    try {
-      _currentUser = await _authService.signInWithEmailPassword(email, password);
-      _error = null;
-      return true;
-    } catch (e) {
-      _error = e.toString();
-      _currentUser = null;
-      return false;
-    } finally {
-      _isLoading = false;
+    if (email.isNotEmpty && password.isNotEmpty) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isAuthenticated', true);
+      await prefs.setString('userEmail', email);
+      await prefs.setString('userName', 'Usuario Ejemplo');
+
+      _isAuthenticated = true;
+      _userEmail = email;
+      _userName = 'Usuario Ejemplo';
       notifyListeners();
+      return true;
     }
+    return false;
   }
 
   // Cerrar sesión
-  Future<void> signOut() async {
-    _isLoading = true;
-    notifyListeners();
+  Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('isAuthenticated');
+    await prefs.remove('userEmail');
+    await prefs.remove('userName');
 
-    try {
-      await _authService.signOut();
-      _currentUser = null;
-      _error = null;
-    } catch (e) {
-      _error = 'Error al cerrar sesión: $e';
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  // Cambiar contraseña
-  Future<bool> changePassword(String currentPassword, String newPassword) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      await _authService.changePassword(currentPassword, newPassword);
-      _error = null;
-      return true;
-    } catch (e) {
-      _error = e.toString();
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  // Restablecer contraseña
-  Future<bool> resetPassword(String email) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      await _authService.resetPassword(email);
-      _error = null;
-      return true;
-    } catch (e) {
-      _error = e.toString();
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  // Verificar permisos
-  Future<bool> hasPermission(String permission) async {
-    return await _authService.currentUserHasPermission(permission);
-  }
-
-  // Limpiar error
-  void clearError() {
-    _error = null;
+    _isAuthenticated = false;
+    _userEmail = null;
+    _userName = null;
     notifyListeners();
   }
 }

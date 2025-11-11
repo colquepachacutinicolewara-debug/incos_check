@@ -18,14 +18,37 @@ class InicioScreen extends StatelessWidget {
 class _InicioScreenContent extends StatelessWidget {
   const _InicioScreenContent();
 
+  // FUNCIONES HELPER para modo oscuro (igual que CarreraContaduria)
+  Color _getTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+  }
+
+  Color _getSecondaryTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white70
+        : Colors.black87;
+  }
+
+  Color _getBackgroundColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.shade800
+        : Colors.grey.shade50;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text(
-          AppStrings.dashboard,
-          style: AppTextStyles.heading2.copyWith(color: Colors.white),
+        title: Builder(
+          builder: (context) => Text(
+            AppStrings.dashboard,
+            style: AppTextStyles.heading2.copyWith(
+              color: Colors.white, // Mantener blanco en AppBar
+            ),
+          ),
         ),
         backgroundColor: AppColors.secondary,
         centerTitle: true,
@@ -37,6 +60,18 @@ class _InicioScreenContent extends StatelessWidget {
 
 class _InicioScreenBody extends StatelessWidget {
   const _InicioScreenBody();
+
+  Color _getTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+  }
+
+  Color _getSecondaryTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white70
+        : Colors.black87;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -68,25 +103,29 @@ class _InicioScreenBody extends StatelessWidget {
                     Icon(
                       Icons.school,
                       size: iconSize,
-                      color: AppColors.primary,
+                      color: AppColors.primary, // Color fijo para ícono
                     ),
                     SizedBox(height: AppSpacing.large),
-                    Text(
-                      'Sistema de Asistencia ${AppStrings.appName}',
-                      style: AppTextStyles.heading1.copyWith(
-                        fontSize: titleFontSize,
-                        color: viewModel.getTextColor(context),
+                    Builder(
+                      builder: (context) => Text(
+                        'Sistema de Asistencia ${AppStrings.appName}',
+                        style: AppTextStyles.heading1.copyWith(
+                          fontSize: titleFontSize,
+                          color: _getTextColor(context), // Color dinámico
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
                     ),
                     SizedBox(height: AppSpacing.medium),
-                    Text(
-                      'Bienvenido al sistema de gestión de asistencia académica',
-                      style: AppTextStyles.bodyDark(context).copyWith(
-                        fontSize: bodyFontSize,
-                        color: viewModel.getSecondaryTextColor(context),
+                    Builder(
+                      builder: (context) => Text(
+                        'Bienvenido al sistema de gestión de asistencia académica',
+                        style: AppTextStyles.bodyDark(context).copyWith(
+                          fontSize: bodyFontSize,
+                          color: _getSecondaryTextColor(context), // Color dinámico
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
                     ),
                     SizedBox(height: AppSpacing.large),
                     _buildInfoCard(
@@ -127,18 +166,20 @@ class _InicioScreenBody extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.large),
       ),
-      color: Theme.of(context).cardColor,
+      color: Theme.of(context).cardColor, // Color dinámico del tema
       child: Padding(
         padding: EdgeInsets.all(cardPadding),
         child: Column(
           children: [
-            Text(
-              'Información del Sistema',
-              style: AppTextStyles.heading2Dark(context).copyWith(
-                fontSize: titleFontSize,
-                color: viewModel.getTextColor(context),
+            Builder(
+              builder: (context) => Text(
+                'Información del Sistema',
+                style: AppTextStyles.heading2Dark(context).copyWith(
+                  fontSize: titleFontSize,
+                  color: _getTextColor(context), // Color dinámico
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
             ),
             SizedBox(height: AppSpacing.medium),
             _buildInfoRow(
@@ -146,7 +187,6 @@ class _InicioScreenBody extends StatelessWidget {
               viewModel.model.formattedDate,
               bodyFontSize,
               context,
-              viewModel,
             ),
             SizedBox(height: AppSpacing.small),
             _buildInfoRow(
@@ -154,7 +194,6 @@ class _InicioScreenBody extends StatelessWidget {
               viewModel.model.formattedTime,
               bodyFontSize,
               context,
-              viewModel,
             ),
             SizedBox(height: AppSpacing.small),
             _buildInfoRow(
@@ -162,7 +201,6 @@ class _InicioScreenBody extends StatelessWidget {
               viewModel.model.systemStatus,
               bodyFontSize,
               context,
-              viewModel,
             ),
           ],
         ),
@@ -175,26 +213,28 @@ class _InicioScreenBody extends StatelessWidget {
     String value,
     double fontSize,
     BuildContext context,
-    InicioViewModel viewModel,
   ) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: AppTextStyles.bodyDark(context).copyWith(
-            fontSize: fontSize,
-            fontWeight: FontWeight.bold,
-            color: viewModel.getTextColor(context),
+    return Builder(
+      builder: (context) => Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.bodyDark(context).copyWith(
+              fontSize: fontSize,
+              fontWeight: FontWeight.bold,
+              color: _getTextColor(context), // Color dinámico
+            ),
           ),
-        ),
-        Text(
-          value,
-          style: AppTextStyles.bodyDark(
-            context,
-          ).copyWith(fontSize: fontSize, color: AppColors.primary),
-        ),
-      ],
+          Text(
+            value,
+            style: AppTextStyles.bodyDark(context).copyWith(
+              fontSize: fontSize, 
+              color: AppColors.primary, // Color fijo para valores importantes
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -5,7 +5,6 @@ import '../../viewmodels/gestion_viewmodel.dart';
 import 'carreras_screen.dart';
 import 'turnos_screen.dart';
 import '../../views/gestion/materias_screen.dart';
-import '../../views/gestion/programas/programas_screen.dart';
 import 'docentes_screen.dart';
 import 'niveles_screen.dart';
 import '../gestion/paralelos_scren.dart';
@@ -19,6 +18,50 @@ class GestionScreen extends StatefulWidget {
 }
 
 class _GestionScreenState extends State<GestionScreen> {
+  bool _modoOscuro = false;
+
+  // FUNCIONES DE COLOR MANUALES (igual que en CarreraContaduria)
+  Color _getBackgroundColor() {
+    return _modoOscuro ? Colors.grey.shade900 : Colors.grey.shade100;
+  }
+
+  Color _getCardColor() {
+    return _modoOscuro ? Colors.grey.shade800 : Colors.white;
+  }
+
+  Color _getTextColor() {
+    return _modoOscuro ? Colors.white : Colors.black;
+  }
+
+  Color _getSecondaryTextColor() {
+    return _modoOscuro ? Colors.white70 : Colors.black87;
+  }
+
+  Color _getDropdownBackgroundColor() {
+    return _modoOscuro ? Colors.grey.shade800 : Colors.grey.shade50;
+  }
+
+  Color _getBorderColor() {
+    return _modoOscuro ? Colors.grey.shade600 : Colors.grey.shade300;
+  }
+
+  Color _getErrorColor() {
+    return _modoOscuro ? Colors.red.shade400 : AppColors.error;
+  }
+
+  // Switch para cambiar entre modo claro y oscuro
+  Widget _buildThemeSwitch() {
+    return Switch(
+      value: _modoOscuro,
+      onChanged: (value) {
+        setState(() {
+          _modoOscuro = value;
+        });
+      },
+      activeColor: AppColors.secondary,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -33,7 +76,7 @@ class _GestionScreenState extends State<GestionScreen> {
     return ChangeNotifierProvider(
       create: (context) => GestionViewModel(),
       child: Scaffold(
-        backgroundColor: _getBackgroundColor(context),
+        backgroundColor: _getBackgroundColor(),
         appBar: AppBar(
           title: Text(
             'Gestión Académica',
@@ -41,6 +84,18 @@ class _GestionScreenState extends State<GestionScreen> {
           ),
           backgroundColor: AppColors.secondary,
           iconTheme: const IconThemeData(color: Colors.white),
+          actions: [
+            Row(
+              children: [
+                Icon(
+                  _modoOscuro ? Icons.nightlight_round : Icons.wb_sunny,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 4),
+                _buildThemeSwitch(),
+              ],
+            ),
+          ],
         ),
         body: Consumer<GestionViewModel>(
           builder: (context, viewModel, child) {
@@ -60,13 +115,16 @@ class _GestionScreenState extends State<GestionScreen> {
   }
 
   Widget _buildLoadingState() {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(),
-          SizedBox(height: AppSpacing.medium),
-          Text('Cargando gestión académica...'),
+          CircularProgressIndicator(color: AppColors.secondary),
+          const SizedBox(height: AppSpacing.medium),
+          Text(
+            'Cargando gestión académica...',
+            style: TextStyle(color: _getTextColor()),
+          ),
         ],
       ),
     );
@@ -79,18 +137,25 @@ class _GestionScreenState extends State<GestionScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: AppColors.error),
+            Icon(Icons.error_outline, size: 64, color: _getErrorColor()),
             const SizedBox(height: AppSpacing.medium),
-            Text('Error al cargar', style: AppTextStyles.heading2),
+            Text(
+              'Error al cargar',
+              style: AppTextStyles.heading2.copyWith(color: _getTextColor()),
+            ),
             const SizedBox(height: AppSpacing.small),
             Text(
               viewModel.error,
-              style: AppTextStyles.body,
+              style: AppTextStyles.body.copyWith(color: _getSecondaryTextColor()),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.large),
             ElevatedButton(
               onPressed: () => viewModel.refresh(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.secondary,
+                foregroundColor: Colors.white,
+              ),
               child: const Text('Reintentar'),
             ),
           ],
@@ -108,11 +173,11 @@ class _GestionScreenState extends State<GestionScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.medium),
             decoration: BoxDecoration(
-              color: viewModel.getDropdownBackgroundColor(context),
+              color: _getDropdownBackgroundColor(),
               borderRadius: BorderRadius.circular(AppRadius.medium),
-              border: Border.all(color: viewModel.getBorderColor(context)),
+              border: Border.all(color: _getBorderColor()),
             ),
-            child: _buildDropdownCarreras(viewModel, context),
+            child: _buildDropdownCarreras(viewModel),
           ),
         ),
 
@@ -133,6 +198,37 @@ class _GestionScreenState extends State<GestionScreen> {
 
         const SizedBox(height: AppSpacing.medium),
 
+        // Indicador de tema actual
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: AppSpacing.medium),
+          padding: const EdgeInsets.all(AppSpacing.small),
+          decoration: BoxDecoration(
+            color: _modoOscuro ? Colors.blue.shade800 : Colors.blue.shade100,
+            borderRadius: BorderRadius.circular(AppRadius.small),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _modoOscuro ? Icons.nightlight_round : Icons.wb_sunny,
+                color: _modoOscuro ? Colors.white : Colors.blue.shade800,
+                size: 16,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                _modoOscuro ? 'Modo Oscuro' : 'Modo Claro',
+                style: TextStyle(
+                  color: _modoOscuro ? Colors.white : Colors.blue.shade800,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: AppSpacing.medium),
+
         // Grid de opciones de gestión (7 CARDS)
         Expanded(
           child: GridView.count(
@@ -141,8 +237,6 @@ class _GestionScreenState extends State<GestionScreen> {
             childAspectRatio: 1.0,
             children: [
               _buildMenuCard(
-                context,
-                viewModel,
                 'Estudiantes',
                 Icons.people,
                 UserThemeColors.estudiante,
@@ -150,8 +244,6 @@ class _GestionScreenState extends State<GestionScreen> {
                 () => _navigateToEstudiantes(context, viewModel),
               ),
               _buildMenuCard(
-                context,
-                viewModel,
                 'Cursos',
                 Icons.book,
                 AppColors.success,
@@ -159,8 +251,6 @@ class _GestionScreenState extends State<GestionScreen> {
                 () => _navigateToCursos(context),
               ),
               _buildMenuCard(
-                context,
-                viewModel,
                 'Carreras',
                 Icons.school,
                 AppColors.warning,
@@ -168,8 +258,6 @@ class _GestionScreenState extends State<GestionScreen> {
                 () => _navigateToCarrerasGestion(context, viewModel),
               ),
               _buildMenuCard(
-                context,
-                viewModel,
                 'Docentes',
                 Icons.person,
                 UserThemeColors.docente,
@@ -177,8 +265,6 @@ class _GestionScreenState extends State<GestionScreen> {
                 () => _navigateToDocentes(context, viewModel),
               ),
               _buildMenuCard(
-                context,
-                viewModel,
                 'Turnos',
                 Icons.schedule,
                 Colors.orange,
@@ -186,8 +272,6 @@ class _GestionScreenState extends State<GestionScreen> {
                 () => _navigateToTurnos(context, viewModel),
               ),
               _buildMenuCard(
-                context,
-                viewModel,
                 'Grados',
                 Icons.layers,
                 Colors.purple,
@@ -195,8 +279,6 @@ class _GestionScreenState extends State<GestionScreen> {
                 () => _navigateToNiveles(context, viewModel),
               ),
               _buildMenuCard(
-                context,
-                viewModel,
                 'Paralelos',
                 Icons.groups,
                 Colors.teal,
@@ -210,23 +292,21 @@ class _GestionScreenState extends State<GestionScreen> {
     );
   }
 
-  Widget _buildDropdownCarreras(
-    GestionViewModel viewModel,
-    BuildContext context,
-  ) {
+  Widget _buildDropdownCarreras(GestionViewModel viewModel) {
     final carrerasUnicas = viewModel.carreras.toSet().toList();
 
     return DropdownButton<String>(
       value: viewModel.carreraSeleccionada,
       isExpanded: true,
       underline: const SizedBox(),
-      dropdownColor: viewModel.getDropdownBackgroundColor(context),
+      dropdownColor: _getDropdownBackgroundColor(),
+      style: TextStyle(color: _getTextColor()),
       items: carrerasUnicas.map((String carrera) {
         return DropdownMenuItem<String>(
           value: carrera,
           child: Text(
             carrera,
-            style: TextStyle(color: viewModel.getTextColor(context)),
+            style: TextStyle(color: _getTextColor()),
           ),
         );
       }).toList(),
@@ -235,12 +315,11 @@ class _GestionScreenState extends State<GestionScreen> {
           viewModel.seleccionarCarrera(newValue);
         }
       },
+      icon: Icon(Icons.arrow_drop_down, color: _getTextColor()),
     );
   }
 
   Widget _buildMenuCard(
-    BuildContext context,
-    GestionViewModel viewModel,
     String title,
     IconData icon,
     Color color,
@@ -250,7 +329,7 @@ class _GestionScreenState extends State<GestionScreen> {
     return Card(
       elevation: 4,
       margin: const EdgeInsets.all(AppSpacing.small),
-      color: viewModel.getCardColor(context),
+      color: _getCardColor(),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.medium),
       ),
@@ -292,20 +371,18 @@ class _GestionScreenState extends State<GestionScreen> {
                 title,
                 style: AppTextStyles.body.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: viewModel.getTextColor(context),
+                  color: _getTextColor(),
                 ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.small),
               Text(
-                viewModel.carreraSeleccionada,
+                'Gestión',
                 style: TextStyle(
-                  color: viewModel.getSecondaryTextColor(context),
+                  color: _getSecondaryTextColor(),
                   fontSize: 12,
                 ),
                 textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -314,22 +391,16 @@ class _GestionScreenState extends State<GestionScreen> {
     );
   }
 
-  // ========== FUNCIONES DE NAVEGACIÓN CORREGIDAS ==========
+  // ========== FUNCIONES DE NAVEGACIÓN ==========
 
-  void _navigateToEstudiantes(
-    BuildContext context,
-    GestionViewModel viewModel,
-  ) {
-    final carreraConfig = viewModel.getCarreraConfig(
-      viewModel.carreraSeleccionada,
-    );
+  void _navigateToEstudiantes(BuildContext context, GestionViewModel viewModel) {
+    final carreraConfig = viewModel.getCarreraConfig(viewModel.carreraSeleccionada);
     
-    // ✅ CORREGIDO: Ahora navega directamente a EstudiantesListScreen
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => EstudiantesListScreen(
-          tipo: 'Gestión', // O el tipo que necesites
+          tipo: 'Gestión',
           carrera: carreraConfig.toMap(),
           turno: {
             'id': 'general',
@@ -362,9 +433,7 @@ class _GestionScreenState extends State<GestionScreen> {
   }
 
   void _navigateToDocentes(BuildContext context, GestionViewModel viewModel) {
-    final carreraConfig = viewModel.getCarreraConfig(
-      viewModel.carreraSeleccionada,
-    );
+    final carreraConfig = viewModel.getCarreraConfig(viewModel.carreraSeleccionada);
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -373,10 +442,7 @@ class _GestionScreenState extends State<GestionScreen> {
     );
   }
 
-  void _navigateToCarrerasGestion(
-    BuildContext context,
-    GestionViewModel viewModel,
-  ) {
+  void _navigateToCarrerasGestion(BuildContext context, GestionViewModel viewModel) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -390,9 +456,7 @@ class _GestionScreenState extends State<GestionScreen> {
   }
 
   void _navigateToTurnos(BuildContext context, GestionViewModel viewModel) {
-    final carreraConfig = viewModel.getCarreraConfig(
-      viewModel.carreraSeleccionada,
-    );
+    final carreraConfig = viewModel.getCarreraConfig(viewModel.carreraSeleccionada);
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -405,9 +469,7 @@ class _GestionScreenState extends State<GestionScreen> {
   }
 
   void _navigateToNiveles(BuildContext context, GestionViewModel viewModel) {
-    final carreraConfig = viewModel.getCarreraConfig(
-      viewModel.carreraSeleccionada,
-    );
+    final carreraConfig = viewModel.getCarreraConfig(viewModel.carreraSeleccionada);
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -421,9 +483,7 @@ class _GestionScreenState extends State<GestionScreen> {
   }
 
   void _navigateToParalelos(BuildContext context, GestionViewModel viewModel) {
-    final carreraConfig = viewModel.getCarreraConfig(
-      viewModel.carreraSeleccionada,
-    );
+    final carreraConfig = viewModel.getCarreraConfig(viewModel.carreraSeleccionada);
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -435,11 +495,5 @@ class _GestionScreenState extends State<GestionScreen> {
         ),
       ),
     );
-  }
-
-  Color _getBackgroundColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade900
-        : Colors.grey.shade100;
   }
 }

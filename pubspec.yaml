@@ -30,7 +30,7 @@ environment:
 dependencies:
   flutter:
       sdk: flutter
-     # intl: ^0.18.1
+     
 
   flutter_animate: ^4.1.1
   
@@ -72,6 +72,13 @@ dependencies:
   #cloud_firestore	^6.1.0
   #firebase_auth	^6.1.2
   #share_plus: ^12.0.1
+  
+  # Para comunicación HTTP con ESP32
+  http: ^1.1.0
+  # Para Bluetooth (opcional)
+  flutter_blue_plus: ^1.10.0
+  # Para manejo de fechas
+  intl: ^0.18.1
 
 
 dev_dependencies:
