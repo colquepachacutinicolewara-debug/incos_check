@@ -1,4 +1,6 @@
+// models/turno_model.dart
 import 'package:flutter/material.dart';
+import 'dart:convert';
 
 class TurnoModel {
   final String id;
@@ -25,32 +27,43 @@ class TurnoModel {
 
   Map<String, dynamic> toMap() {
     return {
+      'id': id,
       'nombre': nombre,
-      'icon': icon.codePoint,
+      'icon_code_point': icon.codePoint,
       'horario': horario,
-      'rangoAsistencia': rangoAsistencia,
+      'rango_asistencia': rangoAsistencia,
       'dias': dias,
       'color': color,
-      'activo': activo,
-      'niveles': niveles,
-      'updatedAt': DateTime.now().toIso8601String(),
+      'activo': activo ? 1 : 0,
+      'niveles': json.encode(niveles),
     };
   }
 
   static TurnoModel fromMap(String id, Map<String, dynamic> map) {
-    final iconCode = map['icon'] ?? Icons.wb_sunny.codePoint;
+    final iconCode = map['icon_code_point'] ?? Icons.wb_sunny.codePoint;
     final IconData icon = IconData(iconCode, fontFamily: 'MaterialIcons');
+
+    List<dynamic> niveles = [];
+    try {
+      if (map['niveles'] is String) {
+        niveles = json.decode(map['niveles']);
+      } else if (map['niveles'] is List) {
+        niveles = List<dynamic>.from(map['niveles']);
+      }
+    } catch (e) {
+      print('Error parsing niveles: $e');
+    }
 
     return TurnoModel(
       id: id,
       nombre: map['nombre']?.toString() ?? 'Sin nombre',
       icon: icon,
       horario: map['horario']?.toString() ?? 'Sin horario',
-      rangoAsistencia: map['rangoAsistencia']?.toString() ?? 'Sin rango',
+      rangoAsistencia: map['rango_asistencia']?.toString() ?? 'Sin rango',
       dias: map['dias']?.toString() ?? 'Sin días',
       color: map['color']?.toString() ?? '#FFA000',
-      activo: map['activo'] ?? true,
-      niveles: map['niveles'] ?? [],
+      activo: (map['activo'] ?? 1) == 1,
+      niveles: niveles,
     );
   }
 
@@ -77,4 +90,42 @@ class TurnoModel {
       niveles: niveles ?? this.niveles,
     );
   }
+
+  Color get colorValue {
+    try {
+      return Color(int.parse(color.replaceAll('#', '0xFF')));
+    } catch (e) {
+      return const Color(0xFFFFA000);
+    }
+  }
+
+  String get displayName => nombre;
+  String get infoCompleta => '$nombre ($horario)';
+  bool get estaActivo => activo;
+  int get totalNiveles => niveles.length;
+  bool get tieneNiveles => niveles.isNotEmpty;
+
+  List<String> get nivelesList {
+    return niveles.map((n) => n.toString()).toList();
+  }
+
+  String get nivelesDisplay {
+    if (niveles.isEmpty) return 'Sin niveles';
+    if (niveles.length == 1) return niveles.first.toString();
+    return '${niveles.length} niveles';
+  }
+
+  @override
+  String toString() {
+    return 'TurnoModel($id: $nombre - $horario)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is TurnoModel && other.id == id;
+  }
+
+  @override
+  int get hashCode => id.hashCode;
 }

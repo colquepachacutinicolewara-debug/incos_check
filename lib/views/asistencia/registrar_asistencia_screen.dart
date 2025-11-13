@@ -1,4 +1,3 @@
-// views/registrar_asistencia_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/registrar_asistencia_viewmodel.dart';
@@ -10,7 +9,7 @@ class RegistrarAsistenciaScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) => AsistenciaViewModel(),
+      create: (context) => RegistrarAsistenciaViewModel(), // ✅ Nombre corregido
       child: const _RegistrarAsistenciaView(),
     );
   }
@@ -32,7 +31,7 @@ class _RegistrarAsistenciaView extends StatelessWidget {
   }
 
   void _mostrarInfoHuella(BuildContext context) {
-    final viewModel = context.read<AsistenciaViewModel>();
+    final viewModel = context.read<RegistrarAsistenciaViewModel>(); // ✅ Nombre corregido
 
     showDialog(
       context: context,
@@ -63,7 +62,7 @@ class _RegistrarAsistenciaView extends StatelessWidget {
   }
 
   void _mostrarEstadisticas(BuildContext context) {
-    final viewModel = context.read<AsistenciaViewModel>();
+    final viewModel = context.read<RegistrarAsistenciaViewModel>(); // ✅ Nombre corregido
     final stats = viewModel.getEstadisticas();
 
     showDialog(
@@ -144,7 +143,7 @@ class _RegistrarAsistenciaView extends StatelessWidget {
     BuildContext context, [
     Color? color,
   ]) {
-    final viewModel = context.read<AsistenciaViewModel>();
+    final viewModel = context.read<RegistrarAsistenciaViewModel>(); // ✅ Nombre corregido
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -172,7 +171,7 @@ class _RegistrarAsistenciaView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final viewModel = context.watch<AsistenciaViewModel>();
+    final viewModel = context.watch<RegistrarAsistenciaViewModel>(); // ✅ Nombre corregido
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 360;
 
@@ -232,7 +231,7 @@ class _RegistrarAsistenciaView extends StatelessWidget {
 
   Widget _buildQRCard(
     BuildContext context,
-    AsistenciaViewModel viewModel,
+    RegistrarAsistenciaViewModel viewModel, // ✅ Nombre corregido
     bool isSmallScreen,
   ) {
     return Card(
@@ -285,7 +284,7 @@ class _RegistrarAsistenciaView extends StatelessWidget {
 
   Widget _buildBiometricWarning(
     BuildContext context,
-    AsistenciaViewModel viewModel,
+    RegistrarAsistenciaViewModel viewModel, // ✅ Nombre corregido
   ) {
     return Container(
       width: double.infinity,
@@ -320,7 +319,7 @@ class _RegistrarAsistenciaView extends StatelessWidget {
 
   Widget _buildSeparator(
     BuildContext context,
-    AsistenciaViewModel viewModel,
+    RegistrarAsistenciaViewModel viewModel, // ✅ Nombre corregido
     bool isSmallScreen,
   ) {
     return Row(
@@ -353,7 +352,7 @@ class _RegistrarAsistenciaView extends StatelessWidget {
 
   Widget _buildAttendanceCounter(
     BuildContext context,
-    AsistenciaViewModel viewModel,
+    RegistrarAsistenciaViewModel viewModel, // ✅ Nombre corregido
   ) {
     final stats = viewModel.getEstadisticas();
 
@@ -407,7 +406,7 @@ class _RegistrarAsistenciaView extends StatelessWidget {
 
   Widget _buildStudentsList(
     BuildContext context,
-    AsistenciaViewModel viewModel,
+    RegistrarAsistenciaViewModel viewModel, // ✅ Nombre corregido
     bool isSmallScreen,
   ) {
     return Expanded(

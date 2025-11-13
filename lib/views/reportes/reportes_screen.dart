@@ -8,14 +8,27 @@ import 'package:excel/excel.dart';
 import 'package:incos_check/utils/constants.dart';
 import 'package:incos_check/utils/helpers.dart';
 
-class ReportesScreen extends StatefulWidget {
-  const ReportesScreen({super.key});
+class ReportesScreen extends StatelessWidget {
+  final Map<String, dynamic>? userData;
+
+  const ReportesScreen({super.key, this.userData});
 
   @override
-  State<ReportesScreen> createState() => _ReportesScreenState();
+  Widget build(BuildContext context) {
+    return _ReportesScreenContent(userData: userData);
+  }
 }
 
-class _ReportesScreenState extends State<ReportesScreen> {
+class _ReportesScreenContent extends StatefulWidget {
+  final Map<String, dynamic>? userData;
+
+  const _ReportesScreenContent({this.userData});
+
+  @override
+  State<_ReportesScreenContent> createState() => _ReportesScreenContentState();
+}
+
+class _ReportesScreenContentState extends State<_ReportesScreenContent> {
   bool _generando = false;
 
   // Métodos helper para modo oscuro
@@ -808,6 +821,100 @@ class _ReportesScreenState extends State<ReportesScreen> {
     );
   }
 
+  Widget _buildUserInfoCard(
+    BuildContext context,
+    Map<String, dynamic> userData, {
+    bool isDesktop = false,
+    bool isTablet = false,
+  }) {
+    final double cardPadding = isDesktop
+        ? AppSpacing.large
+        : (isTablet ? AppSpacing.medium : AppSpacing.small);
+
+    final double titleFontSize = isDesktop ? 20.0 : (isTablet ? 18.0 : 16.0);
+    final double bodyFontSize = isDesktop ? 16.0 : (isTablet ? 14.0 : 12.0);
+
+    return Card(
+      elevation: 6,
+      margin: EdgeInsets.symmetric(
+        horizontal: isDesktop ? AppSpacing.large : AppSpacing.medium,
+        vertical: AppSpacing.small,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.large),
+      ),
+      color: Theme.of(context).cardColor,
+      child: Padding(
+        padding: EdgeInsets.all(cardPadding),
+        child: Column(
+          children: [
+            Builder(
+              builder: (context) => Text(
+                'Información del Usuario',
+                style: AppTextStyles.heading2Dark(context).copyWith(
+                  fontSize: titleFontSize,
+                  color: _getTextColor(context),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            SizedBox(height: AppSpacing.medium),
+            _buildInfoRow(
+              'Usuario:',
+              userData['nombre']?.toString() ?? 'Usuario',
+              bodyFontSize,
+              context,
+            ),
+            SizedBox(height: AppSpacing.small),
+            _buildInfoRow(
+              'Rol:',
+              userData['role']?.toString() ?? 'Usuario',
+              bodyFontSize,
+              context,
+            ),
+            SizedBox(height: AppSpacing.small),
+            _buildInfoRow(
+              'Email:',
+              userData['email']?.toString() ?? 'No especificado',
+              bodyFontSize,
+              context,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(
+    String label,
+    String value,
+    double fontSize,
+    BuildContext context,
+  ) {
+    return Builder(
+      builder: (context) => Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.bodyDark(context).copyWith(
+              fontSize: fontSize,
+              fontWeight: FontWeight.bold,
+              color: _getTextColor(context), // Color dinámico
+            ),
+          ),
+          Text(
+            value,
+            style: AppTextStyles.bodyDark(context).copyWith(
+              fontSize: fontSize, 
+              color: AppColors.primary, // Color fijo para valores importantes
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -835,6 +942,17 @@ class _ReportesScreenState extends State<ReportesScreen> {
                   padding: EdgeInsets.all(AppSpacing.medium),
                   child: Column(
                     children: [
+                      // Mostrar información del usuario si está disponible
+                      if (widget.userData != null) ...[
+                        _buildUserInfoCard(
+                          context,
+                          widget.userData!,
+                          isDesktop: false,
+                          isTablet: false,
+                        ),
+                        SizedBox(height: AppSpacing.large),
+                      ],
+                      
                       // Estadísticas rápidas - MEJORADO
                       Text(
                         'Resumen General',

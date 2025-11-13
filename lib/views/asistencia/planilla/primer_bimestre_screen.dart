@@ -10,7 +10,7 @@ class PrimerBimestreScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) => PrimerBimestreViewModel(),
+      create: (context) => PrimerBimestreViewModel(), // ✅ SIN parámetro DatabaseHelper
       child: const _PrimerBimestreScreenContent(),
     );
   }
@@ -46,18 +46,20 @@ class _PrimerBimestreScreenContent extends StatelessWidget {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Información del bimestre
-          _buildBimestreInfo(context, viewModel),
+      body: viewModel.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                // Información del bimestre
+                _buildBimestreInfo(context, viewModel),
 
-          // Barra de búsqueda y controles
-          _buildSearchBar(context, viewModel),
+                // Barra de búsqueda y controles
+                _buildSearchBar(context, viewModel),
 
-          // Tabla de asistencias
-          _buildAsistenciaTable(context, viewModel),
-        ],
-      ),
+                // Tabla de asistencias
+                _buildAsistenciaTable(context, viewModel),
+              ],
+            ),
     );
   }
 
@@ -260,6 +262,13 @@ class _PrimerBimestreScreenContent extends StatelessWidget {
                       color: viewModel.getSecondaryTextColor(context),
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      viewModel.searchController.clear();
+                    },
+                    child: const Text('Mostrar todos'),
+                  ),
                 ],
               ),
             )
@@ -268,7 +277,7 @@ class _PrimerBimestreScreenContent extends StatelessWidget {
               child: SingleChildScrollView(
                 scrollDirection: Axis.vertical,
                 child: DataTable(
-                  headingRowColor: WidgetStateProperty.resolveWith(
+                  headingRowColor: MaterialStateProperty.resolveWith(
                     (states) => viewModel.getHeaderBackgroundColor(context),
                   ),
                   columnSpacing: 8,
@@ -325,7 +334,7 @@ class _PrimerBimestreScreenContent extends StatelessWidget {
                   ],
                   rows: viewModel.filteredEstudiantes.map((estudiante) {
                     return DataRow(
-                      color: WidgetStateProperty.resolveWith<Color?>((states) {
+                      color: MaterialStateProperty.resolveWith<Color?>((states) {
                         return viewModel.getColorFila(estudiante.item, context);
                       }),
                       cells: [
@@ -338,8 +347,7 @@ class _PrimerBimestreScreenContent extends StatelessWidget {
                               child: Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color:
-                                      viewModel.estudianteSeleccionado ==
+                                  color: viewModel.estudianteSeleccionado ==
                                           estudiante.item
                                       ? viewModel.getOrangeAccentColor(context)
                                       : null,
@@ -349,8 +357,7 @@ class _PrimerBimestreScreenContent extends StatelessWidget {
                                   estudiante.item.toString().padLeft(2, '0'),
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    color:
-                                        viewModel.estudianteSeleccionado ==
+                                    color: viewModel.estudianteSeleccionado ==
                                             estudiante.item
                                         ? Colors.white
                                         : viewModel.getTextColor(context),
@@ -374,9 +381,9 @@ class _PrimerBimestreScreenContent extends StatelessWidget {
                                   color: viewModel.getTextColor(context),
                                   backgroundColor:
                                       viewModel.estudianteSeleccionado ==
-                                          estudiante.item
-                                      ? Colors.yellow.withOpacity(0.3)
-                                      : Colors.transparent,
+                                              estudiante.item
+                                          ? Colors.yellow.withOpacity(0.3)
+                                          : Colors.transparent,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -410,8 +417,7 @@ class _PrimerBimestreScreenContent extends StatelessWidget {
                                     estudiante.totalAsistencias,
                                   ),
                                   borderRadius: BorderRadius.circular(12),
-                                  border:
-                                      viewModel.estudianteSeleccionado ==
+                                  border: viewModel.estudianteSeleccionado ==
                                           estudiante.item
                                       ? Border.all(
                                           color: viewModel.getOrangeAccentColor(
@@ -572,10 +578,10 @@ class _PrimerBimestreScreenContent extends StatelessWidget {
       await viewModel.exportarACSV();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('✅ Archivo exportado correctamente'),
+          const SnackBar(
+            content: Text('✅ Archivo exportado correctamente'),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
+            duration: Duration(seconds: 3),
             behavior: SnackBarBehavior.floating,
           ),
         );

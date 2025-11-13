@@ -4,19 +4,23 @@ import '../../viewmodels/inicio_viewmodel.dart';
 import '../../utils/constants.dart';
 
 class InicioScreen extends StatelessWidget {
-  const InicioScreen({super.key});
+  final Map<String, dynamic>? userData;
+
+  const InicioScreen({super.key, this.userData});
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (context) => InicioViewModel(),
-      child: const _InicioScreenContent(),
+      child: _InicioScreenContent(userData: userData),
     );
   }
 }
 
 class _InicioScreenContent extends StatelessWidget {
-  const _InicioScreenContent();
+  final Map<String, dynamic>? userData;
+
+  const _InicioScreenContent({this.userData});
 
   // FUNCIONES HELPER para modo oscuro (igual que CarreraContaduria)
   Color _getTextColor(BuildContext context) {
@@ -53,13 +57,15 @@ class _InicioScreenContent extends StatelessWidget {
         backgroundColor: AppColors.secondary,
         centerTitle: true,
       ),
-      body: const _InicioScreenBody(),
+      body: _InicioScreenBody(userData: userData),
     );
   }
 }
 
 class _InicioScreenBody extends StatelessWidget {
-  const _InicioScreenBody();
+  final Map<String, dynamic>? userData;
+
+  const _InicioScreenBody({this.userData});
 
   Color _getTextColor(BuildContext context) {
     return Theme.of(context).brightness == Brightness.dark
@@ -134,6 +140,15 @@ class _InicioScreenBody extends StatelessWidget {
                       isDesktop: isDesktop,
                       isTablet: isTablet,
                     ),
+                    if (userData != null) ...[
+                      SizedBox(height: AppSpacing.large),
+                      _buildUserInfoCard(
+                        context,
+                        userData!,
+                        isDesktop: isDesktop,
+                        isTablet: isTablet,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -199,6 +214,70 @@ class _InicioScreenBody extends StatelessWidget {
             _buildInfoRow(
               'Estado:',
               viewModel.model.systemStatus,
+              bodyFontSize,
+              context,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserInfoCard(
+    BuildContext context,
+    Map<String, dynamic> userData, {
+    bool isDesktop = false,
+    bool isTablet = false,
+  }) {
+    final double cardPadding = isDesktop
+        ? AppSpacing.large
+        : (isTablet ? AppSpacing.medium : AppSpacing.small);
+
+    final double titleFontSize = isDesktop ? 20.0 : (isTablet ? 18.0 : 16.0);
+    final double bodyFontSize = isDesktop ? 16.0 : (isTablet ? 14.0 : 12.0);
+
+    return Card(
+      elevation: 6,
+      margin: EdgeInsets.symmetric(
+        horizontal: isDesktop ? AppSpacing.large : AppSpacing.medium,
+        vertical: AppSpacing.small,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.large),
+      ),
+      color: Theme.of(context).cardColor,
+      child: Padding(
+        padding: EdgeInsets.all(cardPadding),
+        child: Column(
+          children: [
+            Builder(
+              builder: (context) => Text(
+                'Información del Usuario',
+                style: AppTextStyles.heading2Dark(context).copyWith(
+                  fontSize: titleFontSize,
+                  color: _getTextColor(context),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            SizedBox(height: AppSpacing.medium),
+            _buildInfoRow(
+              'Usuario:',
+              userData['nombre']?.toString() ?? 'Usuario',
+              bodyFontSize,
+              context,
+            ),
+            SizedBox(height: AppSpacing.small),
+            _buildInfoRow(
+              'Rol:',
+              userData['role']?.toString() ?? 'Usuario',
+              bodyFontSize,
+              context,
+            ),
+            SizedBox(height: AppSpacing.small),
+            _buildInfoRow(
+              'Email:',
+              userData['email']?.toString() ?? 'No especificado',
               bodyFontSize,
               context,
             ),

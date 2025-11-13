@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../../viewmodels/dashboard_viewmodel.dart' as dashboard_vm;
+import '../../viewmodels/dashboard_viewmodel.dart';
 import '../../viewmodels/carreras_viewmodel.dart';
 import '../../utils/constants.dart';
 import '../gestion/gestion_screen.dart';
@@ -12,7 +11,9 @@ import '../reportes/reportes_screen.dart';
 import '../configuracion/configuracion_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  final Map<String, dynamic>? userData;
+
+  const DashboardScreen({super.key, this.userData});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -33,16 +34,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _initializePages() {
     _pages.addAll([
-      const GestionScreen(),
-      const AsistenciaScreen(),
-      const InicioScreen(),
-      const ReportesScreen(),
-      const ConfiguracionScreen(),
+      GestionScreen(userData: widget.userData),
+      AsistenciaScreen(userData: widget.userData),
+      InicioScreen(userData: widget.userData),
+      ReportesScreen(userData: widget.userData),
+      ConfiguracionScreen(userData: widget.userData),
     ]);
   }
 
   void _loadInitialData() {
-    final dashboardVM = context.read<dashboard_vm.DashboardViewModel>();
+    final dashboardVM = context.read<DashboardViewModel>();
     final carrerasVM = context.read<CarrerasViewModel>();
 
     // Cargar datos solo si es necesario
@@ -67,22 +68,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildUserAvatar() {
-    return Consumer<dashboard_vm.DashboardViewModel>(
+    return Consumer<DashboardViewModel>(
       builder: (context, dashboardVM, child) {
         final user = dashboardVM.currentUser;
         if (user == null) return const SizedBox();
+
+        final userName = user['nombre']?.toString() ?? 'Usuario';
+        final firstLetter = userName.isNotEmpty ? userName[0].toUpperCase() : 'U';
 
         return Padding(
           padding: const EdgeInsets.only(right: 16.0),
           child: CircleAvatar(
             radius: 16,
             backgroundColor: Colors.white,
-            backgroundImage: user.photoURL != null
-                ? NetworkImage(user.photoURL!)
-                : null,
-            child: user.photoURL == null
-                ? Icon(Icons.person, size: 16, color: AppColors.primary)
-                : null,
+            child: Text(
+              firstLetter,
+              style: TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
           ),
         );
       },
@@ -90,7 +96,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildBody(BuildContext context) {
-    return Consumer<dashboard_vm.DashboardViewModel>(
+    return Consumer<DashboardViewModel>(
       builder: (context, dashboardVM, child) {
         if (dashboardVM.loading && dashboardVM.dashboardData.isEmpty) {
           return _buildLoadingState();
@@ -118,7 +124,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildErrorState(dashboard_vm.DashboardViewModel dashboardVM) {
+  Widget _buildErrorState(DashboardViewModel dashboardVM) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.large),
@@ -139,8 +145,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             const SizedBox(height: AppSpacing.large),
             ElevatedButton.icon(
-              onPressed: () =>
-                  dashboardVM.loadDashboardData(forceRefresh: true),
+              onPressed: () => dashboardVM.loadDashboardData(forceRefresh: true),
               icon: const Icon(Icons.refresh),
               label: const Text('Reintentar'),
               style: ElevatedButton.styleFrom(
@@ -154,7 +159,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildContent(dashboard_vm.DashboardViewModel dashboardVM) {
+  Widget _buildContent(DashboardViewModel dashboardVM) {
     // Usar IndexedStack para mantener el estado de las páginas
     return IndexedStack(index: dashboardVM.selectedIndex, children: _pages);
   }
@@ -176,11 +181,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildDrawerContent(BuildContext context) {
-    final dashboardVM = Provider.of<dashboard_vm.DashboardViewModel>(
+    final dashboardVM = Provider.of<DashboardViewModel>(
       context,
       listen: false,
     );
     final user = dashboardVM.currentUser;
+
+    final userName = user?['nombre']?.toString() ?? 'Usuario';
+    final userEmail = user?['email']?.toString() ?? 'usuario@incos.edu.bo';
+    final userRole = user?['role']?.toString() ?? 'Usuario';
+    final firstLetter = userName.isNotEmpty ? userName[0].toUpperCase() : 'U';
 
     return Column(
       children: [
@@ -193,25 +203,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
           accountName: Text(
-            user?.displayName ?? 'Usuario',
+            userName,
             style: AppTextStyles.body.copyWith(
               color: Colors.white,
               fontWeight: FontWeight.bold,
             ),
           ),
           accountEmail: Text(
-            user?.email ?? 'usuario@incos.edu.bo',
-            style: AppTextStyles.body.copyWith(color: Colors.white70),
+            '$userEmail\n$userRole',
+            style: AppTextStyles.body.copyWith(
+              color: Colors.white70,
+              fontSize: 12,
+            ),
+            maxLines: 2,
           ),
           currentAccountPicture: CircleAvatar(
             radius: 28,
             backgroundColor: AppColors.accent,
-            backgroundImage: user?.photoURL != null
-                ? NetworkImage(user!.photoURL!)
-                : null,
-            child: user?.photoURL == null
-                ? Icon(Icons.person, size: 40, color: AppColors.primary)
-                : null,
+            child: Text(
+              firstLetter,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
           ),
         ),
 
@@ -290,7 +306,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildSystemInfo(BuildContext context) {
-    return Consumer<dashboard_vm.DashboardViewModel>(
+    return Consumer<DashboardViewModel>(
       builder: (context, dashboardVM, child) {
         final stats = dashboardVM.dashboardData['stats'] ?? {};
 
@@ -398,7 +414,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _navigateToSection(BuildContext context, int index, String section) {
-    final dashboardVM = context.read<dashboard_vm.DashboardViewModel>();
+    final dashboardVM = context.read<DashboardViewModel>();
     dashboardVM.changeIndex(index);
 
     Navigator.pop(context); // Cerrar drawer
@@ -419,7 +435,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     IconData icon,
     String label,
     int index,
-    dashboard_vm.DashboardViewModel dashboardVM,
+    DashboardViewModel dashboardVM,
   ) {
     final bool isSelected = dashboardVM.selectedIndex == index;
 
@@ -470,7 +486,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildResponsiveBottomNavigationBar(BuildContext context) {
-    final dashboardVM = Provider.of<dashboard_vm.DashboardViewModel>(context);
+    final dashboardVM = Provider.of<DashboardViewModel>(context);
     final screenWidth = MediaQuery.of(context).size.width;
 
     if (screenWidth < 600) {
@@ -483,7 +499,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildMobileBottomNavigationBar(
-    dashboard_vm.DashboardViewModel dashboardVM,
+    DashboardViewModel dashboardVM,
     BuildContext context,
   ) {
     return Container(
@@ -551,7 +567,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildTabletBottomNavigationBar(
-    dashboard_vm.DashboardViewModel dashboardVM,
+    DashboardViewModel dashboardVM,
     BuildContext context,
   ) {
     return Container(
@@ -634,7 +650,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildDesktopBottomNavigationBar(
-    dashboard_vm.DashboardViewModel dashboardVM,
+    DashboardViewModel dashboardVM,
     BuildContext context,
   ) {
     return Container(
@@ -721,7 +737,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     IconData icon,
     String label,
     int index,
-    dashboard_vm.DashboardViewModel dashboardVM, {
+    DashboardViewModel dashboardVM, {
     required DeviceType deviceType,
   }) {
     final bool isSelected = dashboardVM.selectedIndex == index;
@@ -773,7 +789,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildNavItemInicio(
     BuildContext context,
-    dashboard_vm.DashboardViewModel dashboardVM, {
+    DashboardViewModel dashboardVM, {
     required DeviceType deviceType,
   }) {
     final bool isSelected = dashboardVM.selectedIndex == 2;
@@ -929,7 +945,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _performLogout(BuildContext context) async {
     try {
-      final dashboardVM = context.read<dashboard_vm.DashboardViewModel>();
+      final dashboardVM = context.read<DashboardViewModel>();
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -953,6 +969,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
 
       await dashboardVM.logout();
+      
+      // Navegar de vuelta al login después del logout
+      Navigator.pushNamedAndRemoveUntil(
+        context, 
+        '/', 
+        (route) => false
+      );
     } catch (error) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -964,7 +987,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // CORRECCIÓN PARA EL ERROR DEL DROPDOWN
-  // Añade este método en tu CarrerasViewModel o donde uses DropdownButton
   Widget _buildFixedDropdown(
     List<String> items,
     String? selectedValue,

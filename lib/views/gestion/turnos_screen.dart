@@ -1,30 +1,29 @@
-// views/turnos_scren.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:incos_check/utils/constants.dart';
+import '../../utils/constants.dart';
 import 'niveles_screen.dart';
-import '../../../viewmodels/turnos_viewmodel.dart';
-import '../../../models/turnos_model.dart';
-import '../../repositories/data_repository.dart';
+import '../../viewmodels/turnos_viewmodel.dart';
+import '../../models/turnos_model.dart';
 
-class TurnosScreen extends StatelessWidget {
+class TurnosScreen extends StatefulWidget {
   final String tipo;
   final Map<String, dynamic> carrera;
 
   const TurnosScreen({super.key, required this.tipo, required this.carrera});
 
   @override
+  State<TurnosScreen> createState() => _TurnosScreenState();
+}
+
+class _TurnosScreenState extends State<TurnosScreen> {
+  @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) {
-        final repository = context.read<DataRepository>();
-        return TurnosViewModel(
-          tipo: tipo,
-          carrera: carrera,
-          repository: repository,
-        );
-      },
-      child: _TurnosScreenContent(tipo: tipo, carrera: carrera),
+      create: (context) => TurnosViewModel(
+        tipo: widget.tipo,
+        carrera: widget.carrera,
+      ), // ✅ SIN databaseHelper
+      child: _TurnosScreenContent(tipo: widget.tipo, carrera: widget.carrera),
     );
   }
 }
@@ -35,28 +34,12 @@ class _TurnosScreenContent extends StatelessWidget {
 
   const _TurnosScreenContent({required this.tipo, required this.carrera});
 
-  Color _getTextColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.white
-        : Colors.black;
-  }
-
-  Color _getSecondaryTextColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.white70
-        : Colors.black87;
-  }
-
-  Color _getBorderColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade600
-        : Colors.grey.shade300;
-  }
-
-  Color _getBackgroundColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade800
-        : Colors.grey.shade50;
+  Color _parseColor(String colorString) {
+    try {
+      return Color(int.parse(colorString.replaceAll('#', '0xFF')));
+    } catch (e) {
+      return AppColors.primary;
+    }
   }
 
   @override
@@ -72,11 +55,9 @@ class _TurnosScreenContent extends StatelessWidget {
         appBar: AppBar(
           title: Text(
             '${carrera['nombre']} - Turnos',
-            style: AppTextStyles.heading2Dark(
-              context,
-            ).copyWith(color: Colors.white),
+            style: AppTextStyles.heading2.copyWith(color: Colors.white),
           ),
-          backgroundColor: viewModel.parseColor(carrera['color']),
+          backgroundColor: _parseColor(carrera['color']),
         ),
         body: const Center(
           child: Column(
@@ -97,33 +78,31 @@ class _TurnosScreenContent extends StatelessWidget {
         appBar: AppBar(
           title: Text(
             '${carrera['nombre']} - Turnos',
-            style: AppTextStyles.heading2Dark(
-              context,
-            ).copyWith(color: Colors.white),
+            style: AppTextStyles.heading2.copyWith(color: Colors.white),
           ),
-          backgroundColor: viewModel.parseColor(carrera['color']),
+          backgroundColor: _parseColor(carrera['color']),
         ),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.error_outline, size: 64, color: AppColors.error),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: 32),
+                padding: const EdgeInsets.symmetric(horizontal: 32),
                 child: Text(
                   error,
                   textAlign: TextAlign.center,
-                  style: AppTextStyles.bodyDark(context),
+                  style: AppTextStyles.body,
                 ),
               ),
-              SizedBox(height: 24),
+              const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () => viewModel.recargarTurnos(),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: viewModel.parseColor(carrera['color']),
+                  backgroundColor: _parseColor(carrera['color']),
                 ),
-                child: Text(
+                child: const Text(
                   'Reintentar',
                   style: TextStyle(color: Colors.white),
                 ),
@@ -134,15 +113,13 @@ class _TurnosScreenContent extends StatelessWidget {
       );
     }
 
-    Color carreraColor = viewModel.parseColor(carrera['color']);
+    Color carreraColor = _parseColor(carrera['color']);
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
           '${carrera['nombre']} - Turnos',
-          style: AppTextStyles.heading2Dark(
-            context,
-          ).copyWith(color: Colors.white),
+          style: AppTextStyles.heading2.copyWith(color: Colors.white),
         ),
         backgroundColor: carreraColor,
       ),
@@ -154,27 +131,23 @@ class _TurnosScreenContent extends StatelessWidget {
                   Icon(
                     Icons.schedule,
                     size: 64,
-                    color: AppColors.textSecondaryDark(context),
+                    color: AppColors.textSecondary,
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   Text(
                     'No hay turnos configurados',
-                    style: AppTextStyles.heading3Dark(
-                      context,
-                    ).copyWith(color: _getTextColor(context)),
+                    style: AppTextStyles.heading3.copyWith(color: AppColors.textPrimary),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text(
                     'Presiona el botón + para agregar un turno',
-                    style: AppTextStyles.bodyDark(
-                      context,
-                    ).copyWith(color: _getSecondaryTextColor(context)),
+                    style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
                   ),
                 ],
               ),
             )
           : ListView.builder(
-              padding: EdgeInsets.all(AppSpacing.medium),
+              padding: const EdgeInsets.all(AppSpacing.medium),
               itemCount: turnos.length,
               itemBuilder: (context, index) {
                 final turno = turnos[index];
@@ -184,7 +157,7 @@ class _TurnosScreenContent extends StatelessWidget {
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAgregarTurnoDialog(context, viewModel),
         backgroundColor: carreraColor,
-        child: Icon(Icons.add, color: Colors.white),
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
@@ -195,14 +168,14 @@ class _TurnosScreenContent extends StatelessWidget {
     Color color,
     TurnosViewModel viewModel,
   ) {
-    Color turnoColor = viewModel.parseColor(turno.color);
+    Color turnoColor = _parseColor(turno.color);
     bool isActivo = turno.activo;
 
     return Card(
       elevation: 4,
-      margin: EdgeInsets.only(bottom: AppSpacing.medium),
+      margin: const EdgeInsets.only(bottom: AppSpacing.medium),
       color: isActivo
-          ? Theme.of(context).cardColor
+          ? Colors.white
           : Colors.grey.shade300.withOpacity(0.5),
       child: ListTile(
         leading: CircleAvatar(
@@ -213,19 +186,19 @@ class _TurnosScreenContent extends StatelessWidget {
           children: [
             Text(
               'Turno ${turno.nombre}',
-              style: AppTextStyles.heading3Dark(context).copyWith(
-                color: isActivo ? _getTextColor(context) : Colors.grey,
+              style: AppTextStyles.heading3.copyWith(
+                color: isActivo ? AppColors.textPrimary : Colors.grey,
               ),
             ),
             if (!isActivo) ...[
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: Colors.orange,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(
+                child: const Text(
                   'Inactivo',
                   style: TextStyle(color: Colors.white, fontSize: 10),
                 ),
@@ -238,21 +211,21 @@ class _TurnosScreenContent extends StatelessWidget {
           children: [
             Text(
               'Horario: ${turno.horario}',
-              style: AppTextStyles.bodyDark(context).copyWith(
-                color: isActivo ? _getTextColor(context) : Colors.grey,
+              style: AppTextStyles.body.copyWith(
+                color: isActivo ? AppColors.textPrimary : Colors.grey,
               ),
             ),
             Text(
               'Días: ${turno.dias}',
-              style: AppTextStyles.bodyDark(context).copyWith(
-                color: isActivo ? _getTextColor(context) : Colors.grey,
+              style: AppTextStyles.body.copyWith(
+                color: isActivo ? AppColors.textPrimary : Colors.grey,
               ),
             ),
             Text(
               'Registro: ${turno.rangoAsistencia}',
-              style: AppTextStyles.bodyDark(
-                context,
-              ).copyWith(color: isActivo ? AppColors.success : Colors.grey),
+              style: AppTextStyles.body.copyWith(
+                color: isActivo ? AppColors.success : Colors.grey,
+              ),
             ),
           ],
         ),
@@ -260,18 +233,13 @@ class _TurnosScreenContent extends StatelessWidget {
           onSelected: (value) =>
               _handleMenuAction(value, turno, viewModel, context),
           itemBuilder: (BuildContext context) => [
-            PopupMenuItem(
+            const PopupMenuItem(
               value: 'edit',
               child: Row(
                 children: [
-                  Icon(Icons.edit, size: 20, color: _getTextColor(context)),
+                  Icon(Icons.edit, size: 20),
                   SizedBox(width: 8),
-                  Text(
-                    'Modificar',
-                    style: AppTextStyles.bodyDark(
-                      context,
-                    ).copyWith(color: _getTextColor(context)),
-                  ),
+                  Text('Modificar'),
                 ],
               ),
             ),
@@ -282,19 +250,15 @@ class _TurnosScreenContent extends StatelessWidget {
                   Icon(
                     turno.activo ? Icons.toggle_off : Icons.toggle_on,
                     size: 20,
-                    color: _getTextColor(context),
                   ),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   Text(
                     turno.activo ? 'Desactivar' : 'Activar',
-                    style: AppTextStyles.bodyDark(
-                      context,
-                    ).copyWith(color: _getTextColor(context)),
                   ),
                 ],
               ),
             ),
-            PopupMenuItem(
+            const PopupMenuItem(
               value: 'delete',
               child: Row(
                 children: [
@@ -302,9 +266,7 @@ class _TurnosScreenContent extends StatelessWidget {
                   SizedBox(width: 8),
                   Text(
                     'Eliminar',
-                    style: AppTextStyles.bodyDark(
-                      context,
-                    ).copyWith(color: Colors.red),
+                    style: TextStyle(color: Colors.red),
                   ),
                 ],
               ),
@@ -359,7 +321,7 @@ class _TurnosScreenContent extends StatelessWidget {
       SnackBar(
         content: Text(
           'Turno ${turno.nombre} ${!turno.activo ? 'activado' : 'desactivado'}',
-          style: AppTextStyles.bodyDark(context).copyWith(color: Colors.white),
+          style: const TextStyle(color: Colors.white),
         ),
         backgroundColor: !turno.activo ? AppColors.success : AppColors.warning,
       ),
@@ -394,9 +356,7 @@ class _TurnosScreenContent extends StatelessWidget {
             SnackBar(
               content: Text(
                 'Turno "$nombre" agregado correctamente',
-                style: AppTextStyles.bodyDark(
-                  context,
-                ).copyWith(color: Colors.white),
+                style: const TextStyle(color: Colors.white),
               ),
               backgroundColor: AppColors.success,
             ),
@@ -431,16 +391,14 @@ class _TurnosScreenContent extends StatelessWidget {
             color: color,
           );
 
-          viewModel.actualizarTurno(turno.id, turnoActualizado);
+          viewModel.actualizarTurno(turnoActualizado);
 
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
                 'Turno "$nombre" modificado correctamente',
-                style: AppTextStyles.bodyDark(
-                  context,
-                ).copyWith(color: Colors.white),
+                style: const TextStyle(color: Colors.white),
               ),
               backgroundColor: AppColors.success,
             ),
@@ -458,28 +416,14 @@ class _TurnosScreenContent extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).cardColor,
-        title: Text(
-          'Eliminar Turno',
-          style: AppTextStyles.heading2Dark(
-            context,
-          ).copyWith(color: _getTextColor(context)),
-        ),
+        title: const Text('Eliminar Turno'),
         content: Text(
           '¿Estás seguro de eliminar el Turno ${turno.nombre}? Esta acción no se puede deshacer.',
-          style: AppTextStyles.bodyDark(
-            context,
-          ).copyWith(color: _getTextColor(context)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancelar',
-              style: AppTextStyles.bodyDark(
-                context,
-              ).copyWith(color: _getTextColor(context)),
-            ),
+            child: const Text('Cancelar'),
           ),
           TextButton(
             onPressed: () {
@@ -493,19 +437,15 @@ class _TurnosScreenContent extends StatelessWidget {
                 SnackBar(
                   content: Text(
                     'Turno "$nombreTurno" eliminado',
-                    style: AppTextStyles.bodyDark(
-                      context,
-                    ).copyWith(color: Colors.white),
+                    style: const TextStyle(color: Colors.white),
                   ),
                   backgroundColor: AppColors.error,
                 ),
               );
             },
-            child: Text(
+            child: const Text(
               'Eliminar',
-              style: AppTextStyles.bodyDark(
-                context,
-              ).copyWith(color: Colors.red),
+              style: TextStyle(color: Colors.red),
             ),
           ),
         ],
@@ -514,7 +454,7 @@ class _TurnosScreenContent extends StatelessWidget {
   }
 }
 
-// Diálogo para agregar/modificar turnos (MANTIENE TU DISEÑO ORIGINAL)
+// Diálogo para agregar/modificar turnos
 class _TurnoDialog extends StatefulWidget {
   final String title;
   final String? nombreInicial;
@@ -558,7 +498,7 @@ class _TurnoDialogState extends State<_TurnoDialog> {
 
   IconData _iconoSeleccionado = Icons.wb_sunny;
 
-  // Opciones predefinidas para turnos (TUS DATOS ORIGINALES)
+  // Opciones predefinidas para turnos
   final List<Map<String, dynamic>> _turnosPredefinidos = [
     {
       'nombre': 'Mañana',
@@ -602,7 +542,7 @@ class _TurnoDialogState extends State<_TurnoDialog> {
     },
   ];
 
-  // Íconos adicionales para turnos (TUS DATOS ORIGINALES)
+  // Íconos adicionales para turnos
   final List<Map<String, dynamic>> _iconosTurnos = [
     {'icon': Icons.wb_sunny, 'nombre': 'Mañana'},
     {'icon': Icons.brightness_6, 'nombre': 'Tarde'},
@@ -614,7 +554,7 @@ class _TurnoDialogState extends State<_TurnoDialog> {
     {'icon': Icons.timelapse, 'nombre': 'Duración'},
   ];
 
-  // Colores para turnos (TUS DATOS ORIGINALES)
+  // Colores para turnos
   final List<Map<String, dynamic>> _coloresTurnos = [
     {'nombre': 'Naranja Mañana', 'color': '#FFA000'},
     {'nombre': 'Naranja Tarde', 'color': '#FF9800'},
@@ -625,30 +565,6 @@ class _TurnoDialogState extends State<_TurnoDialog> {
     {'nombre': 'Verde Claro', 'color': '#8BC34A'},
     {'nombre': 'Azul Claro', 'color': '#03A9F4'},
   ];
-
-  Color _getTextColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.white
-        : Colors.black;
-  }
-
-  Color _getSecondaryTextColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.white70
-        : Colors.black87;
-  }
-
-  Color _getBorderColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade600
-        : Colors.grey.shade300;
-  }
-
-  Color _getBackgroundColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade800
-        : Colors.grey.shade50;
-  }
 
   @override
   void initState() {
@@ -672,28 +588,28 @@ class _TurnoDialogState extends State<_TurnoDialog> {
     });
   }
 
+  Color _parseColor(String colorString) {
+    try {
+      return Color(int.parse(colorString.replaceAll('#', '0xFF')));
+    } catch (e) {
+      return AppColors.primary;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: Theme.of(context).cardColor,
-      title: Text(
-        widget.title,
-        style: AppTextStyles.heading2Dark(
-          context,
-        ).copyWith(color: _getTextColor(context)),
-      ),
+      title: Text(widget.title),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // TURNOS PREDEFINIDOS (TU DISEÑO ORIGINAL)
-            Text(
+            // TURNOS PREDEFINIDOS
+            const Text(
               'Turnos predefinidos:',
-              style: AppTextStyles.bodyDark(
-                context,
-              ).copyWith(fontWeight: FontWeight.bold),
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: AppSpacing.small),
+            const SizedBox(height: AppSpacing.small),
             Wrap(
               spacing: AppSpacing.small,
               runSpacing: AppSpacing.small,
@@ -701,10 +617,10 @@ class _TurnoDialogState extends State<_TurnoDialog> {
                 return FilterChip(
                   label: Text(
                     turno['nombre'],
-                    style: AppTextStyles.bodyDark(context).copyWith(
+                    style: TextStyle(
                       color: _nombreController.text == turno['nombre']
                           ? _parseColor(turno['color'])
-                          : _getTextColor(context),
+                          : AppColors.textPrimary,
                     ),
                   ),
                   selected: _nombreController.text == turno['nombre'],
@@ -713,112 +629,67 @@ class _TurnoDialogState extends State<_TurnoDialog> {
                       _seleccionarTurnoPredefinido(turno);
                     }
                   },
-                  backgroundColor:
-                      Theme.of(context).brightness == Brightness.dark
-                      ? Colors.grey.shade800
-                      : Colors.grey.shade100,
+                  backgroundColor: Colors.grey.shade100,
                   selectedColor: _parseColor(turno['color']).withOpacity(0.2),
                   checkmarkColor: _parseColor(turno['color']),
                 );
               }).toList(),
             ),
 
-            SizedBox(height: AppSpacing.medium),
-            Divider(color: _getBorderColor(context)),
-            SizedBox(height: AppSpacing.medium),
+            const SizedBox(height: AppSpacing.medium),
+            const Divider(),
+            const SizedBox(height: AppSpacing.medium),
 
-            // NOMBRE DEL TURNO (TU DISEÑO ORIGINAL)
+            // NOMBRE DEL TURNO
             TextField(
               controller: _nombreController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Nombre del turno',
-                labelStyle: AppTextStyles.bodyDark(context),
                 hintText: 'Ej: Mañana, Tarde, Sábados, etc.',
-                hintStyle: AppTextStyles.bodyDark(
-                  context,
-                ).copyWith(color: _getSecondaryTextColor(context)),
                 border: OutlineInputBorder(),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: _getBorderColor(context)),
-                ),
               ),
-              style: AppTextStyles.bodyDark(
-                context,
-              ).copyWith(color: _getTextColor(context)),
             ),
-            SizedBox(height: AppSpacing.small),
+            const SizedBox(height: AppSpacing.small),
 
-            // HORARIO (TU DISEÑO ORIGINAL)
+            // HORARIO
             TextField(
               controller: _horarioController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Horario (Ej: 08:00 - 13:00)',
-                labelStyle: AppTextStyles.bodyDark(context),
                 hintText: 'Formato: HH:MM - HH:MM',
-                hintStyle: AppTextStyles.bodyDark(
-                  context,
-                ).copyWith(color: _getSecondaryTextColor(context)),
                 border: OutlineInputBorder(),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: _getBorderColor(context)),
-                ),
               ),
-              style: AppTextStyles.bodyDark(
-                context,
-              ).copyWith(color: _getTextColor(context)),
             ),
-            SizedBox(height: AppSpacing.small),
+            const SizedBox(height: AppSpacing.small),
 
-            // RANGO DE ASISTENCIA (TU DISEÑO ORIGINAL)
+            // RANGO DE ASISTENCIA
             TextField(
               controller: _rangoAsistenciaController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Rango para registro de asistencia',
-                labelStyle: AppTextStyles.bodyDark(context),
                 hintText: 'Ej: 07:45 - 08:15',
-                hintStyle: AppTextStyles.bodyDark(
-                  context,
-                ).copyWith(color: _getSecondaryTextColor(context)),
                 border: OutlineInputBorder(),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: _getBorderColor(context)),
-                ),
               ),
-              style: AppTextStyles.bodyDark(
-                context,
-              ).copyWith(color: _getTextColor(context)),
             ),
-            SizedBox(height: AppSpacing.small),
+            const SizedBox(height: AppSpacing.small),
 
-            // DÍAS (TU DISEÑO ORIGINAL)
+            // DÍAS
             TextField(
               controller: _diasController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Días de clase',
-                labelStyle: AppTextStyles.bodyDark(context),
                 hintText: 'Ej: Lunes a Viernes, Sábados, etc.',
-                hintStyle: AppTextStyles.bodyDark(
-                  context,
-                ).copyWith(color: _getSecondaryTextColor(context)),
                 border: OutlineInputBorder(),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: _getBorderColor(context)),
-                ),
               ),
-              style: AppTextStyles.bodyDark(
-                context,
-              ).copyWith(color: _getTextColor(context)),
             ),
-            SizedBox(height: AppSpacing.medium),
+            const SizedBox(height: AppSpacing.medium),
 
-            // SELECTOR DE ICONOS (TU DISEÑO ORIGINAL)
-            Text(
+            // SELECTOR DE ICONOS
+            const Text(
               'Ícono del turno:',
-              style: AppTextStyles.bodyDark(
-                context,
-              ).copyWith(fontWeight: FontWeight.bold),
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: AppSpacing.small),
+            const SizedBox(height: AppSpacing.small),
             Wrap(
               spacing: AppSpacing.small,
               runSpacing: AppSpacing.small,
@@ -835,7 +706,7 @@ class _TurnoDialogState extends State<_TurnoDialog> {
                     decoration: BoxDecoration(
                       color: _iconoSeleccionado == iconInfo['icon']
                           ? _parseColor(_colorController.text).withOpacity(0.2)
-                          : _getBackgroundColor(context),
+                          : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(24),
                       border: _iconoSeleccionado == iconInfo['icon']
                           ? Border.all(
@@ -848,8 +719,6 @@ class _TurnoDialogState extends State<_TurnoDialog> {
                       iconInfo['icon'],
                       color: _iconoSeleccionado == iconInfo['icon']
                           ? _parseColor(_colorController.text)
-                          : Theme.of(context).brightness == Brightness.dark
-                          ? Colors.grey.shade400
                           : Colors.grey.shade600,
                       size: 20,
                     ),
@@ -858,16 +727,14 @@ class _TurnoDialogState extends State<_TurnoDialog> {
               }).toList(),
             ),
 
-            SizedBox(height: AppSpacing.medium),
+            const SizedBox(height: AppSpacing.medium),
 
-            // SELECTOR DE COLORES (TU DISEÑO ORIGINAL)
-            Text(
+            // SELECTOR DE COLORES
+            const Text(
               'Color del turno:',
-              style: AppTextStyles.bodyDark(
-                context,
-              ).copyWith(fontWeight: FontWeight.bold),
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: AppSpacing.small),
+            const SizedBox(height: AppSpacing.small),
             Wrap(
               spacing: AppSpacing.small,
               runSpacing: AppSpacing.small,
@@ -886,32 +753,28 @@ class _TurnoDialogState extends State<_TurnoDialog> {
                       borderRadius: BorderRadius.circular(18),
                       border: _colorController.text == colorInfo['color']
                           ? Border.all(
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Colors.white
-                                  : Colors.black,
+                              color: Colors.black,
                               width: 3,
                             )
                           : null,
                     ),
                     child: _colorController.text == colorInfo['color']
-                        ? Icon(Icons.check, color: Colors.white, size: 16)
+                        ? const Icon(Icons.check, color: Colors.white, size: 16)
                         : null,
                   ),
                 );
               }).toList(),
             ),
 
-            SizedBox(height: AppSpacing.medium),
+            const SizedBox(height: AppSpacing.medium),
 
-            // VISTA PREVIA (TU DISEÑO ORIGINAL)
+            // VISTA PREVIA
             Container(
-              padding: EdgeInsets.all(AppSpacing.medium),
+              padding: const EdgeInsets.all(AppSpacing.medium),
               decoration: BoxDecoration(
-                color: _getBackgroundColor(context),
+                color: Colors.grey.shade50,
                 borderRadius: BorderRadius.circular(AppRadius.medium),
-                border: Border.all(color: _getBorderColor(context)),
+                border: Border.all(color: Colors.grey.shade300),
               ),
               child: Row(
                 children: [
@@ -919,7 +782,7 @@ class _TurnoDialogState extends State<_TurnoDialog> {
                     backgroundColor: _parseColor(_colorController.text),
                     child: Icon(_iconoSeleccionado, color: Colors.white),
                   ),
-                  SizedBox(width: AppSpacing.medium),
+                  const SizedBox(width: AppSpacing.medium),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -928,27 +791,19 @@ class _TurnoDialogState extends State<_TurnoDialog> {
                           _nombreController.text.isNotEmpty
                               ? 'Turno ${_nombreController.text}'
                               : 'Turno',
-                          style: AppTextStyles.heading3Dark(
-                            context,
-                          ).copyWith(color: _getTextColor(context)),
+                          style: AppTextStyles.heading3,
                         ),
                         Text(
                           'Horario: ${_horarioController.text}',
-                          style: AppTextStyles.bodyDark(
-                            context,
-                          ).copyWith(color: _getTextColor(context)),
+                          style: AppTextStyles.body,
                         ),
                         Text(
                           'Días: ${_diasController.text}',
-                          style: AppTextStyles.bodyDark(
-                            context,
-                          ).copyWith(color: _getTextColor(context)),
+                          style: AppTextStyles.body,
                         ),
                         Text(
                           'Registro: ${_rangoAsistenciaController.text}',
-                          style: AppTextStyles.bodyDark(
-                            context,
-                          ).copyWith(color: AppColors.success),
+                          style: AppTextStyles.body.copyWith(color: AppColors.success),
                         ),
                       ],
                     ),
@@ -962,12 +817,7 @@ class _TurnoDialogState extends State<_TurnoDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text(
-            'Cancelar',
-            style: AppTextStyles.bodyDark(
-              context,
-            ).copyWith(color: _getTextColor(context)),
-          ),
+          child: const Text('Cancelar'),
         ),
         ElevatedButton(
           onPressed: () {
@@ -985,22 +835,9 @@ class _TurnoDialogState extends State<_TurnoDialog> {
               );
             }
           },
-          child: Text(
-            'Guardar',
-            style: AppTextStyles.bodyDark(
-              context,
-            ).copyWith(color: Colors.white),
-          ),
+          child: const Text('Guardar'),
         ),
       ],
     );
-  }
-
-  Color _parseColor(String colorString) {
-    try {
-      return Color(int.parse(colorString.replaceAll('#', '0xFF')));
-    } catch (e) {
-      return AppColors.primary;
-    }
   }
 }

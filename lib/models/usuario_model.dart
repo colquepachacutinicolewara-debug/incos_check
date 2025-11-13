@@ -6,6 +6,7 @@ class Usuario {
   final String username;
   final String email;
   final String nombre;
+  final String password;
   final String role;
   final String carnet;
   final String departamento;
@@ -17,6 +18,7 @@ class Usuario {
     required this.username,
     required this.email,
     required this.nombre,
+    required this.password,
     required this.role,
     required this.carnet,
     required this.departamento,
@@ -33,6 +35,7 @@ class Usuario {
     required this.carnet,
     required this.departamento,
   })  : id = username,
+        password = 'default123',
         estaActivo = true,
         fechaRegistro = DateTime.now();
 
@@ -71,4 +74,73 @@ class Usuario {
         return Icons.person;
     }
   }
+
+  // Para SQLite
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'username': username,
+      'email': email,
+      'nombre': nombre,
+      'password': password,
+      'role': role,
+      'carnet': carnet,
+      'departamento': departamento,
+      'esta_activo': estaActivo ? 1 : 0,
+      'fecha_registro': fechaRegistro.toIso8601String(),
+    };
+  }
+
+  factory Usuario.fromMap(Map<String, dynamic> map) {
+    return Usuario(
+      id: map['id'] ?? '',
+      username: map['username'] ?? '',
+      email: map['email'] ?? '',
+      nombre: map['nombre'] ?? '',
+      password: map['password'] ?? '',
+      role: map['role'] ?? '',
+      carnet: map['carnet'] ?? '',
+      departamento: map['departamento'] ?? '',
+      estaActivo: (map['esta_activo'] ?? 1) == 1,
+      fechaRegistro: map['fecha_registro'] != null
+          ? DateTime.parse(map['fecha_registro'])
+          : DateTime.now(),
+    );
+  }
+
+  // Métodos de utilidad
+  bool get puedeGestionarUsuarios => role == 'Administrador';
+  bool get puedeGestionarAsistencias => role == 'Administrador' || role == 'Docente';
+  bool get puedeVerReportes => role == 'Administrador' || role == 'Director Académico';
+
+  String get rolDisplay {
+    switch (role) {
+      case 'Administrador':
+        return 'Administrador';
+      case 'Docente':
+        return 'Docente';
+      case 'Jefe de Carrera':
+        return 'Jefe de Carrera';
+      case 'Director Académico':
+        return 'Director Académico';
+      case 'Estudiante':
+        return 'Estudiante';
+      default:
+        return role;
+    }
+  }
+
+  @override
+  String toString() {
+    return 'Usuario($id: $nombre - $role)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is Usuario && other.id == id;
+  }
+
+  @override
+  int get hashCode => id.hashCode;
 }

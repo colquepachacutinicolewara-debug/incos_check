@@ -2,17 +2,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/carrera_model.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../repositories/data_repository.dart';
+import '../models/database_helper.dart';
 
 class CarrerasViewModel extends ChangeNotifier {
-  final DataRepository _repository;
+  final DatabaseHelper _databaseHelper = DatabaseHelper.instance; // ✅ Cambio aquí
   List<CarreraModel> _carreras = [];
   bool _isLoading = false;
   String? _error;
-  StreamSubscription? _carrerasSubscription;
 
-  CarrerasViewModel(this._repository) {
+  CarrerasViewModel() { // ✅ Constructor sin parámetros
     _loadCarreras();
   }
 
@@ -28,45 +26,24 @@ class CarrerasViewModel extends ChangeNotifier {
     return carrerasActivas.map((carrera) => carrera.nombre).toList();
   }
 
-  @override
-  void dispose() {
-    _carrerasSubscription?.cancel();
-    super.dispose();
-  }
-
-  void _loadCarreras() {
-    _isLoading = true;
-    notifyListeners();
-
-    _carrerasSubscription?.cancel();
-    
+  Future<void> _loadCarreras() async {
     try {
-      _carrerasSubscription = _repository.getCarrerasStream().listen(
-        (snapshot) {
-          _carreras = snapshot.docs.map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
-            return CarreraModel.fromFirestore(doc.id, data);
-          }).toList();
+      _isLoading = true;
+      notifyListeners();
 
-          _isLoading = false;
-          _error = null;
-          notifyListeners();
-        },
-        onError: (error) {
-          final errorStr = error.toString();
-          if (errorStr.contains('unavailable')) {
-            _error =
-                '⚠ El servicio de Firebase no está disponible temporalmente.\nPor favor, verifica tu conexión a internet y reintenta.';
-          } else {
-            _error = 'Error al cargar carreras: $error';
-          }
+      final result = await _databaseHelper.rawQuery('''
+        SELECT * FROM carreras ORDER BY nombre
+      ''');
 
-          _isLoading = false;
-          notifyListeners();
-        },
-      );
+      _carreras = result.map((row) => 
+        CarreraModel.fromMap(Map<String, dynamic>.from(row))
+      ).toList();
+
+      _isLoading = false;
+      _error = null;
+      notifyListeners();
     } catch (e) {
-      _error = 'Error inesperado al inicializar carreras: $e';
+      _error = 'Error al cargar carreras: $e';
       _isLoading = false;
       notifyListeners();
     }
@@ -76,7 +53,7 @@ class CarrerasViewModel extends ChangeNotifier {
     _error = null;
     _isLoading = true;
     notifyListeners();
-    _loadCarreras();
+    await _loadCarreras();
   }
 
   Future<void> agregarCarrera(
@@ -93,16 +70,24 @@ class CarrerasViewModel extends ChangeNotifier {
         throw Exception('El nombre de la carrera no puede estar vacío');
       }
 
-      final carreraData = {
-        'nombre': nombre.trim(),
-        'color': color,
-        'icon': _iconDataToString(icono),
-        'activa': true,
-        'fechaCreacion': FieldValue.serverTimestamp(),
-        'fechaActualizacion': FieldValue.serverTimestamp(),
-      };
+      final carreraId = 'carrera_${DateTime.now().millisecondsSinceEpoch}';
+      final now = DateTime.now().toIso8601String();
 
-      await _repository.addCarrera(carreraData);
+      await _databaseHelper.rawInsert('''
+        INSERT INTO carreras (id, nombre, color, icon_code_point, activa, 
+        fecha_creacion, fecha_actualizacion)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      ''', [
+        carreraId,
+        nombre.trim(),
+        color,
+        icono.codePoint,
+        1,
+        now,
+        now
+      ]);
+
+      await _loadCarreras(); // Recargar la lista
     } catch (e) {
       _error = 'Error al agregar carrera: ${e.toString()}';
       notifyListeners();
@@ -128,14 +113,19 @@ class CarrerasViewModel extends ChangeNotifier {
         throw Exception('El nombre de la carrera no puede estar vacío');
       }
 
-      final updateData = {
-        'nombre': nombre.trim(),
-        'color': color,
-        'icon': _iconDataToString(icono),
-        'fechaActualizacion': FieldValue.serverTimestamp(),
-      };
+      await _databaseHelper.rawUpdate('''
+        UPDATE carreras 
+        SET nombre = ?, color = ?, icon_code_point = ?, fecha_actualizacion = ?
+        WHERE id = ?
+      ''', [
+        nombre.trim(),
+        color,
+        icono.codePoint,
+        DateTime.now().toIso8601String(),
+        id
+      ]);
 
-      await _repository.updateCarrera(id, updateData);
+      await _loadCarreras(); // Recargar la lista
     } catch (e) {
       _error = 'Error al editar carrera: ${e.toString()}';
       notifyListeners();
@@ -151,12 +141,17 @@ class CarrerasViewModel extends ChangeNotifier {
       final carrera = _carreras.firstWhere((c) => c.id == id);
       final nuevoEstado = !carrera.activa;
 
-      final updateData = {
-        'activa': nuevoEstado,
-        'fechaActualizacion': FieldValue.serverTimestamp(),
-      };
+      await _databaseHelper.rawUpdate('''
+        UPDATE carreras 
+        SET activa = ?, fecha_actualizacion = ?
+        WHERE id = ?
+      ''', [
+        nuevoEstado ? 1 : 0,
+        DateTime.now().toIso8601String(),
+        id
+      ]);
 
-      await _repository.updateCarrera(id, updateData);
+      await _loadCarreras(); // Recargar la lista
     } catch (e) {
       _error = 'Error al cambiar estado de carrera: ${e.toString()}';
       notifyListeners();
@@ -169,7 +164,11 @@ class CarrerasViewModel extends ChangeNotifier {
       _isLoading = true;
       notifyListeners();
 
-      await _repository.deleteCarrera(id);
+      await _databaseHelper.rawDelete('''
+        DELETE FROM carreras WHERE id = ?
+      ''', [id]);
+
+      await _loadCarreras(); // Recargar la lista
     } catch (e) {
       _error = 'Error al eliminar carrera: ${e.toString()}';
       notifyListeners();
@@ -193,22 +192,7 @@ class CarrerasViewModel extends ChangeNotifier {
     try {
       return Color(int.parse(colorString.replaceAll('#', '0xFF')));
     } catch (e) {
-      return Colors.blue; // Color por defecto
-    }
-  }
-
-  String _iconDataToString(IconData icon) {
-    return '${icon.codePoint}:${icon.fontFamily ?? "MaterialIcons"}';
-  }
-
-  IconData _stringToIconData(String iconString) {
-    try {
-      final parts = iconString.split(':');
-      final codePoint = int.parse(parts[0]);
-      final fontFamily = parts.length > 1 ? parts[1] : 'MaterialIcons';
-      return IconData(codePoint, fontFamily: fontFamily);
-    } catch (e) {
-      return Icons.school; // Icono por defecto
+      return Colors.blue;
     }
   }
 

@@ -1,6 +1,5 @@
 // models/carrera_model.dart
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CarreraModel {
   final String id;
@@ -46,58 +45,62 @@ class CarreraModel {
       'id': id,
       'nombre': nombre,
       'color': color,
-      'icon': icon,
-      'activa': activa,
+      'icon_code_point': icon.codePoint,
+      'activa': activa ? 1 : 0,
+      'fecha_creacion': fechaCreacion?.toIso8601String() ?? DateTime.now().toIso8601String(),
+      'fecha_actualizacion': fechaActualizacion?.toIso8601String() ?? DateTime.now().toIso8601String(),
     };
   }
 
-  Map<String, dynamic> toFirestore() {
-    return {
-      'nombre': nombre,
-      'color': color,
-      'icon': _iconToCodePoint(icon),
-      'activa': activa,
-      'fechaCreacion': fechaCreacion != null 
-          ? Timestamp.fromDate(fechaCreacion!)
-          : FieldValue.serverTimestamp(),
-      'fechaActualizacion': FieldValue.serverTimestamp(),
-    };
-  }
-
-  static CarreraModel fromFirestore(String id, Map<String, dynamic> data) {
+  factory CarreraModel.fromMap(Map<String, dynamic> map) {
     return CarreraModel(
-      id: id,
-      nombre: data['nombre'] ?? '',
-      color: data['color'] ?? '#1565C0',
-      icon: _codePointToIcon(data['icon']),
-      activa: data['activa'] as bool? ?? true,
-      fechaCreacion: (data['fechaCreacion'] as Timestamp?)?.toDate(),
-      fechaActualizacion: (data['fechaActualizacion'] as Timestamp?)?.toDate(),
+      id: map['id'] ?? '',
+      nombre: map['nombre'] ?? '',
+      color: map['color'] ?? '#1565C0',
+      icon: _codePointToIcon(map['icon_code_point']),
+      activa: (map['activa'] ?? 1) == 1,
+      fechaCreacion: map['fecha_creacion'] != null 
+          ? DateTime.parse(map['fecha_creacion'])
+          : null,
+      fechaActualizacion: map['fecha_actualizacion'] != null 
+          ? DateTime.parse(map['fecha_actualizacion'])
+          : null,
     );
   }
 
-  static CarreraModel fromMap(Map<String, dynamic> map) {
-    return CarreraModel(
-      id: map['id'] as String,
-      nombre: map['nombre'] as String,
-      color: map['color'] as String,
-      icon: map['icon'] as IconData,
-      activa: map['activa'] as bool,
-    );
-  }
-
-  static String _iconToCodePoint(IconData icon) {
-    return '${icon.codePoint}:${icon.fontFamily ?? "MaterialIcons"}';
-  }
-
-  static IconData _codePointToIcon(String iconString) {
+  static IconData _codePointToIcon(dynamic codePoint) {
     try {
-      final parts = iconString.split(':');
-      final codePoint = int.parse(parts[0]);
-      final fontFamily = parts.length > 1 ? parts[1] : 'MaterialIcons';
-      return IconData(codePoint, fontFamily: fontFamily);
+      final int code = codePoint is int ? codePoint : int.tryParse(codePoint.toString()) ?? Icons.school.codePoint;
+      return IconData(code, fontFamily: 'MaterialIcons');
     } catch (e) {
-      return Icons.school; // Icono por defecto en caso de error
+      return Icons.school;
     }
   }
+
+  Color get colorValue {
+    try {
+      return Color(int.parse(color.replaceAll('#', '0xFF')));
+    } catch (e) {
+      return const Color(0xFF1565C0);
+    }
+  }
+
+  String get nombreCorto {
+    if (nombre.length <= 15) return nombre;
+    return '${nombre.substring(0, 15)}...';
+  }
+
+  @override
+  String toString() {
+    return 'CarreraModel($id: $nombre)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is CarreraModel && other.id == id;
+  }
+
+  @override
+  int get hashCode => id.hashCode;
 }

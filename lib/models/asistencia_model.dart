@@ -1,5 +1,5 @@
 // models/asistencia_model.dart
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert';
 
 class AsistenciaData {
   final String dia;
@@ -7,13 +7,19 @@ class AsistenciaData {
 
   AsistenciaData(this.dia, this.porcentaje);
 
-  // Constructor desde Firestore
-  factory AsistenciaData.fromFirestore(Map<String, dynamic> data) {
-    return AsistenciaData(data['dia'] ?? '', (data['porcentaje'] ?? 0).toInt());
+  // Constructor desde Map
+  factory AsistenciaData.fromMap(Map<String, dynamic> data) {
+    return AsistenciaData(
+      data['dia'] ?? '', 
+      (data['porcentaje'] ?? 0).toInt()
+    );
   }
 
-  Map<String, dynamic> toFirestore() {
-    return {'dia': dia, 'porcentaje': porcentaje};
+  Map<String, dynamic> toMap() {
+    return {
+      'dia': dia,
+      'porcentaje': porcentaje,
+    };
   }
 }
 
@@ -34,40 +40,52 @@ class EstadoAsistencia {
     DateTime? ultimaActualizacion,
   }) {
     return EstadoAsistencia(
-      asistenciaRegistradaHoy:
-          asistenciaRegistradaHoy ?? this.asistenciaRegistradaHoy,
+      asistenciaRegistradaHoy: asistenciaRegistradaHoy ?? this.asistenciaRegistradaHoy,
       datosAsistencia: datosAsistencia ?? this.datosAsistencia,
       ultimaActualizacion: ultimaActualizacion ?? this.ultimaActualizacion,
     );
   }
 
-  // Constructor desde Firestore
-  factory EstadoAsistencia.fromFirestore(Map<String, dynamic> data) {
-    final datosAsistencia =
-        (data['datosAsistencia'] as List<dynamic>?)
-            ?.map(
-              (item) =>
-                  AsistenciaData.fromFirestore(Map<String, dynamic>.from(item)),
-            )
-            .toList() ??
-        [];
+  // Constructor desde SQLite
+  factory EstadoAsistencia.fromMap(Map<String, dynamic> data) {
+    final datosAsistencia = <AsistenciaData>[];
+    
+    if (data['datos_asistencia'] != null && data['datos_asistencia'].toString().isNotEmpty) {
+      try {
+        final List<dynamic> datos = json.decode(data['datos_asistencia']);
+        datosAsistencia.addAll(
+          datos.map((item) => AsistenciaData.fromMap(Map<String, dynamic>.from(item)))
+        );
+      } catch (e) {
+        print('Error parsing datos_asistencia: $e');
+      }
+    }
 
     return EstadoAsistencia(
-      asistenciaRegistradaHoy: data['asistenciaRegistradaHoy'] ?? false,
+      asistenciaRegistradaHoy: (data['asistencia_registrada_hoy'] ?? 0) == 1,
       datosAsistencia: datosAsistencia,
-      ultimaActualizacion: data['ultimaActualizacion'] != null
-          ? (data['ultimaActualizacion'] as Timestamp).toDate()
+      ultimaActualizacion: data['ultima_actualizacion'] != null 
+          ? DateTime.parse(data['ultima_actualizacion'])
           : null,
     );
   }
 
-  Map<String, dynamic> toFirestore() {
+  Map<String, dynamic> toMap() {
     return {
-      'asistenciaRegistradaHoy': asistenciaRegistradaHoy,
-      'datosAsistencia': datosAsistencia
-          .map((data) => data.toFirestore())
-          .toList(),
-      'ultimaActualizacion': FieldValue.serverTimestamp(),
+      'asistencia_registrada_hoy': asistenciaRegistradaHoy ? 1 : 0,
+      'datos_asistencia': json.encode(datosAsistencia.map((data) => data.toMap()).toList()),
+      'ultima_actualizacion': ultimaActualizacion?.toIso8601String() ?? DateTime.now().toIso8601String(),
     };
+  }
+
+  // Para uso en la UI
+  int get totalAsistencias {
+    return datosAsistencia.where((data) => data.porcentaje > 0).length;
+  }
+
+  double get porcentajeTotal {
+    if (datosAsistencia.isEmpty) return 0.0;
+    final total = datosAsistencia.fold(0, (sum, data) => sum + data.porcentaje);
+    return total / datosAsistencia.length;
   }
 }

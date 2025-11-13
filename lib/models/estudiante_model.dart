@@ -1,5 +1,4 @@
-// models/estudiante_model.dart
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 class Estudiante {
   final String id;
@@ -36,84 +35,39 @@ class Estudiante {
     return {
       'id': id,
       'nombres': nombres,
-      'apellidoPaterno': apellidoPaterno,
-      'apellidoMaterno': apellidoMaterno,
+      'apellido_paterno': apellidoPaterno,
+      'apellido_materno': apellidoMaterno,
       'ci': ci,
-      'fechaRegistro': fechaRegistro,
-      'huellasRegistradas': huellasRegistradas,
-      'carreraId': carreraId,
-      'turnoId': turnoId,
-      'nivelId': nivelId,
-      'paraleloId': paraleloId,
-      'fechaCreacion': fechaCreacion?.millisecondsSinceEpoch,
-      'fechaActualizacion': fechaActualizacion?.millisecondsSinceEpoch,
+      'fecha_registro': fechaRegistro,
+      'huellas_registradas': huellasRegistradas,
+      'carrera_id': carreraId,
+      'turno_id': turnoId,
+      'nivel_id': nivelId,
+      'paralelo_id': paraleloId,
+      'fecha_creacion': fechaCreacion?.toIso8601String() ?? DateTime.now().toIso8601String(),
+      'fecha_actualizacion': fechaActualizacion?.toIso8601String() ?? DateTime.now().toIso8601String(),
     };
-  }
-
-  Map<String, dynamic> toFirestore() {
-    final map = {
-      'nombres': nombres.trim(),
-      'apellidoPaterno': apellidoPaterno.trim(),
-      'apellidoMaterno': apellidoMaterno.trim(),
-      'ci': ci.trim(),
-      'fechaRegistro': fechaRegistro,
-      'huellasRegistradas': huellasRegistradas,
-      'carreraId': carreraId,
-      'turnoId': turnoId,
-      'nivelId': nivelId,
-      'paraleloId': paraleloId,
-      'fechaActualizacion': FieldValue.serverTimestamp(),
-    };
-
-    // Solo agregar fechaCreacion si es nuevo documento o si ya existe
-    if (id.isEmpty) {
-      map['fechaCreacion'] = FieldValue.serverTimestamp();
-    } else if (fechaCreacion != null) {
-      map['fechaCreacion'] = Timestamp.fromDate(fechaCreacion!);
-    }
-
-    return map;
-  }
-
-  factory Estudiante.fromFirestore(String id, Map<String, dynamic> data) {
-    return Estudiante(
-      id: id,
-      nombres: data['nombres'] as String? ?? '',
-      apellidoPaterno: data['apellidoPaterno'] as String? ?? '',
-      apellidoMaterno: data['apellidoMaterno'] as String? ?? '',
-      ci: data['ci'] as String? ?? '',
-      fechaRegistro: data['fechaRegistro'] as String? ?? 
-          DateTime.now().toString().split(' ')[0],
-      huellasRegistradas: (data['huellasRegistradas'] as num?)?.toInt() ?? 0,
-      carreraId: data['carreraId'] as String?,
-      turnoId: data['turnoId'] as String?,
-      nivelId: data['nivelId'] as String?,
-      paraleloId: data['paraleloId'] as String?,
-      fechaCreacion: (data['fechaCreacion'] as Timestamp?)?.toDate(),
-      fechaActualizacion: (data['fechaActualizacion'] as Timestamp?)?.toDate(),
-    );
   }
 
   factory Estudiante.fromMap(Map<String, dynamic> map) {
     return Estudiante(
-      id: map['id'] as String,
-      nombres: map['nombres'] as String,
-      apellidoPaterno: map['apellidoPaterno'] as String,
-      apellidoMaterno: map['apellidoMaterno'] as String,
-      ci: map['ci'] as String,
-      fechaRegistro: map['fechaRegistro'] as String,
-      huellasRegistradas: map['huellasRegistradas'] as int,
-      carreraId: map['carreraId'] as String?,
-      turnoId: map['turnoId'] as String?,
-      nivelId: map['nivelId'] as String?,
-      paraleloId: map['paraleloId'] as String?,
-      fechaCreacion: map['fechaCreacion'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(map['fechaCreacion'] as int)
+      id: map['id']?.toString() ?? '',
+      nombres: map['nombres']?.toString() ?? '',
+      apellidoPaterno: map['apellido_paterno']?.toString() ?? '',
+      apellidoMaterno: map['apellido_materno']?.toString() ?? '',
+      ci: map['ci']?.toString() ?? '',
+      fechaRegistro: map['fecha_registro']?.toString() ?? 
+          DateFormat('yyyy-MM-dd').format(DateTime.now()),
+      huellasRegistradas: int.tryParse(map['huellas_registradas']?.toString() ?? '0') ?? 0,
+      carreraId: map['carrera_id']?.toString(),
+      turnoId: map['turno_id']?.toString(),
+      nivelId: map['nivel_id']?.toString(),
+      paraleloId: map['paralelo_id']?.toString(),
+      fechaCreacion: map['fecha_creacion'] != null
+          ? DateTime.tryParse(map['fecha_creacion'].toString())
           : null,
-      fechaActualizacion: map['fechaActualizacion'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(
-              map['fechaActualizacion'] as int,
-            )
+      fechaActualizacion: map['fecha_actualizacion'] != null
+          ? DateTime.tryParse(map['fecha_actualizacion'].toString())
           : null,
     );
   }
@@ -150,11 +104,29 @@ class Estudiante {
     );
   }
 
+  // Propiedades computadas
   String get nombreCompleto => '$apellidoPaterno $apellidoMaterno $nombres';
+  String get nombreCorto => '$nombres $apellidoPaterno';
   bool get tieneTodasLasHuellas => huellasRegistradas >= 3;
+  bool get tieneHuellasRegistradas => huellasRegistradas > 0;
+
+  String get estadoHuellas {
+    if (huellasRegistradas >= 3) return 'Completas';
+    if (huellasRegistradas > 0) return 'Parciales';
+    return 'Sin registrar';
+  }
 
   @override
   String toString() {
     return 'Estudiante($id: $nombreCompleto - $ci)';
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is Estudiante && other.id == id;
+  }
+
+  @override
+  int get hashCode => id.hashCode;
 }

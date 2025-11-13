@@ -11,7 +11,9 @@ import '../gestion/paralelos_scren.dart';
 import '../gestion/estudiantes_screen.dart';
 
 class GestionScreen extends StatefulWidget {
-  const GestionScreen({super.key});
+  final Map<String, dynamic>? userData;
+
+  const GestionScreen({super.key, this.userData});
 
   @override
   State<GestionScreen> createState() => _GestionScreenState();

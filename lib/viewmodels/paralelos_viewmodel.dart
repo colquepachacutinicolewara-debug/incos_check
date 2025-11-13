@@ -1,13 +1,10 @@
-// paralelos_viewmodel.dart
+// viewmodels/paralelos_viewmodel.dart
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:incos_check/utils/constants.dart';
-import 'package:incos_check/repositories/data_repository.dart';
-import 'package:incos_check/models/paralelo_model.dart';
-import 'dart:async';
+import '../models/paralelo_model.dart';
+import '../models/database_helper.dart';
 
 class ParalelosViewModel extends ChangeNotifier {
-  final DataRepository _repository;
+  final DatabaseHelper _databaseHelper = DatabaseHelper.instance; // ✅ Cambio aquí
 
   List<Paralelo> _paralelos = [];
   bool _isLoading = false;
@@ -19,7 +16,6 @@ class ParalelosViewModel extends ChangeNotifier {
   String? _carreraId;
   String? _turnoId;
   String? _nivelId;
-  StreamSubscription? _paralelosSubscription;
 
   List<Paralelo> get paralelos => _paralelos;
   bool get isLoading => _isLoading;
@@ -27,7 +23,7 @@ class ParalelosViewModel extends ChangeNotifier {
   TextEditingController get nombreController => _nombreController;
   TextEditingController get editarNombreController => _editarNombreController;
 
-  ParalelosViewModel(this._repository);
+  ParalelosViewModel(); // ✅ Constructor sin parámetros
 
   void inicializarYcargarParalelos(
     String carreraId,
@@ -42,34 +38,27 @@ class ParalelosViewModel extends ChangeNotifier {
     _loadParalelos();
   }
 
-  void _loadParalelos() {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    _paralelosSubscription?.cancel();
-
+  Future<void> _loadParalelos() async {
     try {
-      _paralelosSubscription = _repository
-          .getParalelosStream(_carreraId!, _turnoId!, _nivelId!)
-          .listen(
-            (snapshot) {
-              _paralelos = snapshot.docs.map((doc) {
-                return Paralelo.fromFirestore(doc);
-              }).toList();
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
 
-              _isLoading = false;
-              _error = null;
-              notifyListeners();
-            },
-            onError: (error) {
-              _error = 'Error al cargar paralelos: $error';
-              _isLoading = false;
-              notifyListeners();
-            },
-          );
+      final result = await _databaseHelper.rawQuery('''
+        SELECT * FROM paralelos 
+        WHERE activo = 1
+        ORDER BY nombre
+      ''');
+
+      _paralelos = result.map((row) => 
+        Paralelo.fromMap(Map<String, dynamic>.from(row))
+      ).toList();
+
+      _isLoading = false;
+      _error = null;
+      notifyListeners();
     } catch (e) {
-      _error = 'Error inesperado al cargar paralelos: $e';
+      _error = 'Error al cargar paralelos: $e';
       _isLoading = false;
       notifyListeners();
     }
@@ -79,28 +68,25 @@ class ParalelosViewModel extends ChangeNotifier {
     _error = null;
     _isLoading = true;
     notifyListeners();
-    _loadParalelos();
+    await _loadParalelos();
   }
 
   Future<bool> agregarParalelo(
     String nombre,
-    String carreraId,
-    String turnoId,
-    String nivelId,
     BuildContext context,
   ) async {
     try {
       _isLoading = true;
       notifyListeners();
 
-      final existe = await _repository.paraleloExists(
-        carreraId,
-        turnoId,
-        nivelId,
-        nombre,
-      );
+      // Verificar si ya existe
+      final existe = await _databaseHelper.rawQuery('''
+        SELECT COUNT(*) as count FROM paralelos 
+        WHERE UPPER(nombre) = ?
+      ''', [nombre.toUpperCase()]);
 
-      if (existe) {
+      final count = (existe.first['count'] as int?) ?? 0;
+      if (count > 0) {
         _showSnackBar(
           context,
           'Ya existe un paralelo con la letra $nombre',
@@ -111,12 +97,26 @@ class ParalelosViewModel extends ChangeNotifier {
         return false;
       }
 
-      final nuevoParalelo = Paralelo.createForFirestore(nombre: nombre);
+      final nuevoParalelo = Paralelo(
+        id: 'paralelo_${DateTime.now().millisecondsSinceEpoch}',
+        nombre: nombre.toUpperCase(),
+        activo: true,
+        estudiantes: [],
+      );
 
-      await _repository.addParalelo(carreraId, turnoId, nivelId, nuevoParalelo);
+      await _databaseHelper.rawInsert('''
+        INSERT INTO paralelos (id, nombre, activo, estudiantes, fecha_creacion, fecha_actualizacion)
+        VALUES (?, ?, ?, ?, ?, ?)
+      ''', [
+        nuevoParalelo.id,
+        nuevoParalelo.nombre,
+        nuevoParalelo.activo ? 1 : 0,
+        '[]', // estudiantes vacíos
+        DateTime.now().toIso8601String(),
+        DateTime.now().toIso8601String(),
+      ]);
 
-      _isLoading = false;
-      notifyListeners();
+      await _loadParalelos();
       return true;
     } catch (e) {
       _error = 'Error al agregar paralelo: $e';
@@ -129,21 +129,18 @@ class ParalelosViewModel extends ChangeNotifier {
   Future<bool> cambiarEstadoParalelo(
     Paralelo paralelo,
     bool nuevoEstado,
-    String carreraId,
-    String turnoId,
-    String nivelId,
   ) async {
     try {
-      await _repository.updateParalelo(
-        carreraId,
-        turnoId,
-        nivelId,
+      await _databaseHelper.rawUpdate('''
+        UPDATE paralelos SET activo = ?, fecha_actualizacion = ?
+        WHERE id = ?
+      ''', [
+        nuevoEstado ? 1 : 0,
+        DateTime.now().toIso8601String(),
         paralelo.id,
-        {
-          'activo': nuevoEstado,
-          'fechaActualizacion': FieldValue.serverTimestamp(),
-        },
-      );
+      ]);
+
+      await _loadParalelos();
       return true;
     } catch (e) {
       _error = 'Error al cambiar estado: $e';
@@ -155,23 +152,20 @@ class ParalelosViewModel extends ChangeNotifier {
   Future<bool> editarParalelo(
     Paralelo paralelo,
     String nuevoNombre,
-    String carreraId,
-    String turnoId,
-    String nivelId,
     BuildContext context,
   ) async {
     try {
       _isLoading = true;
       notifyListeners();
 
-      final existe = await _repository.paraleloExists(
-        carreraId,
-        turnoId,
-        nivelId,
-        nuevoNombre,
-      );
+      // Verificar si ya existe (excluyendo el actual)
+      final existe = await _databaseHelper.rawQuery('''
+        SELECT COUNT(*) as count FROM paralelos 
+        WHERE UPPER(nombre) = ? AND id != ?
+      ''', [nuevoNombre.toUpperCase(), paralelo.id]);
 
-      if (existe) {
+      final count = (existe.first['count'] as int?) ?? 0;
+      if (count > 0) {
         _showSnackBar(
           context,
           'Ya existe un paralelo con la letra $nuevoNombre',
@@ -182,19 +176,16 @@ class ParalelosViewModel extends ChangeNotifier {
         return false;
       }
 
-      await _repository.updateParalelo(
-        carreraId,
-        turnoId,
-        nivelId,
+      await _databaseHelper.rawUpdate('''
+        UPDATE paralelos SET nombre = ?, fecha_actualizacion = ?
+        WHERE id = ?
+      ''', [
+        nuevoNombre.toUpperCase(),
+        DateTime.now().toIso8601String(),
         paralelo.id,
-        {
-          'nombre': nuevoNombre,
-          'fechaActualizacion': FieldValue.serverTimestamp(),
-        },
-      );
+      ]);
 
-      _isLoading = false;
-      notifyListeners();
+      await _loadParalelos();
       return true;
     } catch (e) {
       _error = 'Error al editar paralelo: $e';
@@ -206,38 +197,23 @@ class ParalelosViewModel extends ChangeNotifier {
 
   Future<bool> eliminarParalelo(
     Paralelo paralelo,
-    String carreraId,
-    String turnoId,
-    String nivelId,
     BuildContext context,
   ) async {
     try {
       _isLoading = true;
       notifyListeners();
 
-      await _repository.deleteParalelo(
-        carreraId,
-        turnoId,
-        nivelId,
-        paralelo.id,
-      );
+      await _databaseHelper.rawDelete('''
+        DELETE FROM paralelos WHERE id = ?
+      ''', [paralelo.id]);
 
-      _isLoading = false;
-      notifyListeners();
+      await _loadParalelos();
       return true;
     } catch (e) {
       _error = 'Error al eliminar paralelo: $e';
       _isLoading = false;
       notifyListeners();
       return false;
-    }
-  }
-
-  Color parseColor(String colorString) {
-    try {
-      return Color(int.parse(colorString.replaceAll('#', '0xFF')));
-    } catch (e) {
-      return AppColors.primary;
     }
   }
 
@@ -256,10 +232,11 @@ class ParalelosViewModel extends ChangeNotifier {
     );
   }
 
+  // Métodos de utilidad para temas
   Color getBackgroundColor(BuildContext context) {
     return Theme.of(context).brightness == Brightness.dark
         ? Colors.grey.shade900
-        : AppColors.background;
+        : Color(0xFFF5F5F5);
   }
 
   Color getCardColor(BuildContext context) {
@@ -298,9 +275,16 @@ class ParalelosViewModel extends ChangeNotifier {
         : Colors.blue.shade800;
   }
 
+  Color parseColor(String colorString) {
+    try {
+      return Color(int.parse(colorString.replaceAll('#', '0xFF')));
+    } catch (e) {
+      return Colors.blue;
+    }
+  }
+
   @override
   void dispose() {
-    _paralelosSubscription?.cancel();
     _nombreController.dispose();
     _editarNombreController.dispose();
     super.dispose();

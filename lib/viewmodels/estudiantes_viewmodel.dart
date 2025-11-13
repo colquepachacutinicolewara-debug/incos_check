@@ -1,4 +1,3 @@
-// viewmodels/estudiantes_viewmodel.dart
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
@@ -7,10 +6,8 @@ import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import 'dart:io';
 import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
-
-import '../repositories/data_repository.dart';
 import '../models/estudiante_model.dart';
+import '../models/database_helper.dart';
 
 class EstudiantesViewModel with ChangeNotifier {
   List<Estudiante> _estudiantes = [];
@@ -18,14 +15,14 @@ class EstudiantesViewModel with ChangeNotifier {
   final TextEditingController searchController = TextEditingController();
   Timer? _searchDebounce;
 
-  final DataRepository _repository;
-  StreamSubscription? _estudiantesSubscription;
+  final DatabaseHelper _databaseHelper = DatabaseHelper.instance;
 
-  final String tipo;
-  final Map<String, dynamic> carrera;
-  final Map<String, dynamic> turno;
-  final Map<String, dynamic> nivel;
-  final Map<String, dynamic> paralelo;
+  // Parámetros opcionales con valores por defecto
+  String tipo;
+  Map<String, dynamic> carrera;
+  Map<String, dynamic> turno;
+  Map<String, dynamic> nivel;
+  Map<String, dynamic> paralelo;
 
   bool _isLoading = true;
   bool get isLoading => _isLoading;
@@ -33,19 +30,22 @@ class EstudiantesViewModel with ChangeNotifier {
   String? _error;
   String? get error => _error;
 
+  // CONSTRUCTOR CORREGIDO - Sin parámetro DatabaseHelper requerido
   EstudiantesViewModel({
-    required this.tipo,
-    required this.carrera,
-    required this.turno,
-    required this.nivel,
-    required this.paralelo,
-    required DataRepository repository,
-  }) : _repository = repository {
+    this.tipo = 'Estudiantes',
+    Map<String, dynamic>? carrera,
+    Map<String, dynamic>? turno,
+    Map<String, dynamic>? nivel,
+    Map<String, dynamic>? paralelo,
+  }) : carrera = carrera ?? {'id': '', 'nombre': 'General', 'color': '#1565C0'},
+       turno = turno ?? {'id': '', 'nombre': 'General'},
+       nivel = nivel ?? {'id': '', 'nombre': 'General'},
+       paralelo = paralelo ?? {'id': '', 'nombre': 'General'} {
     _inicializarViewModel();
   }
 
   void _inicializarViewModel() {
-    _cargarEstudiantesDesdeFirestore();
+    _cargarEstudiantesDesdeDatabase();
     searchController.addListener(_filtrarEstudiantes);
   }
 
@@ -53,46 +53,57 @@ class EstudiantesViewModel with ChangeNotifier {
   List<Estudiante> get estudiantes => _estudiantes;
   List<Estudiante> get estudiantesFiltrados => _estudiantesFiltrados;
 
-  // ✅ CARGA DESDE FIRESTORE
-  void _cargarEstudiantesDesdeFirestore() {
+  // ✅ CARGA DESDE SQLITE
+  void _cargarEstudiantesDesdeDatabase() {
     try {
       _isLoading = true;
       _error = null;
       notifyListeners();
 
-      print('🔄 Cargando estudiantes desde Firestore...');
+      print('🔄 Cargando estudiantes desde SQLite...');
       print('   - Carrera: ${carrera['id']}');
       print('   - Turno: ${turno['id']}');
       print('   - Nivel: ${nivel['id']}');
       print('   - Paralelo: ${paralelo['id']}');
 
-      // Cancelar suscripción anterior si existe
-      _estudiantesSubscription?.cancel();
-
-      // Usar el stream específico por grupo
-      _estudiantesSubscription = _repository
-          .getEstudiantesByGrupoStream(
-            carreraId: carrera['id']?.toString() ?? '',
-            turnoId: turno['id']?.toString() ?? '',
-            nivelId: nivel['id']?.toString() ?? '',
-            paraleloId: paralelo['id']?.toString() ?? '',
-          )
-          .listen(_onEstudiantesSnapshot, onError: _onEstudiantesError);
+      _loadEstudiantesFromDB();
     } catch (e) {
       _onEstudiantesError(e);
     }
   }
 
-  void _onEstudiantesSnapshot(QuerySnapshot snapshot) {
+  Future<void> _loadEstudiantesFromDB() async {
     try {
-      print('📥 Recibidos ${snapshot.docs.length} estudiantes de Firestore');
+      String query = 'SELECT * FROM estudiantes WHERE 1=1';
+      List<Object?> params = [];
 
-      _estudiantes = snapshot.docs.map((doc) {
-        return Estudiante.fromFirestore(
-          doc.id,
-          doc.data() as Map<String, dynamic>,
-        );
-      }).toList();
+      // Agregar filtros solo si los IDs no están vacíos
+      if (carrera['id']?.toString().isNotEmpty == true) {
+        query += ' AND carrera_id = ?';
+        params.add(carrera['id']?.toString());
+      }
+      if (turno['id']?.toString().isNotEmpty == true) {
+        query += ' AND turno_id = ?';
+        params.add(turno['id']?.toString());
+      }
+      if (nivel['id']?.toString().isNotEmpty == true) {
+        query += ' AND nivel_id = ?';
+        params.add(nivel['id']?.toString());
+      }
+      if (paralelo['id']?.toString().isNotEmpty == true) {
+        query += ' AND paralelo_id = ?';
+        params.add(paralelo['id']?.toString());
+      }
+
+      query += ' ORDER BY apellido_paterno, apellido_materno, nombres';
+
+      final result = await _databaseHelper.rawQuery(query, params);
+
+      print('📥 Recibidos ${result.length} estudiantes de SQLite');
+
+      _estudiantes = result.map((row) => 
+        Estudiante.fromMap(Map<String, dynamic>.from(row))
+      ).toList();
 
       _isLoading = false;
       _error = null;
@@ -141,59 +152,74 @@ class EstudiantesViewModel with ChangeNotifier {
     });
   }
 
-  // ✅ AGREGAR ESTUDIANTE
+  // ✅ MÉTODO MEJORADO PARA OPERACIONES CRUD
+  Future<bool> _executeDatabaseOperation(
+    String operation, 
+    Future<void> Function() operationFn
+  ) async {
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+      
+      await operationFn();
+      await _loadEstudiantesFromDB();
+      
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _handleError(operation, e);
+      return false;
+    }
+  }
+
+  // ✅ AGREGAR ESTUDIANTE - MEJORADO
   Future<bool> agregarEstudiante({
     required String nombres,
     required String paterno,
     required String materno,
     required String ci,
   }) async {
-    try {
-      _isLoading = true;
-      notifyListeners();
-
-      print('🔄 Agregando estudiante: $nombres $paterno $materno');
-
+    return _executeDatabaseOperation('agregar estudiante', () async {
       // Verificar si ya existe un estudiante con el mismo CI
       final ciExists = _estudiantes.any((e) => e.ci == ci.trim());
       if (ciExists) {
-        _error = 'Ya existe un estudiante con este CI';
-        _isLoading = false;
-        notifyListeners();
-        return false;
+        throw Exception('Ya existe un estudiante con este CI');
       }
 
       // Crear el estudiante
-      final nuevoEstudiante = Estudiante(
-        id: '', // ID vacío para nuevo documento
-        nombres: nombres.trim(),
-        apellidoPaterno: paterno.trim(),
-        apellidoMaterno: materno.trim(),
-        ci: ci.trim(),
-        fechaRegistro: DateTime.now().toString().split(' ')[0],
-        huellasRegistradas: 0,
-        carreraId: carrera['id']?.toString(),
-        turnoId: turno['id']?.toString(),
-        nivelId: nivel['id']?.toString(),
-        paraleloId: paralelo['id']?.toString(),
-      );
+      final estudianteId = 'est_${DateTime.now().millisecondsSinceEpoch}';
+      final now = DateTime.now().toIso8601String();
+      final fechaRegistro = DateTime.now().toString().split(' ')[0];
 
-      // Agregar a Firestore
-      await _repository.addEstudiante(nuevoEstudiante.toFirestore());
+      // Agregar a SQLite
+      await _databaseHelper.rawInsert('''
+        INSERT INTO estudiantes (id, nombres, apellido_paterno, apellido_materno, ci,
+        fecha_registro, huellas_registradas, carrera_id, turno_id, nivel_id, paralelo_id,
+        fecha_creacion, fecha_actualizacion)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ''', [
+        estudianteId,
+        nombres.trim(),
+        paterno.trim(),
+        materno.trim(),
+        ci.trim(),
+        fechaRegistro,
+        0,
+        carrera['id']?.toString() ?? '',
+        turno['id']?.toString() ?? '',
+        nivel['id']?.toString() ?? '',
+        paralelo['id']?.toString() ?? '',
+        now,
+        now
+      ]);
 
-      _isLoading = false;
-      _error = null;
-      notifyListeners();
-
-      print('✅ Estudiante agregado exitosamente');
-      return true;
-    } catch (e) {
-      _handleError('agregar estudiante', e);
-      return false;
-    }
+      print('✅ Estudiante agregado exitosamente: $nombres $paterno');
+    });
   }
 
-  // ✅ EDITAR ESTUDIANTE
+  // ✅ EDITAR ESTUDIANTE - MEJORADO
   Future<bool> editarEstudiante({
     required String id,
     required String nombres,
@@ -201,12 +227,7 @@ class EstudiantesViewModel with ChangeNotifier {
     required String materno,
     required String ci,
   }) async {
-    try {
-      _isLoading = true;
-      notifyListeners();
-
-      print('🔄 Editando estudiante: $id');
-
+    return _executeDatabaseOperation('editar estudiante', () async {
       // Buscar el estudiante actual
       final estudianteExistente = _estudiantes.firstWhere(
         (e) => e.id == id,
@@ -217,59 +238,40 @@ class EstudiantesViewModel with ChangeNotifier {
       if (ci.trim() != estudianteExistente.ci) {
         final ciExists = _estudiantes.any((e) => e.id != id && e.ci == ci.trim());
         if (ciExists) {
-          _error = 'Ya existe otro estudiante con este CI';
-          _isLoading = false;
-          notifyListeners();
-          return false;
+          throw Exception('Ya existe otro estudiante con este CI');
         }
       }
 
-      // Crear estudiante actualizado
-      final estudianteActualizado = estudianteExistente.copyWith(
-        nombres: nombres.trim(),
-        apellidoPaterno: paterno.trim(),
-        apellidoMaterno: materno.trim(),
-        ci: ci.trim(),
-      );
+      // Actualizar en SQLite
+      await _databaseHelper.rawUpdate('''
+        UPDATE estudiantes 
+        SET nombres = ?, apellido_paterno = ?, apellido_materno = ?, ci = ?,
+            fecha_actualizacion = ?
+        WHERE id = ?
+      ''', [
+        nombres.trim(),
+        paterno.trim(),
+        materno.trim(),
+        ci.trim(),
+        DateTime.now().toIso8601String(),
+        id
+      ]);
 
-      // Actualizar en Firestore
-      await _repository.updateEstudiante(
-        id,
-        estudianteActualizado.toFirestore(),
-      );
-
-      _isLoading = false;
-      _error = null;
-      notifyListeners();
-
-      print('✅ Estudiante editado exitosamente');
-      return true;
-    } catch (e) {
-      _handleError('editar estudiante', e);
-      return false;
-    }
+      print('✅ Estudiante editado exitosamente: $id');
+    });
   }
 
-  // ✅ ELIMINAR ESTUDIANTE
+  // ✅ ELIMINAR ESTUDIANTE - MEJORADO
   Future<bool> eliminarEstudiante(String id) async {
-    try {
-      _isLoading = true;
-      notifyListeners();
-
+    return _executeDatabaseOperation('eliminar estudiante', () async {
       print('🔄 Eliminando estudiante: $id');
 
-      await _repository.deleteEstudiante(id);
+      await _databaseHelper.rawDelete('''
+        DELETE FROM estudiantes WHERE id = ?
+      ''', [id]);
 
-      _isLoading = false;
-      _error = null;
-      notifyListeners();
-
-      print('✅ Estudiante eliminado exitosamente');
-      return true;
-    } catch (e) {
-      _handleError('eliminar estudiante', e);
-      return false;
-    }
+      print('✅ Estudiante eliminado exitosamente: $id');
+    });
   }
 
   // ✅ ACTUALIZAR HUELLAS
@@ -278,14 +280,20 @@ class EstudiantesViewModel with ChangeNotifier {
     int huellasRegistradas,
   ) async {
     try {
-      print(
-        '🔄 Actualizando huellas del estudiante: $id a $huellasRegistradas',
-      );
+      print('🔄 Actualizando huellas del estudiante: $id a $huellasRegistradas');
 
-      await _repository.updateEstudiante(id, {
-        'huellasRegistradas': huellasRegistradas,
-        'fechaActualizacion': FieldValue.serverTimestamp(),
-      });
+      await _databaseHelper.rawUpdate('''
+        UPDATE estudiantes 
+        SET huellas_registradas = ?, fecha_actualizacion = ?
+        WHERE id = ?
+      ''', [
+        huellasRegistradas,
+        DateTime.now().toIso8601String(),
+        id
+      ]);
+
+      // Recargar la lista para reflejar los cambios
+      await _loadEstudiantesFromDB();
 
       print('✅ Huellas actualizadas exitosamente');
       return true;
@@ -302,7 +310,7 @@ class EstudiantesViewModel with ChangeNotifier {
     _error = null;
     _isLoading = true;
     notifyListeners();
-    _cargarEstudiantesDesdeFirestore();
+    await _loadEstudiantesFromDB();
   }
 
   // ✅ MÉTODO HELPER PARA ERRORES
@@ -313,55 +321,19 @@ class EstudiantesViewModel with ChangeNotifier {
     notifyListeners();
   }
 
-  // ✅ MÉTODOS DE EXPORTACIÓN (MANTENIDOS)
+  // ✅ MÉTODOS DE EXPORTACIÓN
   Future<void> exportarExcel({
     bool simple = true,
     String asignatura = 'BASE DE DATOS II',
   }) async {
     try {
-      final sb = StringBuffer();
-      sb.writeln('INSTITUCIÓN,$asignatura,,');
-      sb.writeln(
-        'CARRERA: ${carrera['nombre']},TURNO: ${turno['nombre']},NIVEL: ${nivel['nombre']},PARAL: ${paralelo['nombre']}',
-      );
-      sb.writeln();
-
-      final estudiantesExportar = _estudiantesFiltrados;
-      estudiantesExportar.sort((a, b) {
-        int c = a.apellidoPaterno.compareTo(b.apellidoPaterno);
-        if (c != 0) return c;
-        c = a.apellidoMaterno.compareTo(b.apellidoMaterno);
-        if (c != 0) return c;
-        return a.nombres.compareTo(b.nombres);
-      });
-
-      if (simple) {
-        sb.writeln('NRO,ESTUDIANTE');
-        int nro = 1;
-        for (var e in estudiantesExportar) {
-          final name = '${e.apellidoPaterno} ${e.apellidoMaterno} ${e.nombres}'
-              .replaceAll(',', '');
-          sb.writeln('$nro,"$name"');
-          nro++;
-        }
-      } else {
-        sb.writeln('NRO,ESTUDIANTE,CI,FECHA REGISTRO,HUELLAS');
-        int nro = 1;
-        for (var e in estudiantesExportar) {
-          final name = '${e.apellidoPaterno} ${e.apellidoMaterno} ${e.nombres}'
-              .replaceAll(',', '');
-          sb.writeln(
-            '$nro,"$name",${e.ci},${e.fechaRegistro},${e.huellasRegistradas}/3',
-          );
-          nro++;
-        }
-      }
-
+      final csvContent = buildCsvString(simple, asignatura);
+      
       final dir = await getTemporaryDirectory();
       final file = File(
         '${dir.path}/lista_estudiantes_${DateTime.now().millisecondsSinceEpoch}.csv',
       );
-      await file.writeAsString(sb.toString(), flush: true);
+      await file.writeAsString(csvContent, flush: true);
       await Share.shareXFiles([XFile(file.path)], text: 'Lista de estudiantes');
     } catch (e) {
       rethrow;
@@ -523,7 +495,6 @@ class EstudiantesViewModel with ChangeNotifier {
   @override
   void dispose() {
     _searchDebounce?.cancel();
-    _estudiantesSubscription?.cancel();
     searchController.dispose();
     super.dispose();
   }

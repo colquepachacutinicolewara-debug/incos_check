@@ -1,7 +1,5 @@
 // models/materia_model.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Materia {
   final String id;
@@ -30,10 +28,13 @@ class Materia {
     this.updatedAt,
   });
 
+  // Propiedades computadas
   String get nombreCompleto => '$codigo - $nombre';
   String get anioDisplay => '$anio° Año';
   String get paraleloDisplay => 'Paralelo $paralelo';
   String get turnoDisplay => 'Turno $turno';
+
+  String get displayInfo => '$codigo - $nombre ($paralelo)';
 
   Materia copyWith({
     String? id,
@@ -70,80 +71,65 @@ class Materia {
       'nombre': nombre,
       'carrera': carrera,
       'anio': anio,
-      'color': color.value,
-      'activo': activo,
+      'color': color.value.toRadixString(16).padLeft(8, '0').toUpperCase(),
+      'activo': activo ? 1 : 0,
       'paralelo': paralelo,
       'turno': turno,
-      'createdAt': createdAt?.millisecondsSinceEpoch,
-      'updatedAt': updatedAt?.millisecondsSinceEpoch,
-    };
-  }
-
-  Map<String, dynamic> toFirestoreMap() {
-    return {
-      'codigo': codigo,
-      'nombre': nombre,
-      'carrera': carrera,
-      'anio': anio,
-      'color': color.value,
-      'activo': activo,
-      'paralelo': paralelo,
-      'turno': turno,
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
+      'created_at': createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
     };
   }
 
   factory Materia.fromMap(Map<String, dynamic> map) {
+    Color parseColor(String colorString) {
+      try {
+        // Si es un string hexadecimal (con o sin #)
+        String hexColor = colorString.replaceAll('#', '');
+        if (hexColor.length == 6) {
+          hexColor = 'FF$hexColor'; // Agregar alpha
+        }
+        return Color(int.parse(hexColor, radix: 16));
+      } catch (e) {
+        return const Color(0xFF1565C0);
+      }
+    }
+
     return Materia(
       id: map['id'] ?? '',
       codigo: map['codigo'] ?? '',
       nombre: map['nombre'] ?? '',
       carrera: map['carrera'] ?? '',
       anio: map['anio'] ?? 1,
-      color: Color(map['color'] ?? 0xFF1565C0),
-      activo: map['activo'] ?? true,
+      color: parseColor(map['color']?.toString() ?? 'FF1565C0'),
+      activo: (map['activo'] ?? 1) == 1,
       paralelo: map['paralelo'] ?? 'A',
       turno: map['turno'] ?? 'Mañana',
-      createdAt: map['createdAt'] != null 
-          ? DateTime.fromMillisecondsSinceEpoch(map['createdAt'])
+      createdAt: map['created_at'] != null 
+          ? DateTime.parse(map['created_at'])
           : null,
-      updatedAt: map['updatedAt'] != null 
-          ? DateTime.fromMillisecondsSinceEpoch(map['updatedAt'])
+      updatedAt: map['updated_at'] != null 
+          ? DateTime.parse(map['updated_at'])
           : null,
     );
   }
 
-  factory Materia.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return Materia(
-      id: doc.id,
-      codigo: data['codigo'] ?? '',
-      nombre: data['nombre'] ?? '',
-      carrera: data['carrera'] ?? '',
-      anio: data['anio'] ?? 1,
-      color: Color(data['color'] ?? 0xFF1565C0),
-      activo: data['activo'] ?? true,
-      paralelo: data['paralelo'] ?? 'A',
-      turno: data['turno'] ?? 'Mañana',
-      createdAt: data['createdAt']?.toDate(),
-      updatedAt: data['updatedAt']?.toDate(),
-    );
+  @override
+  String toString() {
+    return 'Materia($id: $nombreCompleto)';
   }
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     return other is Materia &&
+        other.id == id &&
         other.codigo == codigo &&
         other.paralelo == paralelo &&
-        other.turno == turno &&
-        other.anio == anio &&
-        other.carrera == carrera;
+        other.turno == turno;
   }
 
   @override
   int get hashCode {
-    return codigo.hashCode ^ paralelo.hashCode ^ turno.hashCode ^ anio.hashCode ^ carrera.hashCode;
+    return id.hashCode ^ codigo.hashCode ^ paralelo.hashCode ^ turno.hashCode;
   }
 }

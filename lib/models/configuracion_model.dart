@@ -1,7 +1,6 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
+// models/configuracion_model.dart
 class ConfiguracionModel {
-  final String? id; // ID del documento en Firestore
+  final String? id;
   bool notificationsEnabled;
   bool darkModeEnabled;
   bool biometricEnabled;
@@ -25,6 +24,7 @@ class ConfiguracionModel {
 
   factory ConfiguracionModel.defaultValues() {
     return ConfiguracionModel(
+      id: 'config_default',
       notificationsEnabled: true,
       darkModeEnabled: false,
       biometricEnabled: false,
@@ -36,34 +36,33 @@ class ConfiguracionModel {
     );
   }
 
-  // Convertir a Map para Firestore
   Map<String, dynamic> toMap() {
     return {
-      'notificationsEnabled': notificationsEnabled,
-      'darkModeEnabled': darkModeEnabled,
-      'biometricEnabled': biometricEnabled,
-      'autoSyncEnabled': autoSyncEnabled,
-      'selectedLanguage': selectedLanguage,
-      'selectedTheme': selectedTheme,
-      'cacheSize': cacheSize,
-      'lastUpdated': FieldValue.serverTimestamp(),
+      'id': id ?? 'config_default',
+      'notifications_enabled': notificationsEnabled ? 1 : 0,
+      'dark_mode_enabled': darkModeEnabled ? 1 : 0,
+      'biometric_enabled': biometricEnabled ? 1 : 0,
+      'auto_sync_enabled': autoSyncEnabled ? 1 : 0,
+      'selected_language': selectedLanguage,
+      'selected_theme': selectedTheme,
+      'cache_size': cacheSize,
+      'last_updated': lastUpdated?.toIso8601String() ?? DateTime.now().toIso8601String(),
     };
   }
 
-  factory ConfiguracionModel.fromFirestore(
-    String id,
-    Map<String, dynamic> data,
-  ) {
+  factory ConfiguracionModel.fromMap(Map<String, dynamic> map) {
     return ConfiguracionModel(
-      id: id,
-      notificationsEnabled: data['notificationsEnabled'] ?? true,
-      darkModeEnabled: data['darkModeEnabled'] ?? false,
-      biometricEnabled: data['biometricEnabled'] ?? false,
-      autoSyncEnabled: data['autoSyncEnabled'] ?? true,
-      selectedLanguage: data['selectedLanguage'] ?? 'Español',
-      selectedTheme: data['selectedTheme'] ?? 'Sistema',
-      cacheSize: data['cacheSize'] ?? "15.2 MB",
-      lastUpdated: (data['lastUpdated'] as Timestamp?)?.toDate(),
+      id: map['id'],
+      notificationsEnabled: (map['notifications_enabled'] ?? 1) == 1,
+      darkModeEnabled: (map['dark_mode_enabled'] ?? 0) == 1,
+      biometricEnabled: (map['biometric_enabled'] ?? 0) == 1,
+      autoSyncEnabled: (map['auto_sync_enabled'] ?? 1) == 1,
+      selectedLanguage: map['selected_language'] ?? 'Español',
+      selectedTheme: map['selected_theme'] ?? 'Sistema',
+      cacheSize: map['cache_size'] ?? "15.2 MB",
+      lastUpdated: map['last_updated'] != null 
+          ? DateTime.parse(map['last_updated'])
+          : null,
     );
   }
 
@@ -89,5 +88,15 @@ class ConfiguracionModel {
       cacheSize: cacheSize ?? this.cacheSize,
       lastUpdated: lastUpdated ?? this.lastUpdated,
     );
+  }
+
+  // Métodos de utilidad
+  bool get isDarkMode => darkModeEnabled;
+  bool get hasBiometricAccess => biometricEnabled;
+  bool get shouldAutoSync => autoSyncEnabled;
+
+  @override
+  String toString() {
+    return 'ConfiguracionModel($id: $selectedLanguage - $selectedTheme)';
   }
 }

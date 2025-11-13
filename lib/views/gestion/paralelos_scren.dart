@@ -1,10 +1,10 @@
 // views/paralelos_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:incos_check/utils/constants.dart';
-import 'package:incos_check/viewmodels/paralelos_viewmodel.dart';
-import 'package:incos_check/models/paralelo_model.dart';
-import 'package:incos_check/views/gestion/estudiantes_screen.dart';
+import '../../utils/constants.dart';
+import '../../viewmodels/paralelos_viewmodel.dart';
+import '../../models/paralelo_model.dart';
+import 'estudiantes_screen.dart';
 
 class ParalelosScreen extends StatefulWidget {
   final String tipo;
@@ -44,44 +44,47 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ParalelosViewModel>(
-      builder: (context, viewModel, child) {
-        Color carreraColor = _parseColor(widget.carrera['color']);
+    return ChangeNotifierProvider(
+      create: (context) => ParalelosViewModel(), // ✅ Sin parámetros
+      child: Consumer<ParalelosViewModel>(
+        builder: (context, viewModel, child) {
+          Color carreraColor = _parseColor(widget.carrera['color']);
 
-        return Scaffold(
-          backgroundColor: viewModel.getBackgroundColor(context),
-          appBar: AppBar(
-            title: Text(
-              '${widget.carrera['nombre']} - ${widget.turno['nombre']} - ${widget.nivel['nombre']}',
-              style: AppTextStyles.heading2.copyWith(color: Colors.white),
-            ),
-            backgroundColor: carreraColor,
-            iconTheme: const IconThemeData(color: Colors.white),
-            actions: [
-              if (viewModel.isLoading)
-                const Padding(
-                  padding: EdgeInsets.only(right: 16.0),
-                  child: Center(
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+          return Scaffold(
+            backgroundColor: viewModel.getBackgroundColor(context),
+            appBar: AppBar(
+              title: Text(
+                'Paralelos - ${widget.carrera['nombre']}',
+                style: AppTextStyles.heading2.copyWith(color: Colors.white),
+              ),
+              backgroundColor: carreraColor,
+              iconTheme: const IconThemeData(color: Colors.white),
+              actions: [
+                if (viewModel.isLoading)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 16.0),
+                    child: Center(
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
                       ),
                     ),
                   ),
-                ),
-            ],
-          ),
-          body: _buildBody(viewModel, context, carreraColor),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () => _showAgregarParaleloDialog(viewModel),
-            backgroundColor: carreraColor,
-            child: const Icon(Icons.add, color: Colors.white),
-          ),
-        );
-      },
+              ],
+            ),
+            body: _buildBody(viewModel, context, carreraColor),
+            floatingActionButton: FloatingActionButton(
+              onPressed: () => _showAgregarParaleloDialog(viewModel),
+              backgroundColor: carreraColor,
+              child: const Icon(Icons.add, color: Colors.white),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -283,9 +286,6 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
     final success = await viewModel.cambiarEstadoParalelo(
       paralelo,
       nuevoEstado,
-      widget.carrera['id'].toString(),
-      widget.turno['id'].toString(),
-      widget.nivel['id'].toString(),
     );
 
     if (!success && context.mounted) {
@@ -406,9 +406,6 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
                     if (viewModel.nombreController.text.trim().isNotEmpty) {
                       final success = await viewModel.agregarParalelo(
                         viewModel.nombreController.text.trim().toUpperCase(),
-                        widget.carrera['id'].toString(),
-                        widget.turno['id'].toString(),
-                        widget.nivel['id'].toString(),
                         context,
                       );
 
@@ -542,9 +539,6 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
                         viewModel.editarNombreController.text
                             .trim()
                             .toUpperCase(),
-                        widget.carrera['id'].toString(),
-                        widget.turno['id'].toString(),
-                        widget.nivel['id'].toString(),
                         context,
                       );
 
@@ -611,9 +605,6 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
                 : () async {
                     final success = await viewModel.eliminarParalelo(
                       paralelo,
-                      widget.carrera['id'].toString(),
-                      widget.turno['id'].toString(),
-                      widget.nivel['id'].toString(),
                       context,
                     );
 

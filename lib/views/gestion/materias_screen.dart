@@ -1,10 +1,9 @@
 // views/materia_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../utils/constants.dart';
-import '../../../models/materia_model.dart';
-import '../../../viewmodels/materia_viewmodel.dart';
-import '../../../repositories/data_repository.dart';
+import '../../utils/constants.dart';
+import '../../models/materia_model.dart';
+import '../../viewmodels/materia_viewmodel.dart';
 
 class MateriasScreen extends StatefulWidget {
   const MateriasScreen({super.key});
@@ -17,10 +16,7 @@ class _MateriasScreenState extends State<MateriasScreen> {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) {
-        final repository = context.read<DataRepository>();
-        return MateriaViewModel(repository);
-      },
+      create: (context) => MateriaViewModel(), // ✅ Sin parámetros
       child: Scaffold(
         backgroundColor: _getBackgroundColor(context),
         appBar: AppBar(
@@ -865,7 +861,11 @@ class _MateriasScreenState extends State<MateriasScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: viewModel.isLoading ? null : () {
-                      viewModel.agregarMateria();
+                      if (viewModel.materiaEditandoId.isEmpty) {
+                        viewModel.agregarMateria();
+                      } else {
+                        viewModel.actualizarMateria();
+                      }
                       if (!viewModel.isLoading) {
                         Navigator.of(context).pop();
                       }

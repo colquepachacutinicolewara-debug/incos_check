@@ -1,13 +1,13 @@
 // views/carreras_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:incos_check/utils/constants.dart';
+import '../../utils/constants.dart';
 import 'docentes_screen.dart';
 import 'turnos_screen.dart';
 import '../../views/gestion/programas/programas_screen.dart';
 import '../../viewmodels/carreras_viewmodel.dart';
 import '../../models/carrera_model.dart';
-import '../../repositories/data_repository.dart';
+
 
 class CarrerasScreen extends StatefulWidget {
   final String tipo;
@@ -78,10 +78,7 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) {
-        final repository = context.read<DataRepository>();
-        return CarrerasViewModel(repository);
-      },
+      create: (context) => CarrerasViewModel(),
       child: Consumer<CarrerasViewModel>(
         builder: (context, viewModel, child) {
           // Manejar navegación a ProgramasScreen

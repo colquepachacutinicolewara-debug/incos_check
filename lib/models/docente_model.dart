@@ -1,7 +1,4 @@
-// docente_model.dart
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../utils/constants.dart';
-
+// models/docente_model.dart
 class Docente {
   final String id;
   final String apellidoPaterno;
@@ -31,7 +28,6 @@ class Docente {
     this.fechaActualizacion,
   });
 
-  // Método copyWith mejorado
   Docente copyWith({
     String? id,
     String? apellidoPaterno,
@@ -62,12 +58,11 @@ class Docente {
     );
   }
 
-  // Para uso local
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'apellidoPaterno': apellidoPaterno,
-      'apellidoMaterno': apellidoMaterno,
+      'apellido_paterno': apellidoPaterno,
+      'apellido_materno': apellidoMaterno,
       'nombres': nombres,
       'ci': ci,
       'carrera': carrera,
@@ -75,80 +70,61 @@ class Docente {
       'email': email,
       'telefono': telefono,
       'estado': estado,
-      'fechaCreacion': fechaCreacion?.millisecondsSinceEpoch,
-      'fechaActualizacion': fechaActualizacion?.millisecondsSinceEpoch,
+      'fecha_creacion': fechaCreacion?.toIso8601String() ?? DateTime.now().toIso8601String(),
+      'fecha_actualizacion': fechaActualizacion?.toIso8601String() ?? DateTime.now().toIso8601String(),
     };
   }
 
-  // Para Firestore - CORREGIDO
-  Map<String, dynamic> toFirestore() {
-    final map = {
-      'apellidoPaterno': apellidoPaterno,
-      'apellidoMaterno': apellidoMaterno,
-      'nombres': nombres,
-      'ci': ci,
-      'carrera': carrera,
-      'turno': turno,
-      'email': email,
-      'telefono': telefono,
-      'estado': estado,
-      'fechaActualizacion': FieldValue.serverTimestamp(),
-    };
-
-    // Solo agregar fechaCreacion si es nuevo documento
-    if (id.isEmpty) {
-      map['fechaCreacion'] = FieldValue.serverTimestamp();
-    } else if (fechaCreacion != null) {
-      map['fechaCreacion'] = Timestamp.fromDate(fechaCreacion!);
-    }
-
-    return map;
-  }
-
-  // Factory desde Firestore - CORREGIDO
-  factory Docente.fromFirestore(String id, Map<String, dynamic> data) {
-    return Docente(
-      id: id,
-      apellidoPaterno: data['apellidoPaterno'] as String? ?? '',
-      apellidoMaterno: data['apellidoMaterno'] as String? ?? '',
-      nombres: data['nombres'] as String? ?? '',
-      ci: data['ci'] as String? ?? '',
-      carrera: data['carrera'] as String? ?? '',
-      turno: data['turno'] as String? ?? 'MAÑANA',
-      email: data['email'] as String? ?? '',
-      telefono: data['telefono'] as String? ?? '',
-      estado: data['estado'] as String? ?? Estados.activo,
-      fechaCreacion: (data['fechaCreacion'] as Timestamp?)?.toDate(),
-      fechaActualizacion: (data['fechaActualizacion'] as Timestamp?)?.toDate(),
-    );
-  }
-
-  // Factory desde Map local
   factory Docente.fromMap(Map<String, dynamic> map) {
     return Docente(
-      id: map['id'] as String,
-      apellidoPaterno: map['apellidoPaterno'] as String,
-      apellidoMaterno: map['apellidoMaterno'] as String,
-      nombres: map['nombres'] as String,
-      ci: map['ci'] as String,
-      carrera: map['carrera'] as String,
-      turno: map['turno'] as String,
-      email: map['email'] as String,
-      telefono: map['telefono'] as String,
-      estado: map['estado'] as String,
-      fechaCreacion: map['fechaCreacion'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(map['fechaCreacion'] as int)
+      id: map['id'] ?? '',
+      apellidoPaterno: map['apellido_paterno'] ?? '',
+      apellidoMaterno: map['apellido_materno'] ?? '',
+      nombres: map['nombres'] ?? '',
+      ci: map['ci'] ?? '',
+      carrera: map['carrera'] ?? '',
+      turno: map['turno'] ?? 'MAÑANA',
+      email: map['email'] ?? '',
+      telefono: map['telefono'] ?? '',
+      estado: map['estado'] ?? 'ACTIVO',
+      fechaCreacion: map['fecha_creacion'] != null
+          ? DateTime.parse(map['fecha_creacion'])
           : null,
-      fechaActualizacion: map['fechaActualizacion'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(
-              map['fechaActualizacion'] as int,
-            )
+      fechaActualizacion: map['fecha_actualizacion'] != null
+          ? DateTime.parse(map['fecha_actualizacion'])
           : null,
     );
+  }
+
+  // Propiedades computadas
+  String get nombreCompleto => '$nombres $apellidoPaterno $apellidoMaterno';
+  String get nombreCorto => '$nombres $apellidoPaterno';
+  bool get estaActivo => estado == 'ACTIVO';
+
+  String get turnoDisplay {
+    switch (turno.toUpperCase()) {
+      case 'MAÑANA':
+        return 'Mañana';
+      case 'TARDE':
+        return 'Tarde';
+      case 'NOCHE':
+        return 'Noche';
+      default:
+        return turno;
+    }
   }
 
   @override
   String toString() {
-    return 'Docente($id: $nombres $apellidoPaterno $apellidoMaterno)';
+    return 'Docente($id: $nombreCompleto - $ci)';
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is Docente && other.id == id;
+  }
+
+  @override
+  int get hashCode => id.hashCode;
 }

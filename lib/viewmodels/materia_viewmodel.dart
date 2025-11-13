@@ -1,12 +1,11 @@
 // viewmodels/materia_viewmodel.dart
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../repositories/data_repository.dart';
 import '../models/materia_model.dart';
-import '../../../utils/constants.dart';
+import '../models/database_helper.dart';
+import '../utils/constants.dart';
 
 class MateriaViewModel extends ChangeNotifier {
-  final DataRepository _repository;
+  final DatabaseHelper _databaseHelper = DatabaseHelper.instance; // ✅ Cambio aquí
   
   List<Materia> _materias = [];
   List<Materia> _materiasFiltradas = [];
@@ -19,7 +18,6 @@ class MateriaViewModel extends ChangeNotifier {
   String _turnoFiltro = 'Todos';
   int _anioSeleccionado = 1;
 
-
   // Estados
   bool _isLoading = false;
   String? _error;
@@ -27,7 +25,6 @@ class MateriaViewModel extends ChangeNotifier {
   String _mensajeBurbuja = '';
   Color _colorBurbuja = Colors.green;
   
-
   // Controladores para el formulario
   final TextEditingController _codigoController = TextEditingController();
   final TextEditingController _nombreController = TextEditingController();
@@ -84,75 +81,108 @@ class MateriaViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  MateriaViewModel(this._repository) {
+  MateriaViewModel() { // ✅ Constructor sin parámetros
     _initialize();
     _searchController.addListener(_filtrarMateriasHistorial);
   }
 
   void _initialize() async {
-    // Primero cargar las materias predefinidas
-    _cargarTodasLasMateriasCompletas();
-    
-    // Luego cargar opciones dinámicas y materias de Firestore
-    await _cargarOpcionesDisponibles();
-    _cargarMateriasEnTiempoReal();
+    await _cargarMateriasDesdeDatabase();
   }
 
-  Future<void> _cargarOpcionesDisponibles() async {
+  // ✅ CARGA DESDE SQLITE - MANTIENE TUS MATERIAS PREDEFINIDAS
+  Future<void> _cargarMateriasDesdeDatabase() async {
     try {
-      // Cargar carreras activas desde Firestore
-      final carreras = await _repository.getCarrerasActivas();
-      _carrerasDisponibles = carreras.map((c) => c['nombre'] as String).toList();
-      
-      // Si no hay carreras, usar la predeterminada
-      if (_carrerasDisponibles.isEmpty) {
-        _carrerasDisponibles = ['Sistemas Informáticos'];
-      }
-      
-      // Actualizar la selección del formulario
-      _carreraSeleccionadaForm = _carrerasDisponibles.first;
+      _isLoading = true;
       notifyListeners();
-    } catch (e) {
-      print('Error al cargar carreras: $e');
-    }
-  }
 
-  void _cargarMateriasEnTiempoReal() {
-    _repository.getMateriasStream().listen((snapshot) {
-      // Obtener materias de Firestore
-      final materiasFirestore = snapshot.docs.map((doc) {
-        return Materia.fromFirestore(doc);
-      }).toList();
+      // Primero verificar si hay materias en la base de datos
+      final result = await _databaseHelper.rawQuery('''
+        SELECT COUNT(*) as count FROM materias 
+        WHERE carrera = 'Sistemas Informáticos'
+      ''');
 
-      // Combinar materias predefinidas con las de Firestore
-      // Evitar duplicados basados en ID
-      final Map<String, Materia> todasLasMaterias = {};
-      
-      // Primero agregar todas las materias predefinidas
-      for (var materia in _materias) {
-        todasLasMaterias[materia.id] = materia;
-      }
-      
-      // Luego agregar/actualizar con las de Firestore
-      for (var materia in materiasFirestore) {
-        todasLasMaterias[materia.id] = materia;
+      final count = (result.first['count'] as int?) ?? 0;
+
+      if (count == 0) {
+        // Si no hay materias, insertar todas las predefinidas
+        await _insertarMateriasPredefinidas();
+      } else {
+        // Si ya hay materias, cargarlas desde la base de datos
+        await _cargarMateriasExistentes();
       }
 
-      _materias = todasLasMaterias.values.toList();
       _aplicarFiltros();
       _error = null;
       _isLoading = false;
       notifyListeners();
-    }, onError: (error) {
-      _error = error.toString();
+    } catch (e) {
+      _error = 'Error al cargar materias: $e';
       _isLoading = false;
       notifyListeners();
-    });
+    }
   }
 
-  // ========== TUS MATERIAS PREDEFINIDAS - SE MANTIENEN ==========
+  // ✅ INSERTAR TODAS TUS MATERIAS PREDEFINIDAS EN SQLITE
+  Future<void> _insertarMateriasPredefinidas() async {
+    try {
+      _materias.clear();
+      
+      // Cargar todas tus materias predefinidas
+      _cargarTodasLasMateriasCompletas();
+      
+      // Insertar cada materia en SQLite
+      for (final materia in _materias) {
+        await _databaseHelper.rawInsert('''
+          INSERT INTO materias (id, codigo, nombre, carrera, anio, color, activo,
+          paralelo, turno, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', [
+          materia.id,
+          materia.codigo,
+          materia.nombre,
+          materia.carrera,
+          materia.anio,
+          materia.color.value.toRadixString(16).padLeft(8, '0').toUpperCase(),
+          materia.activo ? 1 : 0,
+          materia.paralelo,
+          materia.turno,
+          DateTime.now().toIso8601String(),
+          DateTime.now().toIso8601String()
+        ]);
+      }
+
+      print('✅ ${_materias.length} materias predefinidas insertadas en SQLite');
+    } catch (e) {
+      print('❌ Error insertando materias predefinidas: $e');
+    }
+  }
+
+  // ✅ CARGAR MATERIAS EXISTENTES DESDE SQLITE
+  Future<void> _cargarMateriasExistentes() async {
+    try {
+      final result = await _databaseHelper.rawQuery('''
+        SELECT * FROM materias 
+        WHERE activo = 1 
+        ORDER BY carrera, anio, paralelo, turno, nombre
+      ''');
+
+      _materias = result.map((row) => 
+        Materia.fromMap(Map<String, dynamic>.from(row))
+      ).toList();
+
+      print('✅ ${_materias.length} materias cargadas desde SQLite');
+    } catch (e) {
+      print('❌ Error cargando materias desde SQLite: $e');
+      // Si hay error, cargar las predefinidas en memoria
+      _cargarTodasLasMateriasCompletas();
+    }
+  }
+
+  // ========== TUS MATERIAS PREDEFINIDAS - EXACTAMENTE COMO LAS TIENES ==========
 
   void _cargarTodasLasMateriasCompletas() {
+    _materias.clear();
     _cargarParaleloANoche();
     _cargarParaleloBNoche();
     _cargarParaleloAManana();
@@ -1139,126 +1169,6 @@ class MateriaViewModel extends ChangeNotifier {
     ]);
   }
 
-  // ========== OPERACIONES CRUD ==========
-
-  Future<void> agregarMateria() async {
-    if (_codigoController.text.isEmpty || _nombreController.text.isEmpty) {
-      _mostrarMensajeBurbuja('Complete todos los campos', Colors.red);
-      return;
-    }
-
-    // Validación mejorada de duplicados
-    final existeDuplicado = await _repository.materiaExists({
-      'codigo': _codigoController.text,
-      'paralelo': _paraleloSeleccionadoForm,
-      'turno': _turnoSeleccionadoForm,
-      'anio': _anioSeleccionadoForm,
-      'carrera': _carreraSeleccionadaForm,
-      'excludeId': _materiaEditandoId.isEmpty ? null : _materiaEditandoId,
-    });
-
-    if (existeDuplicado) {
-      _mostrarMensajeBurbuja(
-        'Ya existe esta materia con el mismo código, paralelo, turno, año y carrera',
-        Colors.red
-      );
-      return;
-    }
-
-    _isLoading = true;
-    notifyListeners();
-
-    try {
-      final nuevaMateria = Materia(
-        id: _materiaEditandoId.isEmpty 
-            ? '' // Firestore generará el ID
-            : _materiaEditandoId,
-        codigo: _codigoController.text,
-        nombre: _nombreController.text,
-        carrera: _carreraSeleccionadaForm,
-        anio: _anioSeleccionadoForm,
-        color: _colorSeleccionado,
-        paralelo: _paraleloSeleccionadoForm,
-        turno: _turnoSeleccionadoForm,
-        activo: true,
-      );
-
-      if (_materiaEditandoId.isEmpty) {
-        await _repository.addMateria(nuevaMateria.toFirestoreMap());
-        _mostrarMensajeBurbuja('Materia agregada exitosamente', Colors.green);
-      } else {
-        await _repository.updateMateria(_materiaEditandoId, nuevaMateria.toFirestoreMap());
-        _mostrarMensajeBurbuja('Materia actualizada exitosamente', Colors.blue);
-      }
-
-      _limpiarFormulario();
-    } catch (e) {
-      _mostrarMensajeBurbuja('Error: $e', Colors.red);
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  void cargarMateriaParaEditar(Materia materia) {
-    _materiaEditandoId = materia.id;
-    _codigoController.text = materia.codigo;
-    _nombreController.text = materia.nombre;
-    _carreraSeleccionadaForm = materia.carrera;
-    _anioSeleccionadoForm = materia.anio;
-    _colorSeleccionado = materia.color;
-    _paraleloSeleccionadoForm = materia.paralelo;
-    _turnoSeleccionadoForm = materia.turno;
-    notifyListeners();
-  }
-
-  Future<void> eliminarMateria(String id) async {
-    _isLoading = true;
-    notifyListeners();
-
-    try {
-      await _repository.deleteMateria(id);
-      _mostrarMensajeBurbuja('Materia eliminada exitosamente', Colors.orange);
-    } catch (e) {
-      _mostrarMensajeBurbuja('Error al eliminar: $e', Colors.red);
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  Future<void> desactivarMateria(String id) async {
-    try {
-      await _repository.updateMateria(id, {'activo': false});
-      _mostrarMensajeBurbuja('Materia desactivada', Colors.amber);
-    } catch (e) {
-      _mostrarMensajeBurbuja('Error: $e', Colors.red);
-    }
-  }
-
-  Future<void> activarMateria(String id) async {
-    try {
-      await _repository.updateMateria(id, {'activo': true});
-      _mostrarMensajeBurbuja('Materia activada', Colors.green);
-    } catch (e) {
-      _mostrarMensajeBurbuja('Error: $e', Colors.red);
-    }
-  }
-
-  void _limpiarFormulario() {
-    _materiaEditandoId = '';
-    _codigoController.clear();
-    _nombreController.clear();
-    _anioSeleccionadoForm = 1;
-    _colorSeleccionado = MateriaColors.programacion;
-    _paraleloSeleccionadoForm = 'A';
-    _turnoSeleccionadoForm = 'Mañana';
-    _carreraSeleccionadaForm = _carrerasDisponibles.isNotEmpty 
-        ? _carrerasDisponibles.first 
-        : 'Sistemas Informáticos';
-    notifyListeners();
-  }
-
   // ========== FILTRADO ==========
 
   void _aplicarFiltros() {
@@ -1292,6 +1202,174 @@ class MateriaViewModel extends ChangeNotifier {
         ),
       );
     }
+    notifyListeners();
+  }
+
+  // ========== MÉTODOS CRUD PARA SQLITE ==========
+
+  // ✅ AGREGAR NUEVA MATERIA
+  Future<void> agregarMateria() async {
+    try {
+      if (_codigoController.text.isEmpty || _nombreController.text.isEmpty) {
+        _mostrarMensajeBurbuja('Código y nombre son requeridos', Colors.orange);
+        return;
+      }
+
+      _isLoading = true;
+      notifyListeners();
+
+      final materiaId = 'materia_${DateTime.now().millisecondsSinceEpoch}';
+      final nuevaMateria = Materia(
+        id: materiaId,
+        codigo: _codigoController.text.trim(),
+        nombre: _nombreController.text.trim(),
+        carrera: _carreraSeleccionadaForm,
+        anio: _anioSeleccionadoForm,
+        color: _colorSeleccionado,
+        paralelo: _paraleloSeleccionadoForm,
+        turno: _turnoSeleccionadoForm,
+        activo: true,
+      );
+
+      await _databaseHelper.rawInsert('''
+        INSERT INTO materias (id, codigo, nombre, carrera, anio, color, activo,
+        paralelo, turno, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ''', [
+        nuevaMateria.id,
+        nuevaMateria.codigo,
+        nuevaMateria.nombre,
+        nuevaMateria.carrera,
+        nuevaMateria.anio,
+        nuevaMateria.color.value.toRadixString(16).padLeft(8, '0').toUpperCase(),
+        nuevaMateria.activo ? 1 : 0,
+        nuevaMateria.paralelo,
+        nuevaMateria.turno,
+        DateTime.now().toIso8601String(),
+        DateTime.now().toIso8601String()
+      ]);
+
+      // Recargar desde la base de datos
+      await _cargarMateriasExistentes();
+      
+      _limpiarFormulario();
+      _mostrarMensajeBurbuja('Materia agregada correctamente', Colors.green);
+      
+    } catch (e) {
+      _mostrarMensajeBurbuja('Error al agregar materia: $e', Colors.red);
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // ✅ CARGAR MATERIA PARA EDITAR
+  void cargarMateriaParaEditar(Materia materia) {
+    _materiaEditandoId = materia.id;
+    _codigoController.text = materia.codigo;
+    _nombreController.text = materia.nombre;
+    _carreraSeleccionadaForm = materia.carrera;
+    _anioSeleccionadoForm = materia.anio;
+    _colorSeleccionado = materia.color;
+    _paraleloSeleccionadoForm = materia.paralelo;
+    _turnoSeleccionadoForm = materia.turno;
+    notifyListeners();
+  }
+
+  // ✅ ACTUALIZAR MATERIA
+  Future<void> actualizarMateria() async {
+    try {
+      if (_codigoController.text.isEmpty || _nombreController.text.isEmpty) {
+        _mostrarMensajeBurbuja('Código y nombre son requeridos', Colors.orange);
+        return;
+      }
+
+      _isLoading = true;
+      notifyListeners();
+
+      await _databaseHelper.rawUpdate('''
+        UPDATE materias 
+        SET codigo = ?, nombre = ?, carrera = ?, anio = ?, color = ?,
+        paralelo = ?, turno = ?, updated_at = ?
+        WHERE id = ?
+      ''', [
+        _codigoController.text.trim(),
+        _nombreController.text.trim(),
+        _carreraSeleccionadaForm,
+        _anioSeleccionadoForm,
+        _colorSeleccionado.value.toRadixString(16).padLeft(8, '0').toUpperCase(),
+        _paraleloSeleccionadoForm,
+        _turnoSeleccionadoForm,
+        DateTime.now().toIso8601String(),
+        _materiaEditandoId
+      ]);
+
+      // Recargar desde la base de datos
+      await _cargarMateriasExistentes();
+      
+      _limpiarFormulario();
+      _mostrarMensajeBurbuja('Materia actualizada correctamente', Colors.green);
+      
+    } catch (e) {
+      _mostrarMensajeBurbuja('Error al actualizar materia: $e', Colors.red);
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // ✅ DESACTIVAR MATERIA
+  Future<void> desactivarMateria(String id) async {
+    try {
+      await _databaseHelper.rawUpdate('''
+        UPDATE materias SET activo = 0, updated_at = ? WHERE id = ?
+      ''', [DateTime.now().toIso8601String(), id]);
+
+      await _cargarMateriasExistentes();
+      _mostrarMensajeBurbuja('Materia desactivada', Colors.orange);
+    } catch (e) {
+      _mostrarMensajeBurbuja('Error al desactivar materia: $e', Colors.red);
+    }
+  }
+
+  // ✅ ACTIVAR MATERIA
+  Future<void> activarMateria(String id) async {
+    try {
+      await _databaseHelper.rawUpdate('''
+        UPDATE materias SET activo = 1, updated_at = ? WHERE id = ?
+      ''', [DateTime.now().toIso8601String(), id]);
+
+      await _cargarMateriasExistentes();
+      _mostrarMensajeBurbuja('Materia activada', Colors.green);
+    } catch (e) {
+      _mostrarMensajeBurbuja('Error al activar materia: $e', Colors.red);
+    }
+  }
+
+  // ✅ ELIMINAR MATERIA
+  Future<void> eliminarMateria(String id) async {
+    try {
+      await _databaseHelper.rawDelete('''
+        DELETE FROM materias WHERE id = ?
+      ''', [id]);
+
+      await _cargarMateriasExistentes();
+      _mostrarMensajeBurbuja('Materia eliminada', Colors.red);
+    } catch (e) {
+      _mostrarMensajeBurbuja('Error al eliminar materia: $e', Colors.red);
+    }
+  }
+
+  // ✅ LIMPIAR FORMULARIO
+  void _limpiarFormulario() {
+    _materiaEditandoId = '';
+    _codigoController.clear();
+    _nombreController.clear();
+    _carreraSeleccionadaForm = 'Sistemas Informáticos';
+    _anioSeleccionadoForm = 1;
+    _colorSeleccionado = MateriaColors.programacion;
+    _paraleloSeleccionadoForm = 'A';
+    _turnoSeleccionadoForm = 'Mañana';
     notifyListeners();
   }
 

@@ -1,5 +1,6 @@
 // utils/helpers.dart
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart'; // NECESITAS ESTA IMPORTACIÓN PARA INTRODUCIR LA FECHA EN ESPAÑOL
 import 'constants.dart';
 
 class Helpers {
@@ -10,7 +11,7 @@ class Helpers {
     BuildContext context,
     String message, {
     String? type,
-    int duration = 3, // ← AGREGADO ESTE PARÁMETRO
+    int duration = 3,
   }) {
     Color bgColor = Colors.black;
     switch (type) {
@@ -29,10 +30,27 @@ class Helpers {
       SnackBar(
         content: Text(message, style: const TextStyle(color: Colors.white)),
         backgroundColor: bgColor,
-        duration: Duration(seconds: duration), // ← USADO AQUÍ
+        duration: Duration(seconds: duration),
       ),
     );
   }
+
+  // --- MÉTODOS AÑADIDOS ---
+
+  /// Obtiene el nombre del día de la semana (ej: "Lunes")
+  static String getDiaSemana(DateTime date) {
+    // Asegúrate de haber importado 'package:intl/intl.dart' y de tener la dependencia intl en tu pubspec.yaml
+    // El 'es_ES' es para obtener el nombre en español
+    return DateFormat('EEEE', 'es_ES').format(date);
+  }
+
+  /// Obtiene el nombre del mes y el año (ej: "Noviembre 2025")
+  static String getMesAnio(DateTime date) {
+    // El 'es_ES' es para obtener el nombre en español
+    return DateFormat('MMMM yyyy', 'es_ES').format(date);
+  }
+
+  // --- FIN MÉTODOS AÑADIDOS ---
 
   // ... el resto de los métodos permanecen igual
   static String formatDate(DateTime date) {

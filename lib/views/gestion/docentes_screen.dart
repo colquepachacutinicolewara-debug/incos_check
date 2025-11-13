@@ -1,11 +1,10 @@
-// views/docentes_scren.dart
+// views/docentes_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/docente_viewmodel.dart';
 import '../../models/docente_model.dart';
-import 'package:incos_check/utils/constants.dart';
-import 'package:incos_check/utils/validators.dart';
-import '../../repositories/data_repository.dart';
+import '../../utils/constants.dart';
+import '../../utils/validators.dart';
 
 class DocentesScreen extends StatelessWidget {
   final Map<String, dynamic> carrera;
@@ -15,10 +14,7 @@ class DocentesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) {
-        final repository = context.read<DataRepository>();
-        return DocentesViewModel(repository)..initialize(carrera);
-      },
+      create: (context) => DocentesViewModel()..initialize(carrera), // ✅ Sin parámetros
       child: const _DocentesScreenContent(),
     );
   }
@@ -131,7 +127,7 @@ class _DocentesScreenContent extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.medium),
               ElevatedButton(
-                onPressed: () => viewModel.clearError(),
+                onPressed: () => viewModel.reintentarCarga(),
                 child: const Text('Reintentar'),
               ),
             ],
@@ -388,7 +384,7 @@ class _DocentesScreenContent extends StatelessWidget {
           filled: true,
           fillColor: _getInputFillColor(context),
         ),
-        onChanged: viewModel.filterDocentes,
+        // ✅ ELIMINADO: onChanged: viewModel.filterDocentes,
       ),
     );
   }
@@ -848,7 +844,7 @@ class _DocentesScreenContent extends StatelessWidget {
 
     String selectedCarrera = docente?.carrera ?? viewModel.selectedCarrera;
     String selectedTurno = docente?.turno ?? 'MAÑANA';
-    String selectedEstado = docente?.estado ?? Estados.activo;
+    String selectedEstado = docente?.estado ?? 'ACTIVO';
 
     final formKey = GlobalKey<FormState>();
 
@@ -1135,9 +1131,7 @@ class _DocentesScreenContent extends StatelessWidget {
                                 filled: true,
                                 fillColor: _getInputFillColor(context),
                               ),
-                              items: [Estados.activo, Estados.inactivo].map((
-                                estado,
-                              ) {
+                              items: ['ACTIVO', 'INACTIVO'].map((estado) {
                                 return DropdownMenuItem(
                                   value: estado,
                                   child: Text(

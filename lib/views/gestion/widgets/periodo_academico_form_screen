@@ -1,0 +1,594 @@
+// screens/periodo_academico_form_screen.dart
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../models/bimestre_model.dart';
+import '../../../viewmodels/periodo_academico_viewmodel.dart';
+import '../../../utils/constants.dart';
+
+class PeriodoAcademicoFormScreen extends StatefulWidget {
+  final PeriodoAcademico? periodo; // Si es null, es creación; si tiene valor, es edición
+  final bool esEdicion;
+
+  const PeriodoAcademicoFormScreen({
+    super.key,
+    this.periodo,
+    this.esEdicion = false,
+  });
+
+  @override
+  State<PeriodoAcademicoFormScreen> createState() => _PeriodoAcademicoFormScreenState();
+}
+
+class _PeriodoAcademicoFormScreenState extends State<PeriodoAcademicoFormScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _nombreController = TextEditingController();
+  final _descripcionController = TextEditingController();
+  
+  String _tipoSeleccionado = 'Bimestral';
+  int _numeroSeleccionado = 1;
+  String _estadoSeleccionado = 'Planificado';
+  DateTime _fechaInicio = DateTime.now();
+  DateTime _fechaFin = DateTime.now().add(const Duration(days: 60));
+
+  // Opciones disponibles
+  final List<String> _tiposPeriodo = ['Bimestral', 'Trimestral', 'Semestral', 'Anual'];
+  final List<String> _estadosPeriodo = ['Planificado', 'En Curso', 'Finalizado', 'Cancelado'];
+  final List<int> _numerosPeriodo = [1, 2, 3, 4, 5, 6];
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarDatosIniciales();
+  }
+
+  void _cargarDatosIniciales() {
+    if (widget.esEdicion && widget.periodo != null) {
+      final periodo = widget.periodo!;
+      _nombreController.text = periodo.nombre;
+      _descripcionController.text = periodo.descripcion;
+      _tipoSeleccionado = periodo.tipo;
+      _numeroSeleccionado = periodo.numero;
+      _estadoSeleccionado = periodo.estado;
+      _fechaInicio = periodo.fechaInicio;
+      _fechaFin = periodo.fechaFin;
+    } else {
+      // Valores por defecto para nuevo periodo
+      _fechaInicio = DateTime.now();
+      _fechaFin = DateTime.now().add(const Duration(days: 60));
+    }
+  }
+
+  Future<void> _seleccionarFechaInicio() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _fechaInicio,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != _fechaInicio) {
+      setState(() {
+        _fechaInicio = picked;
+        // Si la fecha fin es anterior a la fecha inicio, ajustarla
+        if (_fechaFin.isBefore(picked)) {
+          _fechaFin = picked.add(const Duration(days: 60));
+        }
+      });
+    }
+  }
+
+  Future<void> _seleccionarFechaFin() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _fechaFin,
+      firstDate: _fechaInicio,
+      lastDate: DateTime(2030),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != _fechaFin) {
+      setState(() {
+        _fechaFin = picked;
+      });
+    }
+  }
+
+  String _calcularDuracion() {
+    final diferencia = _fechaFin.difference(_fechaInicio).inDays;
+    final semanas = (diferencia / 7).floor();
+    final meses = (diferencia / 30).floor();
+    
+    if (diferencia < 7) {
+      return '$diferencia días';
+    } else if (diferencia < 30) {
+      return '$semanas semanas ($diferencia días)';
+    } else {
+      return '$meses meses ($diferencia días)';
+    }
+  }
+
+  int _calcularDiasClase() {
+    int diasClase = 0;
+    DateTime fecha = _fechaInicio;
+    
+    while (fecha.isBefore(_fechaFin) || fecha.isAtSameMomentAs(_fechaFin)) {
+      // Solo contar días de semana (lunes a viernes)
+      if (fecha.weekday >= DateTime.monday && fecha.weekday <= DateTime.friday) {
+        diasClase++;
+      }
+      fecha = fecha.add(const Duration(days: 1));
+    }
+    
+    return diasClase;
+  }
+
+  bool _validarFechas() {
+    if (_fechaFin.isBefore(_fechaInicio)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La fecha fin no puede ser anterior a la fecha inicio'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return false;
+    }
+    
+    final duracion = _fechaFin.difference(_fechaInicio).inDays;
+    if (duracion < 7) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('El período debe tener al menos 7 días de duración'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return false;
+    }
+    
+    return true;
+  }
+
+  Future<void> _guardarPeriodo() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (!_validarFechas()) return;
+
+    final viewModel = context.read<PeriodoAcademicoViewModel>();
+    
+    try {
+      // Generar fechas de clases automáticamente
+      final fechasClases = _generarFechasClases();
+      
+      final nuevoPeriodo = PeriodoAcademico(
+        id: widget.esEdicion ? widget.periodo!.id : 'periodo_${DateTime.now().millisecondsSinceEpoch}',
+        nombre: _nombreController.text.trim(),
+        tipo: _tipoSeleccionado,
+        numero: _numeroSeleccionado,
+        fechaInicio: _fechaInicio,
+        fechaFin: _fechaFin,
+        estado: _estadoSeleccionado,
+        fechasClases: fechasClases,
+        descripcion: _descripcionController.text.trim(),
+        fechaCreacion: widget.esEdicion ? widget.periodo!.fechaCreacion : DateTime.now(),
+      );
+
+      bool exito;
+      if (widget.esEdicion) {
+        exito = await viewModel.actualizarPeriodo(nuevoPeriodo);
+      } else {
+        exito = await viewModel.agregarPeriodo(nuevoPeriodo);
+      }
+
+      if (exito && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              widget.esEdicion 
+                ? 'Período actualizado exitosamente' 
+                : 'Período creado exitosamente',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  List<String> _generarFechasClases() {
+    List<String> fechas = [];
+    DateTime fechaActual = _fechaInicio;
+    
+    while (fechaActual.isBefore(_fechaFin) || fechaActual.isAtSameMomentAs(_fechaFin)) {
+      // Solo días de semana (lunes a viernes)
+      if (fechaActual.weekday >= DateTime.monday && fechaActual.weekday <= DateTime.friday) {
+        fechas.add('${fechaActual.day.toString().padLeft(2, '0')}/${fechaActual.month.toString().padLeft(2, '0')}');
+      }
+      fechaActual = fechaActual.add(const Duration(days: 1));
+    }
+    
+    return fechas;
+  }
+
+  Color _getEstadoColor(String estado) {
+    switch (estado) {
+      case 'Planificado': return Colors.blue;
+      case 'En Curso': return Colors.green;
+      case 'Finalizado': return Colors.grey;
+      case 'Cancelado': return Colors.red;
+      default: return Colors.grey;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final diasClase = _calcularDiasClase();
+    final duracion = _calcularDuracion();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          widget.esEdicion ? 'Editar Período Académico' : 'Nuevo Período Académico',
+          style: AppTextStyles.heading2.copyWith(color: Colors.white),
+        ),
+        backgroundColor: AppColors.primary,
+        iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          if (widget.esEdicion)
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: _mostrarDialogoEliminar,
+            ),
+        ],
+      ),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(AppSpacing.medium),
+          children: [
+            // Información del período
+            _buildInfoCard(duracion, diasClase),
+            const SizedBox(height: AppSpacing.medium),
+
+            // Nombre del período
+            TextFormField(
+              controller: _nombreController,
+              decoration: const InputDecoration(
+                labelText: 'Nombre del Período',
+                hintText: 'Ej: Primer Bimestre 2024',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.title),
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Por favor ingresa un nombre';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: AppSpacing.medium),
+
+            // Tipo y Número
+            Row(
+              children: [
+                // Tipo de período
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _tipoSeleccionado,
+                    decoration: const InputDecoration(
+                      labelText: 'Tipo',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.category),
+                    ),
+                    items: _tiposPeriodo.map((String tipo) {
+                      return DropdownMenuItem<String>(
+                        value: tipo,
+                        child: Text(tipo),
+                      );
+                    }).toList(),
+                    onChanged: (String? newValue) {
+                      setState(() {
+                        _tipoSeleccionado = newValue!;
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.medium),
+
+                // Número del período
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    value: _numeroSeleccionado,
+                    decoration: const InputDecoration(
+                      labelText: 'Número',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.numbers),
+                    ),
+                    items: _numerosPeriodo.map((int numero) {
+                      return DropdownMenuItem<int>(
+                        value: numero,
+                        child: Text('$numero'),
+                      );
+                    }).toList(),
+                    onChanged: (int? newValue) {
+                      setState(() {
+                        _numeroSeleccionado = newValue!;
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.medium),
+
+            // Fechas
+            Row(
+              children: [
+                // Fecha inicio
+                Expanded(
+                  child: InkWell(
+                    onTap: _seleccionarFechaInicio,
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Fecha Inicio',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.calendar_today),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '${_fechaInicio.day}/${_fechaInicio.month}/${_fechaInicio.year}',
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                          const Icon(Icons.arrow_drop_down, color: Colors.grey),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.medium),
+
+                // Fecha fin
+                Expanded(
+                  child: InkWell(
+                    onTap: _seleccionarFechaFin,
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Fecha Fin',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.event_available),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '${_fechaFin.day}/${_fechaFin.month}/${_fechaFin.year}',
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                          const Icon(Icons.arrow_drop_down, color: Colors.grey),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.medium),
+
+            // Estado
+            DropdownButtonFormField<String>(
+              value: _estadoSeleccionado,
+              decoration: const InputDecoration(
+                labelText: 'Estado',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.status),
+              ),
+              items: _estadosPeriodo.map((String estado) {
+                return DropdownMenuItem<String>(
+                  value: estado,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: _getEstadoColor(estado),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(estado),
+                    ],
+                  ),
+                );
+              }).toList(),
+              onChanged: (String? newValue) {
+                setState(() {
+                  _estadoSeleccionado = newValue!;
+                });
+              },
+            ),
+            const SizedBox(height: AppSpacing.medium),
+
+            // Descripción
+            TextFormField(
+              controller: _descripcionController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Descripción',
+                hintText: 'Descripción adicional del período académico...',
+                border: OutlineInputBorder(),
+                alignLabelWithHint: true,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.large),
+
+            // Botón guardar
+            ElevatedButton(
+              onPressed: _guardarPeriodo,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.medium),
+                ),
+              ),
+              child: Text(
+                widget.esEdicion ? 'ACTUALIZAR PERÍODO' : 'CREAR PERÍODO',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoCard(String duracion, int diasClase) {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.medium),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Resumen del Período',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                _buildInfoItem(Icons.schedule, 'Duración', duracion),
+                _buildInfoItem(Icons.school, 'Días de Clase', '$diasClase días'),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Fechas de clase generadas automáticamente para días de semana (Lunes a Viernes)',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoItem(IconData icon, String titulo, String valor) {
+    return Expanded(
+      child: Column(
+        children: [
+          Icon(icon, size: 20, color: AppColors.primary),
+          const SizedBox(height: 4),
+          Text(
+            titulo,
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          Text(
+            valor,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _mostrarDialogoEliminar() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar Período'),
+        content: Text(
+          '¿Estás seguro de eliminar el período "${_nombreController.text}"? '
+          'Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _eliminarPeriodo();
+            },
+            child: const Text(
+              'Eliminar',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _eliminarPeriodo() async {
+    final viewModel = context.read<PeriodoAcademicoViewModel>();
+    final exito = await viewModel.eliminarPeriodo(widget.periodo!.id);
+    
+    if (exito && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Período eliminado exitosamente'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pop(context);
+    }
+  }
+
+  @override
+  void dispose() {
+    _nombreController.dispose();
+    _descripcionController.dispose();
+    super.dispose();
+  }
+}

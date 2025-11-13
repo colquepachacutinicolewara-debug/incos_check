@@ -4,16 +4,19 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
 import '../models/primer_bimestre_model.dart';
-import '../../../models/bimestre_model.dart'; // Importar el modelo PeriodoAcademico
+import '../models/database_helper.dart';
 
 class PrimerBimestreViewModel with ChangeNotifier {
-  final PrimerBimestreModel _model = PrimerBimestreModel();
+  final DatabaseHelper _databaseHelper = DatabaseHelper.instance;
+  final PrimerBimestreModel _model = PrimerBimestreModel.defaultModel();
+  
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _fechaInicioController = TextEditingController();
   final TextEditingController _fechaFinController = TextEditingController();
 
   List<AsistenciaEstudiante> _filteredEstudiantes = [];
   int? _estudianteSeleccionado;
+  bool _isLoading = false;
 
   // Getters
   PeriodoAcademico get bimestre => _model.bimestre;
@@ -21,10 +24,12 @@ class PrimerBimestreViewModel with ChangeNotifier {
   List<AsistenciaEstudiante> get estudiantes => _model.estudiantes;
   List<AsistenciaEstudiante> get filteredEstudiantes => _filteredEstudiantes;
   int? get estudianteSeleccionado => _estudianteSeleccionado;
+  bool get isLoading => _isLoading;
   TextEditingController get searchController => _searchController;
   TextEditingController get fechaInicioController => _fechaInicioController;
   TextEditingController get fechaFinController => _fechaFinController;
 
+  // CONSTRUCTOR CORREGIDO - Sin parámetros
   PrimerBimestreViewModel() {
     _cargarDatosEjemplo();
     _filteredEstudiantes = _model.estudiantes;
@@ -58,9 +63,7 @@ class PrimerBimestreViewModel with ChangeNotifier {
         final nombreMatch = estudiante.nombre.toLowerCase().contains(query);
         final itemMatch = estudiante.item.toString() == query;
         final itemPartialMatch = estudiante.item.toString().contains(query);
-        return itemMatch ||
-            nombreMatch ||
-            (query.length > 1 && itemPartialMatch);
+        return itemMatch || nombreMatch || (query.length > 1 && itemPartialMatch);
       }).toList();
     }
     _estudianteSeleccionado = null;
@@ -83,6 +86,9 @@ class PrimerBimestreViewModel with ChangeNotifier {
 
   Future<void> exportarACSV() async {
     try {
+      _isLoading = true;
+      notifyListeners();
+
       List<List<dynamic>> csvData = [];
 
       // Encabezados
@@ -90,26 +96,20 @@ class PrimerBimestreViewModel with ChangeNotifier {
 
       // Datos
       for (var estudiante in _filteredEstudiantes) {
-        csvData.add([
+        List<dynamic> row = [
           estudiante.item.toString().padLeft(2, '0'),
           estudiante.nombre,
-          estudiante.febL,
-          estudiante.febM,
-          estudiante.febMi,
-          estudiante.febJ,
-          estudiante.febV,
-          estudiante.marL,
-          estudiante.marM,
-          estudiante.marMi,
-          estudiante.marJ,
-          estudiante.marV,
-          estudiante.abrL,
-          estudiante.abrM,
-          estudiante.abrMi,
-          estudiante.abrJ,
-          estudiante.abrV,
-          estudiante.totalDisplay,
+        ];
+
+        // Agregar todas las asistencias
+        row.addAll([
+          estudiante.febL, estudiante.febM, estudiante.febMi, estudiante.febJ, estudiante.febV,
+          estudiante.marL, estudiante.marM, estudiante.marMi, estudiante.marJ, estudiante.marV,
+          estudiante.abrL, estudiante.abrM, estudiante.abrMi, estudiante.abrJ, estudiante.abrV,
         ]);
+
+        row.add(estudiante.totalDisplay);
+        csvData.add(row);
       }
 
       String csv = const ListToCsvConverter().convert(csvData);
@@ -118,7 +118,12 @@ class PrimerBimestreViewModel with ChangeNotifier {
       final File file = File(path);
       await file.writeAsString(csv, flush: true);
       await OpenFile.open(path);
+
+      _isLoading = false;
+      notifyListeners();
     } catch (e) {
+      _isLoading = false;
+      notifyListeners();
       rethrow;
     }
   }

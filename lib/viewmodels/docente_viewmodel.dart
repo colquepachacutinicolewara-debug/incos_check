@@ -1,11 +1,11 @@
-// docente_viewmodel.dart
+// viewmodels/docente_viewmodel.dart
 import 'package:flutter/material.dart';
-import 'package:incos_check/models/docente_model.dart';
-import 'package:incos_check/utils/constants.dart';
-import 'package:incos_check/repositories/data_repository.dart';
+import '../models/docente_model.dart';
+import '../models/database_helper.dart';
+import '../utils/constants.dart';
 
 class DocentesViewModel extends ChangeNotifier {
-  final DataRepository _repository;
+  final DatabaseHelper _databaseHelper = DatabaseHelper.instance; // ✅ Cambio aquí
 
   // Lista de turnos disponibles
   final List<String> _turnos = ['MAÑANA', 'NOCHE', 'AMBOS'];
@@ -20,8 +20,6 @@ class DocentesViewModel extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   bool _guardando = false;
-
-  DocentesViewModel(this._repository);
 
   // Getters
   List<String> get turnos => _turnos;
@@ -54,6 +52,10 @@ class DocentesViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  DocentesViewModel() { // ✅ Constructor sin parámetros
+    _searchController.addListener(_filtrarEstudiantes);
+  }
+
   // ✅ MÉTODO DE INICIALIZACIÓN MEJORADO
   void initialize(Map<String, dynamic> carrera) {
     _carreraColor = _parseColor(carrera['color']);
@@ -61,43 +63,46 @@ class DocentesViewModel extends ChangeNotifier {
     _loadDocentes();
   }
 
-  // ✅ CARGA DE DOCENTES CON STREAM (COMO EN CARRERAS)
+  // ✅ CARGA DE DOCENTES DESDE SQLITE
   void _loadDocentes() {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      _repository.getDocentesStream().listen(
-        (snapshot) {
-          _docentes = snapshot.docs.map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
-            return Docente.fromFirestore(doc.id, data);
-          }).toList();
-
-          // Extraer carreras únicas de los docentes
-          _carreras = _docentes.map((d) => d.carrera).toSet().toList();
-          _carreras.sort();
-
-          // Asegurar que la carrera seleccionada esté en la lista
-          if (!_carreras.contains(_selectedCarrera) &&
-              _selectedCarrera.isNotEmpty) {
-            _carreras.add(_selectedCarrera);
-          }
-
-          _filterDocentesByCarreraAndTurno();
-          _error = null;
-          _isLoading = false;
-          notifyListeners();
-        },
-        onError: (error) {
-          _error = 'Error al cargar docentes: $error';
-          _isLoading = false;
-          notifyListeners();
-        },
-      );
+      _loadDocentesFromDatabase();
     } catch (e) {
-      _error = 'Error inesperado al cargar docentes: $e';
+      _error = 'Error al cargar docentes: $e';
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _loadDocentesFromDatabase() async {
+    try {
+      final result = await _databaseHelper.rawQuery('''
+        SELECT * FROM docentes ORDER BY apellido_paterno, apellido_materno, nombres
+      ''');
+
+      _docentes = result.map((row) => 
+        Docente.fromMap(Map<String, dynamic>.from(row))
+      ).toList();
+
+      // Extraer carreras únicas de los docentes
+      _carreras = _docentes.map((d) => d.carrera).toSet().toList();
+      _carreras.sort();
+
+      // Asegurar que la carrera seleccionada esté en la lista
+      if (!_carreras.contains(_selectedCarrera) && _selectedCarrera.isNotEmpty) {
+        _carreras.add(_selectedCarrera);
+      }
+
+      _filterDocentesByCarreraAndTurno();
+      _error = null;
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = 'Error al cargar docentes: $e';
       _isLoading = false;
       notifyListeners();
     }
@@ -134,7 +139,8 @@ class DocentesViewModel extends ChangeNotifier {
     });
   }
 
-  void filterDocentes(String query) {
+  void _filtrarEstudiantes() {
+    final query = _searchController.text.toLowerCase();
     if (query.isEmpty) {
       _filterDocentesByCarreraAndTurno();
     } else {
@@ -157,15 +163,48 @@ class DocentesViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ✅ CRUD ACTUALIZADO CON MANEJO DE ERRORES MEJORADO
+  // ✅ CRUD ACTUALIZADO CON SQLITE
   Future<bool> addDocente(Docente docente) async {
     try {
       _guardando = true;
       notifyListeners();
 
-      final docenteData = docente.toFirestore();
-      await _repository.addDocente(docenteData);
+      // Verificar si el CI ya existe
+      final ciExiste = await existeCi(docente.ci);
+      if (ciExiste) {
+        _error = 'El CI ${docente.ci} ya está registrado';
+        _guardando = false;
+        notifyListeners();
+        return false;
+      }
 
+      // Generar ID único si no se proporciona
+      final docenteId = docente.id.isEmpty 
+          ? 'docente_${DateTime.now().millisecondsSinceEpoch}'
+          : docente.id;
+
+      final now = DateTime.now().toIso8601String();
+
+      await _databaseHelper.rawInsert('''
+        INSERT INTO docentes (id, apellido_paterno, apellido_materno, nombres, ci, 
+        carrera, turno, email, telefono, estado, fecha_creacion, fecha_actualizacion)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ''', [
+        docenteId,
+        docente.apellidoPaterno,
+        docente.apellidoMaterno,
+        docente.nombres,
+        docente.ci,
+        docente.carrera,
+        docente.turno,
+        docente.email,
+        docente.telefono,
+        docente.estado,
+        now,
+        now
+      ]);
+
+      await _loadDocentesFromDatabase(); // Recargar lista
       _guardando = false;
       notifyListeners();
       return true;
@@ -182,9 +221,36 @@ class DocentesViewModel extends ChangeNotifier {
       _guardando = true;
       notifyListeners();
 
-      final docenteData = docente.toFirestore();
-      await _repository.updateDocente(docente.id, docenteData);
+      // Verificar si el CI ya existe (excluyendo el docente actual)
+      final ciExiste = await existeCi(docente.ci, excludeId: docente.id);
+      if (ciExiste) {
+        _error = 'El CI ${docente.ci} ya está registrado por otro docente';
+        _guardando = false;
+        notifyListeners();
+        return false;
+      }
 
+      await _databaseHelper.rawUpdate('''
+        UPDATE docentes 
+        SET apellido_paterno = ?, apellido_materno = ?, nombres = ?, ci = ?,
+            carrera = ?, turno = ?, email = ?, telefono = ?, estado = ?,
+            fecha_actualizacion = ?
+        WHERE id = ?
+      ''', [
+        docente.apellidoPaterno,
+        docente.apellidoMaterno,
+        docente.nombres,
+        docente.ci,
+        docente.carrera,
+        docente.turno,
+        docente.email,
+        docente.telefono,
+        docente.estado,
+        DateTime.now().toIso8601String(),
+        docente.id
+      ]);
+
+      await _loadDocentesFromDatabase(); // Recargar lista
       _guardando = false;
       notifyListeners();
       return true;
@@ -201,8 +267,11 @@ class DocentesViewModel extends ChangeNotifier {
       _guardando = true;
       notifyListeners();
 
-      await _repository.deleteDocente(id);
+      await _databaseHelper.rawDelete('''
+        DELETE FROM docentes WHERE id = ?
+      ''', [id]);
 
+      await _loadDocentesFromDatabase(); // Recargar lista
       _guardando = false;
       notifyListeners();
       return true;
@@ -214,12 +283,12 @@ class DocentesViewModel extends ChangeNotifier {
     }
   }
 
-  // ✅ MÉTODO PARA REINTENTAR CARGA (COMO EN CARRERAS)
+  // ✅ MÉTODO PARA REINTENTAR CARGA
   Future<void> reintentarCarga() async {
     _error = null;
     _isLoading = true;
     notifyListeners();
-    _loadDocentes();
+    await _loadDocentesFromDatabase();
   }
 
   Docente? getDocenteById(String id) {
@@ -242,6 +311,50 @@ class DocentesViewModel extends ChangeNotifier {
       'AMBOS': docentesCarrera.where((d) => d.turno == 'AMBOS').length,
       'TOTAL': docentesCarrera.length,
     };
+  }
+
+  // ✅ MÉTODO PARA VERIFICAR SI UN CI YA EXISTE
+  Future<bool> existeCi(String ci, {String? excludeId}) async {
+    try {
+      final result = await _databaseHelper.rawQuery('''
+        SELECT COUNT(*) as count FROM docentes 
+        WHERE ci = ? ${excludeId != null ? 'AND id != ?' : ''}
+      ''', excludeId != null ? [ci, excludeId] : [ci]);
+
+      final count = (result.first['count'] as int?) ?? 0;
+      return count > 0;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // ✅ MÉTODO PARA OBTENER DOCENTES POR CARREA Y TURNO
+  List<Docente> getDocentesPorCarreraYTurno(String carrera, String turno) {
+    return _docentes.where((docente) => 
+      docente.carrera == carrera && docente.turno == turno
+    ).toList();
+  }
+
+  // ✅ MÉTODO PARA OBTENER ESTADÍSTICAS GENERALES
+  Map<String, dynamic> getEstadisticasGenerales() {
+    final totalDocentes = _docentes.length;
+    final docentesActivos = _docentes.where((d) => d.estaActivo).length;
+    final docentesInactivos = totalDocentes - docentesActivos;
+
+    return {
+      'total': totalDocentes,
+      'activos': docentesActivos,
+      'inactivos': docentesInactivos,
+      'por_carrera': _getEstadisticasPorCarrera(),
+    };
+  }
+
+  Map<String, int> _getEstadisticasPorCarrera() {
+    final Map<String, int> estadisticas = {};
+    for (final docente in _docentes) {
+      estadisticas[docente.carrera] = (estadisticas[docente.carrera] ?? 0) + 1;
+    }
+    return estadisticas;
   }
 
   void clearError() {

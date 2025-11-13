@@ -1,9 +1,10 @@
+// viewmodels/gestion_viewmodel.dart
 import 'package:flutter/material.dart';
 import '../models/gestion_model.dart';
-import '../repositories/gestion_repository.dart';
+import '../models/database_helper.dart';
 
 class GestionViewModel extends ChangeNotifier {
-  final GestionRepository _repository = GestionRepository();
+  final DatabaseHelper _databaseHelper = DatabaseHelper.instance;
 
   // Estado
   GestionEstado _estado = GestionEstado(
@@ -49,10 +50,12 @@ class GestionViewModel extends ChangeNotifier {
   // ========== CARRERAS MANAGEMENT ==========
   Future<void> _loadCarreras() async {
     try {
-      final carrerasConfig = await _repository.getCarreras();
+      final result = await _databaseHelper.rawQuery('''
+        SELECT nombre FROM carreras WHERE activa = 1 ORDER BY nombre
+      ''');
 
-      final carrerasUnicas = carrerasConfig
-          .map((c) => c.nombre)
+      final carrerasUnicas = result
+          .map((row) => row['nombre'] as String)
           .toSet()
           .toList();
 
@@ -107,9 +110,9 @@ class GestionViewModel extends ChangeNotifier {
   // ========== COUNTS MANAGEMENT ==========
   Future<void> _loadCountsForCarrera(String carrera) async {
     try {
-      final estudianteCount = await _repository.getEstudiantesCount(carrera);
-      final docenteCount = await _repository.getDocentesCount(carrera);
-      final cursoCount = await _repository.getCursosCount(carrera);
+      final estudianteCount = await _getEstudiantesCount(carrera);
+      final docenteCount = await _getDocentesCount(carrera);
+      final cursoCount = await _getCursosCount(carrera);
       final turnoCount = await _getTurnosCount(carrera);
       final paraleloCount = await _getParalelosCount(carrera);
       final nivelCount = await _getNivelesCount(carrera);
@@ -131,10 +134,49 @@ class GestionViewModel extends ChangeNotifier {
     }
   }
 
+  Future<int> _getEstudiantesCount(String carrera) async {
+    try {
+      final result = await _databaseHelper.rawQuery('''
+        SELECT COUNT(*) as count FROM estudiantes e
+        JOIN carreras c ON e.carrera_id = c.id
+        WHERE c.nombre = ?
+      ''', [carrera]);
+      return (result.first['count'] as int?) ?? 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  Future<int> _getDocentesCount(String carrera) async {
+    try {
+      final result = await _databaseHelper.rawQuery('''
+        SELECT COUNT(*) as count FROM docentes WHERE carrera = ?
+      ''', [carrera]);
+      return (result.first['count'] as int?) ?? 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  Future<int> _getCursosCount(String carrera) async {
+    try {
+      final result = await _databaseHelper.rawQuery('''
+        SELECT COUNT(*) as count FROM materias WHERE carrera = ?
+      ''', [carrera]);
+      return (result.first['count'] as int?) ?? 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
   Future<int> _getTurnosCount(String carrera) async {
     try {
-      final turnos = await _repository.getTurnos(carrera);
-      return turnos.length;
+      final result = await _databaseHelper.rawQuery('''
+        SELECT COUNT(DISTINCT turno_id) as count FROM estudiantes e
+        JOIN carreras c ON e.carrera_id = c.id
+        WHERE c.nombre = ? AND e.turno_id IS NOT NULL
+      ''', [carrera]);
+      return (result.first['count'] as int?) ?? 0;
     } catch (e) {
       return 0;
     }
@@ -142,8 +184,12 @@ class GestionViewModel extends ChangeNotifier {
 
   Future<int> _getParalelosCount(String carrera) async {
     try {
-      final paralelos = await _repository.getParalelos(carrera);
-      return paralelos.length;
+      final result = await _databaseHelper.rawQuery('''
+        SELECT COUNT(DISTINCT paralelo_id) as count FROM estudiantes e
+        JOIN carreras c ON e.carrera_id = c.id
+        WHERE c.nombre = ? AND e.paralelo_id IS NOT NULL
+      ''', [carrera]);
+      return (result.first['count'] as int?) ?? 0;
     } catch (e) {
       return 0;
     }
@@ -151,8 +197,12 @@ class GestionViewModel extends ChangeNotifier {
 
   Future<int> _getNivelesCount(String carrera) async {
     try {
-      final niveles = await _repository.getNiveles(carrera);
-      return niveles.length;
+      final result = await _databaseHelper.rawQuery('''
+        SELECT COUNT(DISTINCT nivel_id) as count FROM estudiantes e
+        JOIN carreras c ON e.carrera_id = c.id
+        WHERE c.nombre = ? AND e.nivel_id IS NOT NULL
+      ''', [carrera]);
+      return (result.first['count'] as int?) ?? 0;
     } catch (e) {
       return 0;
     }
@@ -161,8 +211,15 @@ class GestionViewModel extends ChangeNotifier {
   // ========== TURNOS MANAGEMENT ==========
   Future<void> _loadTurnosForCarrera(String carrera) async {
     try {
-      final turnos = await _repository.getTurnos(carrera);
-      _turnos[carrera] = turnos;
+      final result = await _databaseHelper.rawQuery('''
+        SELECT DISTINCT t.nombre FROM turnos t
+        JOIN estudiantes e ON e.turno_id = t.id
+        JOIN carreras c ON e.carrera_id = c.id
+        WHERE c.nombre = ? AND t.activo = 1
+        ORDER BY t.nombre
+      ''', [carrera]);
+      
+      _turnos[carrera] = result.map((row) => row['nombre'] as String).toList();
     } catch (e) {
       print('Error loading turnos for $carrera: $e');
       _turnos[carrera] = ['Mañana', 'Tarde', 'Noche'];
@@ -175,7 +232,7 @@ class GestionViewModel extends ChangeNotifier {
 
   Future<void> addTurno(String turno) async {
     try {
-      await _repository.addTurno(_estado.carreraSeleccionada, turno);
+      // Implementar lógica para agregar turno si es necesario
       await _loadTurnosForCarrera(_estado.carreraSeleccionada);
       await _loadCountsForCarrera(_estado.carreraSeleccionada);
       notifyListeners();
@@ -187,8 +244,15 @@ class GestionViewModel extends ChangeNotifier {
   // ========== PARALELOS MANAGEMENT ==========
   Future<void> _loadParalelosForCarrera(String carrera) async {
     try {
-      final paralelos = await _repository.getParalelos(carrera);
-      _paralelos[carrera] = paralelos;
+      final result = await _databaseHelper.rawQuery('''
+        SELECT DISTINCT p.nombre FROM paralelos p
+        JOIN estudiantes e ON e.paralelo_id = p.id
+        JOIN carreras c ON e.carrera_id = c.id
+        WHERE c.nombre = ? AND p.activo = 1
+        ORDER BY p.nombre
+      ''', [carrera]);
+      
+      _paralelos[carrera] = result.map((row) => row['nombre'] as String).toList();
     } catch (e) {
       print('Error loading paralelos for $carrera: $e');
       _paralelos[carrera] = ['A', 'B', 'C'];
@@ -199,32 +263,21 @@ class GestionViewModel extends ChangeNotifier {
     return _paralelos[carrera] ?? ['A', 'B', 'C'];
   }
 
-  Future<void> addParalelo(String paralelo) async {
-    try {
-      await _repository.addParalelo(_estado.carreraSeleccionada, paralelo);
-      await _loadParalelosForCarrera(_estado.carreraSeleccionada);
-      await _loadCountsForCarrera(_estado.carreraSeleccionada);
-      notifyListeners();
-    } catch (e) {
-      throw Exception('No se pudo agregar el paralelo: ${e.toString()}');
-    }
-  }
-
   // ========== NIVELES MANAGEMENT ==========
   Future<void> _loadNivelesForCarrera(String carrera) async {
     try {
-      final niveles = await _repository.getNiveles(carrera);
-      _niveles[carrera] = niveles;
+      final result = await _databaseHelper.rawQuery('''
+        SELECT DISTINCT n.nombre FROM niveles n
+        JOIN estudiantes e ON e.nivel_id = n.id
+        JOIN carreras c ON e.carrera_id = c.id
+        WHERE c.nombre = ? AND n.activo = 1
+        ORDER BY n.orden
+      ''', [carrera]);
+      
+      _niveles[carrera] = result.map((row) => row['nombre'] as String).toList();
     } catch (e) {
       print('Error loading niveles for $carrera: $e');
-      _niveles[carrera] = [
-        'Primero',
-        'Segundo',
-        'Tercero',
-        'Cuarto',
-        'Quinto',
-        'Sexto',
-      ];
+      _niveles[carrera] = ['Primero', 'Segundo', 'Tercero', 'Cuarto', 'Quinto', 'Sexto'];
     }
   }
 
@@ -287,43 +340,6 @@ class GestionViewModel extends ChangeNotifier {
       'Enfermería': Icons.medical_services,
     };
     return icons[carrera] ?? Icons.school;
-  }
-
-  // ========== THEME METHODS ==========
-  Color getBackgroundColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade900
-        : Colors.grey.shade100;
-  }
-
-  Color getCardColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade800
-        : Colors.white;
-  }
-
-  Color getTextColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.white
-        : Colors.black;
-  }
-
-  Color getSecondaryTextColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.white70
-        : Colors.black87;
-  }
-
-  Color getDropdownBackgroundColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade800
-        : Colors.grey.shade50;
-  }
-
-  Color getBorderColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade600
-        : Colors.grey.shade300;
   }
 
   // ========== ERROR HANDLING ==========

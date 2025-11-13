@@ -1,6 +1,10 @@
+// login_screen.dart
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 import 'package:incos_check/utils/constants.dart';
+import '../../models/database_helper.dart';
+import '../../views/dashboard/dashboard_screen.dart';
+import '../../viewmodels/dashboard_viewmodel.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,8 +15,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
-  final _auth = FirebaseAuth.instance;
-  final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   String? _error;
   bool _isLoading = false;
@@ -45,7 +48,7 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void dispose() {
     _animationController.dispose();
-    _emailController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -63,14 +66,9 @@ class _LoginScreenState extends State<LoginScreen>
               position: _slideAnimation,
               child: Column(
                 children: [
-                  // Header con logo y título
                   _buildHeader(),
                   const SizedBox(height: AppSpacing.xlarge),
-
-                  // Tarjeta del formulario
                   _buildLoginCard(),
-
-                  // Footer
                   const SizedBox(height: AppSpacing.xlarge),
                   _buildFooter(),
                 ],
@@ -85,7 +83,6 @@ class _LoginScreenState extends State<LoginScreen>
   Widget _buildHeader() {
     return Column(
       children: [
-        // Logo container con gradiente
         Container(
           width: 120,
           height: 120,
@@ -163,12 +160,16 @@ class _LoginScreenState extends State<LoginScreen>
           ),
           const SizedBox(height: AppSpacing.large),
 
-          // Campo de email
-          _buildEmailField(),
+          // Campo de usuario
+          _buildUsernameField(),
           const SizedBox(height: AppSpacing.medium),
 
           // Campo de contraseña
           _buildPasswordField(),
+          const SizedBox(height: AppSpacing.medium),
+
+          // Información de credenciales de prueba
+          _buildTestCredentials(),
           const SizedBox(height: AppSpacing.medium),
 
           // Mensaje de error
@@ -182,12 +183,12 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildEmailField() {
+  Widget _buildUsernameField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Correo Electrónico',
+          'Usuario',
           style: AppTextStyles.heading3.copyWith(color: AppColors.textPrimary),
         ),
         const SizedBox(height: AppSpacing.small),
@@ -198,12 +199,12 @@ class _LoginScreenState extends State<LoginScreen>
             border: Border.all(color: AppColors.border),
           ),
           child: TextField(
-            controller: _emailController,
-            keyboardType: TextInputType.emailAddress,
+            controller: _usernameController,
+            keyboardType: TextInputType.text,
             style: AppTextStyles.body,
             decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.email_rounded, color: AppColors.primary),
-              hintText: 'ejemplo@incos.edu.bo',
+              prefixIcon: Icon(Icons.person_rounded, color: AppColors.primary),
+              hintText: 'Ingresa tu usuario',
               border: InputBorder.none,
               contentPadding: EdgeInsets.symmetric(
                 horizontal: AppSpacing.medium,
@@ -261,6 +262,51 @@ class _LoginScreenState extends State<LoginScreen>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildTestCredentials() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.medium),
+      decoration: BoxDecoration(
+        color: AppColors.info.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(AppRadius.small),
+        border: Border.all(color: AppColors.info.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.info_outline_rounded, color: AppColors.info, size: 18),
+              const SizedBox(width: AppSpacing.small),
+              Text(
+                'Credenciales de Prueba',
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.info,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.small),
+          Text(
+            'Usuario: admin / Contraseña: admin123',
+            style: AppTextStyles.body.copyWith(
+              color: AppColors.info,
+              fontSize: 12,
+            ),
+          ),
+          Text(
+            'Usuario: profesor / Contraseña: profesor123',
+            style: AppTextStyles.body.copyWith(
+              color: AppColors.info,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -379,7 +425,7 @@ class _LoginScreenState extends State<LoginScreen>
             ),
             const SizedBox(width: 6),
             Text(
-              'Sistema Seguro',
+              'Sistema Seguro - Base de Datos Local',
               style: AppTextStyles.body.copyWith(
                 color: AppColors.textSecondary,
                 fontSize: 12,
@@ -399,37 +445,80 @@ class _LoginScreenState extends State<LoginScreen>
     });
 
     try {
-      final email = _emailController.text.trim();
+      final username = _usernameController.text.trim();
       final password = _passwordController.text.trim();
 
-      if (email.isEmpty || password.isEmpty) {
+      if (username.isEmpty || password.isEmpty) {
         setState(() {
-          _error = Messages.campoRequerido;
+          _error = 'Por favor, completa todos los campos';
           _isLoading = false;
         });
         return;
       }
 
-      final userCredential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      // ✅ VERIFICAR CREDENCIALES EN LA BASE DE DATOS SQLite
+      final usuario = await DatabaseHelper.instance.verificarCredenciales(username, password);
 
-      if (userCredential.user != null) {
-        // Navegación manejada por AuthWrapper
+      if (usuario != null && usuario.isNotEmpty) {
+        // ✅ LOGIN EXITOSO - Convertir datos y navegar al dashboard
+        final userData = _convertUserData(usuario);
+        _navigateToDashboard(userData);
+      } else {
+        setState(() {
+          _error = 'Usuario o contraseña incorrectos';
+        });
       }
-    } on FirebaseAuthException catch (e) {
-      setState(() {
-        _error = 'Error: ${e.message}';
-      });
     } catch (e) {
       setState(() {
-        _error = Messages.errorGeneral;
+        _error = 'Error al conectar con la base de datos: $e';
       });
     } finally {
       setState(() {
         _isLoading = false;
       });
     }
+  }
+
+  void _navigateToDashboard(Map<String, dynamic> userData) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChangeNotifierProvider(
+          create: (context) => DashboardViewModel(userData: userData),
+          child: DashboardScreen(userData: userData),
+        ),
+      ),
+    );
+  }
+
+  // ✅ CONVERSIÓN SEGURA DE DATOS DEL USUARIO
+  Map<String, dynamic> _convertUserData(Map<String, Object?> originalData) {
+    final Map<String, dynamic> convertedData = {};
+    
+    originalData.forEach((key, value) {
+      if (value != null) {
+        // Convertir tipos específicos según la tabla 'usuarios'
+        switch (key) {
+          case 'esta_activo':
+            convertedData[key] = value is int ? value == 1 : false;
+            break;
+          case 'id':
+          case 'username':
+          case 'email':
+          case 'nombre':
+          case 'password':
+          case 'role':
+          case 'carnet':
+          case 'departamento':
+          case 'fecha_registro':
+            convertedData[key] = value.toString();
+            break;
+          default:
+            convertedData[key] = value;
+        }
+      }
+    });
+    
+    return convertedData;
   }
 }

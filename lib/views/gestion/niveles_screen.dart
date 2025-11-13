@@ -1,11 +1,10 @@
-// views/niveles_scren.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/nivel_viewmodel.dart';
 import '../../models/nivel_model.dart';
-import 'package:incos_check/utils/constants.dart';
-import '../../views/gestion/paralelos_scren.dart';
-import '../../views/gestion/materias_screen.dart';
+import '../../utils/constants.dart';
+import '../gestion/paralelos_scren.dart';
+import '../gestion/materias_screen.dart';
 
 class NivelesScreen extends StatefulWidget {
   final String tipo;
@@ -24,47 +23,33 @@ class NivelesScreen extends StatefulWidget {
 }
 
 class _NivelesScreenState extends State<NivelesScreen> {
-  late NivelesViewModel _viewModel;
-
   @override
-  void initState() {
-    super.initState();
-    _viewModel = NivelesViewModel(
-      carrera: widget.carrera,
-      turno: widget.turno,
-      tipo: widget.tipo,
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (context) => NivelViewModel( // ✅ Cambiado a NivelViewModel
+        carrera: widget.carrera,
+        turno: widget.turno,
+        tipo: widget.tipo,
+      ), // ✅ SIN databaseHelper
+      child: _NivelesScreenContent(
+        tipo: widget.tipo,
+        carrera: widget.carrera,
+        turno: widget.turno,
+      ),
     );
   }
+}
 
-  @override
-  void dispose() {
-    _viewModel.dispose();
-    super.dispose();
-  }
+class _NivelesScreenContent extends StatelessWidget {
+  final String tipo;
+  final Map<String, dynamic> carrera;
+  final Map<String, dynamic> turno;
 
-  Color _getTextColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.white
-        : Colors.black;
-  }
-
-  Color _getSecondaryTextColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.white70
-        : Colors.black87;
-  }
-
-  Color _getBorderColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade600
-        : Colors.grey.shade300;
-  }
-
-  Color _getBackgroundColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.grey.shade800
-        : Colors.grey.shade50;
-  }
+  const _NivelesScreenContent({
+    required this.tipo,
+    required this.carrera,
+    required this.turno,
+  });
 
   Color _parseColor(String colorString) {
     try {
@@ -76,76 +61,92 @@ class _NivelesScreenState extends State<NivelesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<NivelesViewModel>.value(
-      value: _viewModel,
-      child: Scaffold(
+    final viewModel = Provider.of<NivelViewModel>(context); // ✅ Cambiado a NivelViewModel
+    final niveles = viewModel.niveles;
+    final carreraColor = _parseColor(carrera['color']);
+
+    if (viewModel.isLoading && niveles.isEmpty) {
+      return Scaffold(
         appBar: AppBar(
           title: Text(
-            '${widget.carrera['nombre']} - ${widget.turno['nombre']} - ${widget.tipo == 'Cursos' ? 'Cursos' : 'Niveles'}',
-            style: AppTextStyles.heading2Dark(
-              context,
-            ).copyWith(color: Colors.white),
+            '${carrera['nombre']} - ${turno['nombre']} - ${tipo == 'Cursos' ? 'Cursos' : 'Niveles'}',
+            style: AppTextStyles.heading2.copyWith(color: Colors.white),
           ),
-          backgroundColor: _parseColor(widget.carrera['color']),
+          backgroundColor: carreraColor,
         ),
-        body: Consumer<NivelesViewModel>(
-          builder: (context, viewModel, child) {
-            return _buildBody(context, viewModel);
-          },
-        ),
-        floatingActionButton: Consumer<NivelesViewModel>(
-          builder: (context, viewModel, child) {
-            return FloatingActionButton(
-              onPressed: () => _showAgregarNivelDialog(context, viewModel),
-              backgroundColor: _parseColor(widget.carrera['color']),
-              child: Icon(Icons.add, color: Colors.white),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBody(BuildContext context, NivelesViewModel viewModel) {
-    final niveles = viewModel.niveles;
-    final carreraColor = _parseColor(widget.carrera['color']);
-
-    if (niveles.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.layers,
-              size: 64,
-              color: AppColors.textSecondaryDark(context),
-            ),
-            SizedBox(height: 16),
-            Text(
-              'No hay niveles configurados',
-              style: AppTextStyles.heading3Dark(
-                context,
-              ).copyWith(color: _getTextColor(context)),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Presiona el botón + para agregar un nivel',
-              style: AppTextStyles.bodyDark(
-                context,
-              ).copyWith(color: _getSecondaryTextColor(context)),
-            ),
-          ],
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Cargando niveles...'),
+            ],
+          ),
         ),
       );
     }
 
-    return ListView.builder(
-      padding: EdgeInsets.all(AppSpacing.medium),
-      itemCount: niveles.length,
-      itemBuilder: (context, index) {
-        final nivel = niveles[index];
-        return _buildNivelCard(nivel, context, carreraColor, viewModel);
-      },
+    if (niveles.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(
+            '${carrera['nombre']} - ${turno['nombre']} - ${tipo == 'Cursos' ? 'Cursos' : 'Niveles'}',
+            style: AppTextStyles.heading2.copyWith(color: Colors.white),
+          ),
+          backgroundColor: carreraColor,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.layers,
+                size: 64,
+                color: AppColors.textSecondary,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No hay niveles configurados',
+                style: AppTextStyles.heading3.copyWith(color: AppColors.textPrimary),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Presiona el botón + para agregar un nivel',
+                style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () => _showAgregarNivelDialog(context, viewModel),
+          backgroundColor: carreraColor,
+          child: const Icon(Icons.add, color: Colors.white),
+        ),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          '${carrera['nombre']} - ${turno['nombre']} - ${tipo == 'Cursos' ? 'Cursos' : 'Niveles'}',
+          style: AppTextStyles.heading2.copyWith(color: Colors.white),
+        ),
+        backgroundColor: carreraColor,
+      ),
+      body: ListView.builder(
+        padding: const EdgeInsets.all(AppSpacing.medium),
+        itemCount: niveles.length,
+        itemBuilder: (context, index) {
+          final nivel = niveles[index];
+          return _buildNivelCard(nivel, context, carreraColor, viewModel);
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showAgregarNivelDialog(context, viewModel),
+        backgroundColor: carreraColor,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
     );
   }
 
@@ -153,15 +154,13 @@ class _NivelesScreenState extends State<NivelesScreen> {
     NivelModel nivel,
     BuildContext context,
     Color color,
-    NivelesViewModel viewModel,
+    NivelViewModel viewModel, // ✅ Cambiado a NivelViewModel
   ) {
-    // Para cursos, mostrar información adicional
     int cantidadMaterias = viewModel.obtenerCantidadMaterias(nivel.nombre);
 
     return Card(
       elevation: 4,
-      margin: EdgeInsets.only(bottom: AppSpacing.medium),
-      color: Theme.of(context).cardColor,
+      margin: const EdgeInsets.only(bottom: AppSpacing.medium),
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: color.withOpacity(0.2),
@@ -175,14 +174,14 @@ class _NivelesScreenState extends State<NivelesScreen> {
           ),
         ),
         title: Text(
-          widget.tipo == 'Cursos'
+          tipo == 'Cursos'
               ? '${nivel.nombre} Año'
               : '${nivel.nombre} Nivel',
-          style: AppTextStyles.heading3Dark(context).copyWith(
-            color: nivel.activo ? _getTextColor(context) : Colors.grey,
+          style: AppTextStyles.heading3.copyWith(
+            color: nivel.activo ? AppColors.textPrimary : Colors.grey,
           ),
         ),
-        subtitle: widget.tipo == 'Cursos'
+        subtitle: tipo == 'Cursos'
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -192,11 +191,11 @@ class _NivelesScreenState extends State<NivelesScreen> {
                       color: nivel.activo ? Colors.green : Colors.red,
                     ),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     '$cantidadMaterias materias',
                     style: TextStyle(
-                      color: _getTextColor(context).withOpacity(0.7),
+                      color: AppColors.textPrimary.withOpacity(0.7),
                       fontSize: 12,
                     ),
                   ),
@@ -219,25 +218,15 @@ class _NivelesScreenState extends State<NivelesScreen> {
               activeColor: color,
             ),
             PopupMenuButton<String>(
-              onSelected: (value) => _handleMenuAction(value, nivel, viewModel),
+              onSelected: (value) => _handleMenuAction(value, nivel, viewModel, context),
               itemBuilder: (BuildContext context) => [
-                PopupMenuItem(
+                const PopupMenuItem(
                   value: 'edit',
-                  child: Text(
-                    'Modificar',
-                    style: AppTextStyles.bodyDark(
-                      context,
-                    ).copyWith(color: _getTextColor(context)),
-                  ),
+                  child: Text('Modificar'),
                 ),
-                PopupMenuItem(
+                const PopupMenuItem(
                   value: 'delete',
-                  child: Text(
-                    'Eliminar',
-                    style: AppTextStyles.bodyDark(
-                      context,
-                    ).copyWith(color: _getTextColor(context)),
-                  ),
+                  child: Text('Eliminar'),
                 ),
               ],
             ),
@@ -245,20 +234,23 @@ class _NivelesScreenState extends State<NivelesScreen> {
         ),
         onTap: () {
           if (nivel.activo) {
-            if (widget.tipo == 'Estudiantes') {
+            if (tipo == 'Estudiantes') {
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => ParalelosScreen(
-                    tipo: widget.tipo,
-                    carrera: widget.carrera,
-                    turno: widget.turno,
+                    tipo: tipo,
+                    carrera: carrera,
+                    turno: turno,
                     nivel: nivel.toMap(),
                   ),
                 ),
               );
-            } else if (widget.tipo == 'Cursos') {
-              _navegarAMaterias(context);
+            } else if (tipo == 'Cursos') {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const MateriasScreen()),
+              );
             }
           }
         },
@@ -266,44 +258,27 @@ class _NivelesScreenState extends State<NivelesScreen> {
     );
   }
 
-  void _navegarAMaterias(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => MateriasScreen()),
-    );
-  }
-
   String _obtenerNumeroRomano(int numero) {
     switch (numero) {
-      case 1:
-        return 'I';
-      case 2:
-        return 'II';
-      case 3:
-        return 'III';
-      case 4:
-        return 'IV';
-      case 5:
-        return 'V';
-      case 6:
-        return 'VI';
-      case 7:
-        return 'VII';
-      case 8:
-        return 'VIII';
-      case 9:
-        return 'IX';
-      case 10:
-        return 'X';
-      default:
-        return numero.toString();
+      case 1: return 'I';
+      case 2: return 'II';
+      case 3: return 'III';
+      case 4: return 'IV';
+      case 5: return 'V';
+      case 6: return 'VI';
+      case 7: return 'VII';
+      case 8: return 'VIII';
+      case 9: return 'IX';
+      case 10: return 'X';
+      default: return numero.toString();
     }
   }
 
   void _handleMenuAction(
     String action,
     NivelModel nivel,
-    NivelesViewModel viewModel,
+    NivelViewModel viewModel, // ✅ Cambiado a NivelViewModel
+    BuildContext context,
   ) {
     switch (action) {
       case 'edit':
@@ -317,51 +292,33 @@ class _NivelesScreenState extends State<NivelesScreen> {
 
   void _showAgregarNivelDialog(
     BuildContext context,
-    NivelesViewModel viewModel,
+    NivelViewModel viewModel, // ✅ Cambiado a NivelViewModel
   ) {
     viewModel.nombreController.clear();
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).cardColor,
-        title: Text(
-          'Agregar Nuevo Nivel',
-          style: AppTextStyles.heading2Dark(
-            context,
-          ).copyWith(color: _getTextColor(context)),
-        ),
+        title: const Text('Agregar Nuevo Nivel'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: viewModel.nombreController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Nombre del Nivel',
-                labelStyle: AppTextStyles.bodyDark(context),
                 hintText: 'Ej: Primero, Segundo, Cuarto, etc.',
-                hintStyle: AppTextStyles.bodyDark(
-                  context,
-                ).copyWith(color: _getSecondaryTextColor(context)),
                 border: OutlineInputBorder(),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: _getBorderColor(context)),
-                ),
               ),
-              style: AppTextStyles.bodyDark(
-                context,
-              ).copyWith(color: _getTextColor(context)),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Container(
-              padding: EdgeInsets.all(12),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.blue.shade900.withOpacity(0.3)
-                    : Colors.blue[50],
+                color: Colors.blue[50],
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Row(
+              child: const Row(
                 children: [
                   Icon(Icons.info, color: Colors.blue, size: 16),
                   SizedBox(width: 8),
@@ -370,9 +327,7 @@ class _NivelesScreenState extends State<NivelesScreen> {
                       'Los niveles se ordenarán automáticamente: Primero, Segundo, Tercero, Cuarto, Quinto, etc.',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.blue.shade200
-                            : Colors.blue[800],
+                        color: Colors.blue,
                       ),
                     ),
                   ),
@@ -384,12 +339,7 @@ class _NivelesScreenState extends State<NivelesScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancelar',
-              style: AppTextStyles.bodyDark(
-                context,
-              ).copyWith(color: _getTextColor(context)),
-            ),
+            child: const Text('Cancelar'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -401,9 +351,7 @@ class _NivelesScreenState extends State<NivelesScreen> {
                   SnackBar(
                     content: Text(
                       'Nivel "${viewModel.nombreController.text.trim()}" agregado correctamente',
-                      style: AppTextStyles.bodyDark(
-                        context,
-                      ).copyWith(color: Colors.white),
+                      style: const TextStyle(color: Colors.white),
                     ),
                     backgroundColor: Colors.green,
                   ),
@@ -411,13 +359,11 @@ class _NivelesScreenState extends State<NivelesScreen> {
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: _parseColor(widget.carrera['color']),
+              backgroundColor: _parseColor(carrera['color']),
             ),
-            child: Text(
+            child: const Text(
               'Agregar',
-              style: AppTextStyles.bodyDark(
-                context,
-              ).copyWith(color: Colors.white),
+              style: TextStyle(color: Colors.white),
             ),
           ),
         ],
@@ -428,47 +374,32 @@ class _NivelesScreenState extends State<NivelesScreen> {
   void _showEditarNivelDialog(
     BuildContext context,
     NivelModel nivel,
-    NivelesViewModel viewModel,
+    NivelViewModel viewModel, // ✅ Cambiado a NivelViewModel
   ) {
     viewModel.editarNombreController.text = nivel.nombre;
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).cardColor,
-        title: Text(
-          'Modificar Nivel',
-          style: AppTextStyles.heading2Dark(
-            context,
-          ).copyWith(color: _getTextColor(context)),
-        ),
+        title: const Text('Modificar Nivel'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: viewModel.editarNombreController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Nombre del Nivel',
-                labelStyle: AppTextStyles.bodyDark(context),
                 border: OutlineInputBorder(),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: _getBorderColor(context)),
-                ),
               ),
-              style: AppTextStyles.bodyDark(
-                context,
-              ).copyWith(color: _getTextColor(context)),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Container(
-              padding: EdgeInsets.all(12),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.blue.shade900.withOpacity(0.3)
-                    : Colors.blue[50],
+                color: Colors.blue[50],
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Row(
+              child: const Row(
                 children: [
                   Icon(Icons.info, color: Colors.blue, size: 16),
                   SizedBox(width: 8),
@@ -477,9 +408,7 @@ class _NivelesScreenState extends State<NivelesScreen> {
                       'Al cambiar el nombre se reordenará automáticamente',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.blue.shade200
-                            : Colors.blue[800],
+                        color: Colors.blue,
                       ),
                     ),
                   ),
@@ -491,12 +420,7 @@ class _NivelesScreenState extends State<NivelesScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancelar',
-              style: AppTextStyles.bodyDark(
-                context,
-              ).copyWith(color: _getTextColor(context)),
-            ),
+            child: const Text('Cancelar'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -511,9 +435,7 @@ class _NivelesScreenState extends State<NivelesScreen> {
                   SnackBar(
                     content: Text(
                       'Nivel actualizado a "${viewModel.editarNombreController.text.trim()}"',
-                      style: AppTextStyles.bodyDark(
-                        context,
-                      ).copyWith(color: Colors.white),
+                      style: const TextStyle(color: Colors.white),
                     ),
                     backgroundColor: Colors.blue,
                   ),
@@ -521,13 +443,11 @@ class _NivelesScreenState extends State<NivelesScreen> {
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: _parseColor(widget.carrera['color']),
+              backgroundColor: _parseColor(carrera['color']),
             ),
-            child: Text(
+            child: const Text(
               'Guardar',
-              style: AppTextStyles.bodyDark(
-                context,
-              ).copyWith(color: Colors.white),
+              style: TextStyle(color: Colors.white),
             ),
           ),
         ],
@@ -538,33 +458,19 @@ class _NivelesScreenState extends State<NivelesScreen> {
   void _showEliminarNivelDialog(
     BuildContext context,
     NivelModel nivel,
-    NivelesViewModel viewModel,
+    NivelViewModel viewModel, // ✅ Cambiado a NivelViewModel
   ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).cardColor,
-        title: Text(
-          'Eliminar Nivel',
-          style: AppTextStyles.heading2Dark(
-            context,
-          ).copyWith(color: _getTextColor(context)),
-        ),
+        title: const Text('Eliminar Nivel'),
         content: Text(
           '¿Estás seguro de eliminar el ${nivel.nombre} Nivel?',
-          style: AppTextStyles.bodyDark(
-            context,
-          ).copyWith(color: _getTextColor(context)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancelar',
-              style: AppTextStyles.bodyDark(
-                context,
-              ).copyWith(color: _getTextColor(context)),
-            ),
+            child: const Text('Cancelar'),
           ),
           TextButton(
             onPressed: () {
@@ -576,19 +482,15 @@ class _NivelesScreenState extends State<NivelesScreen> {
                 SnackBar(
                   content: Text(
                     'Nivel "$nombreEliminado" eliminado',
-                    style: AppTextStyles.bodyDark(
-                      context,
-                    ).copyWith(color: Colors.white),
+                    style: const TextStyle(color: Colors.white),
                   ),
                   backgroundColor: Colors.red,
                 ),
               );
             },
-            child: Text(
+            child: const Text(
               'Eliminar',
-              style: AppTextStyles.bodyDark(
-                context,
-              ).copyWith(color: Colors.red),
+              style: TextStyle(color: Colors.red),
             ),
           ),
         ],

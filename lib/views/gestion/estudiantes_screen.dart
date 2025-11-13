@@ -1,14 +1,12 @@
-// views/estudiantes_list_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:printing/printing.dart';
 import '../../viewmodels/estudiantes_viewmodel.dart';
 import '../../models/estudiante_model.dart';
-import 'package:incos_check/utils/constants.dart';
-import 'package:incos_check/utils/validators.dart';
-import 'package:incos_check/utils/helpers.dart';
-import '../../views/biometrico/registro_huella_screen.dart';
-import '../../repositories/data_repository.dart';
+import '../../utils/constants.dart';
+import '../../utils/validators.dart';
+import '../../utils/helpers.dart';
+import '../biometrico/registro_huella_screen.dart';
 
 class EstudiantesListScreen extends StatefulWidget {
   final String tipo;
@@ -34,17 +32,13 @@ class _EstudiantesListScreenState extends State<EstudiantesListScreen> {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) {
-        final repository = context.read<DataRepository>();
-        return EstudiantesViewModel(
-          tipo: widget.tipo,
-          carrera: widget.carrera,
-          turno: widget.turno,
-          nivel: widget.nivel,
-          paralelo: widget.paralelo,
-          repository: repository,
-        );
-      },
+      create: (context) => EstudiantesViewModel(
+        tipo: widget.tipo,
+        carrera: widget.carrera,
+        turno: widget.turno,
+        nivel: widget.nivel,
+        paralelo: widget.paralelo,
+      ),
       child: _EstudiantesListContent(
         tipo: widget.tipo,
         carrera: widget.carrera,
@@ -72,8 +66,7 @@ class _EstudiantesListContent extends StatefulWidget {
   });
 
   @override
-  State<_EstudiantesListContent> createState() =>
-      _EstudiantesListContentState();
+  State<_EstudiantesListContent> createState() => _EstudiantesListContentState();
 }
 
 class _EstudiantesListContentState extends State<_EstudiantesListContent> {
@@ -92,19 +85,13 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
     final searchController = viewModel.searchController;
     Color carreraColor = _parseColor(widget.carrera['color']);
 
-    // Definir estilos que necesitan contexto
-    final heading2Style = AppTextStyles.heading2Dark(context);
-    final heading3Style = AppTextStyles.heading3Dark(context);
-    final bodyStyle = AppTextStyles.bodyDark(context);
-    final textSecondaryColor = AppColors.textSecondaryDark(context);
-
     // Mostrar loading state
     if (viewModel.isLoading) {
       return Scaffold(
         appBar: AppBar(
           title: Text(
             'Paralelo ${widget.paralelo['nombre']} - Estudiantes',
-            style: heading2Style.copyWith(color: Colors.white),
+            style: AppTextStyles.heading2.copyWith(color: Colors.white),
           ),
           backgroundColor: carreraColor,
         ),
@@ -127,7 +114,7 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
         appBar: AppBar(
           title: Text(
             'Paralelo ${widget.paralelo['nombre']} - Estudiantes',
-            style: heading2Style.copyWith(color: Colors.white),
+            style: AppTextStyles.heading2.copyWith(color: Colors.white),
           ),
           backgroundColor: carreraColor,
         ),
@@ -135,19 +122,22 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.error_outline, size: 64, color: Colors.red),
-              SizedBox(height: AppSpacing.medium),
-              Text('Error al cargar estudiantes', style: heading3Style),
-              SizedBox(height: AppSpacing.small),
+              Icon(Icons.error_outline, size: 64, color: AppColors.error),
+              const SizedBox(height: AppSpacing.medium),
+              Text(
+                'Error al cargar estudiantes',
+                style: AppTextStyles.heading2.copyWith(color: AppColors.error),
+              ),
+              const SizedBox(height: AppSpacing.small),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 32.0),
                 child: Text(
                   viewModel.error!,
-                  style: bodyStyle,
+                  style: AppTextStyles.body,
                   textAlign: TextAlign.center,
                 ),
               ),
-              SizedBox(height: AppSpacing.medium),
+              const SizedBox(height: AppSpacing.medium),
               ElevatedButton(
                 onPressed: () => viewModel.reintentarCarga(),
                 child: const Text('Reintentar'),
@@ -162,76 +152,64 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
       appBar: AppBar(
         title: Text(
           'Paralelo ${widget.paralelo['nombre']} - Estudiantes',
-          style: heading2Style.copyWith(color: Colors.white),
+          style: AppTextStyles.heading2.copyWith(color: Colors.white),
         ),
         backgroundColor: carreraColor,
         actions: [
           PopupMenuButton<String>(
             onSelected: (value) => _handleExportAction(context, value),
             itemBuilder: (BuildContext context) => [
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: 'excel_simple',
-                child: Text('Exportar Lista Simple (Excel)', style: bodyStyle),
+                child: Text('Exportar Lista Simple (Excel)'),
               ),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: 'excel_completo',
-                child: Text(
-                  'Exportar Lista Completa (Excel)',
-                  style: bodyStyle,
-                ),
+                child: Text('Exportar Lista Completa (Excel)'),
               ),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: 'pdf_simple',
-                child: Text('Exportar Lista Simple (PDF)', style: bodyStyle),
+                child: Text('Exportar Lista Simple (PDF)'),
               ),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: 'pdf_completo',
-                child: Text('Exportar Lista Completa (PDF)', style: bodyStyle),
+                child: Text('Exportar Lista Completa (PDF)'),
               ),
             ],
-            icon: Icon(Icons.download, color: Colors.white),
+            icon: const Icon(Icons.download, color: Colors.white),
           ),
         ],
       ),
       body: Column(
         children: [
           Padding(
-            padding: EdgeInsets.all(AppSpacing.medium),
+            padding: const EdgeInsets.all(AppSpacing.medium),
             child: TextField(
               controller: searchController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Buscar estudiante...',
-                labelStyle: bodyStyle,
                 prefixIcon: Icon(Icons.search, color: AppColors.primary),
                 border: OutlineInputBorder(),
-                suffixIcon: searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: Icon(Icons.clear, color: AppColors.primary),
-                        onPressed: () {
-                          searchController.clear();
-                        },
-                      )
-                    : null,
+                suffixIcon: Icon(Icons.clear, color: AppColors.primary),
               ),
-              style: bodyStyle,
             ),
           ),
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: AppSpacing.medium),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.medium),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   '${estudiantes.length} estudiante${estudiantes.length != 1 ? 's' : ''}',
-                  style: bodyStyle.copyWith(
-                    color: textSecondaryColor,
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.textSecondary,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 if (searchController.text.isNotEmpty)
                   Text(
                     'Búsqueda: "${searchController.text}"',
-                    style: bodyStyle.copyWith(
+                    style: AppTextStyles.body.copyWith(
                       color: Colors.blue[600],
                       fontSize: 12,
                     ),
@@ -239,28 +217,19 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
               ],
             ),
           ),
-          SizedBox(height: AppSpacing.small),
+          const SizedBox(height: AppSpacing.small),
           Expanded(
             child: estudiantes.isEmpty
-                ? _buildEmptyState(
-                    viewModel,
-                    context,
-                    bodyStyle,
-                    heading3Style,
-                    textSecondaryColor,
-                  )
+                ? _buildEmptyState(viewModel)
                 : ListView.builder(
-                    padding: EdgeInsets.all(AppSpacing.medium),
+                    padding: const EdgeInsets.all(AppSpacing.medium),
                     itemCount: estudiantes.length,
                     itemBuilder: (context, index) {
                       final estudiante = estudiantes[index];
                       return _buildEstudianteCard(
                         context,
                         estudiante,
-                        index,
                         carreraColor,
-                        heading3Style,
-                        bodyStyle,
                       );
                     },
                   ),
@@ -270,7 +239,7 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAgregarEstudianteDialog(context, viewModel),
         backgroundColor: carreraColor,
-        child: Icon(Icons.add, color: Colors.white),
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
@@ -278,33 +247,30 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
   Widget _buildEstudianteCard(
     BuildContext context,
     Estudiante estudiante,
-    int index,
     Color color,
-    TextStyle heading3Style,
-    TextStyle bodyStyle,
   ) {
     final viewModel = Provider.of<EstudiantesViewModel>(context, listen: false);
 
     return Card(
       elevation: 4,
-      margin: EdgeInsets.only(bottom: AppSpacing.medium),
+      margin: const EdgeInsets.only(bottom: AppSpacing.medium),
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: color,
           child: Text(
             estudiante.nombres.isNotEmpty ? estudiante.nombres[0] : '?',
-            style: TextStyle(color: Colors.white),
+            style: const TextStyle(color: Colors.white),
           ),
         ),
         title: Text(
           '${estudiante.apellidoPaterno} ${estudiante.apellidoMaterno} ${estudiante.nombres}',
-          style: heading3Style,
+          style: AppTextStyles.heading3,
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('CI: ${estudiante.ci}', style: bodyStyle),
-            Text('Registro: ${estudiante.fechaRegistro}', style: bodyStyle),
+            Text('CI: ${estudiante.ci}', style: AppTextStyles.body),
+            Text('Registro: ${estudiante.fechaRegistro}', style: AppTextStyles.body),
             Row(
               children: [
                 Icon(
@@ -314,10 +280,10 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
                       ? Colors.green
                       : Colors.orange,
                 ),
-                SizedBox(width: 4),
+                const SizedBox(width: 4),
                 Text(
                   'Huellas: ${estudiante.huellasRegistradas}/3',
-                  style: bodyStyle.copyWith(
+                  style: AppTextStyles.body.copyWith(
                     color: estudiante.tieneTodasLasHuellas
                         ? Colors.green
                         : Colors.orange,
@@ -333,7 +299,7 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
           children: [
             if (!estudiante.tieneTodasLasHuellas)
               IconButton(
-                icon: Icon(Icons.fingerprint, color: Colors.blue),
+                icon: const Icon(Icons.fingerprint, color: Colors.blue),
                 onPressed: () =>
                     _registrarHuellas(context, estudiante, viewModel),
                 tooltip: 'Registrar Huellas',
@@ -342,17 +308,17 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
               onSelected: (value) =>
                   _handleMenuAction(context, value, estudiante, viewModel),
               itemBuilder: (BuildContext context) => [
-                PopupMenuItem(
+                const PopupMenuItem(
                   value: 'edit',
-                  child: Text('Modificar', style: bodyStyle),
+                  child: Text('Modificar'),
                 ),
-                PopupMenuItem(
+                const PopupMenuItem(
                   value: 'huellas',
-                  child: Text('Gestionar Huellas', style: bodyStyle),
+                  child: Text('Gestionar Huellas'),
                 ),
-                PopupMenuItem(
+                const PopupMenuItem(
                   value: 'delete',
-                  child: Text('Eliminar', style: bodyStyle),
+                  child: Text('Eliminar'),
                 ),
               ],
             ),
@@ -362,33 +328,27 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
     );
   }
 
-  Widget _buildEmptyState(
-    EstudiantesViewModel viewModel,
-    BuildContext context,
-    TextStyle bodyStyle,
-    TextStyle heading3Style,
-    Color textSecondaryColor,
-  ) {
+  Widget _buildEmptyState(EstudiantesViewModel viewModel) {
     final searchController = viewModel.searchController;
 
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.people_outline, size: 80, color: textSecondaryColor),
-          SizedBox(height: AppSpacing.medium),
+          Icon(Icons.people_outline, size: 80, color: AppColors.textSecondary),
+          const SizedBox(height: AppSpacing.medium),
           Text(
             searchController.text.isEmpty
                 ? 'No hay estudiantes registrados'
                 : 'No se encontraron resultados',
-            style: heading3Style.copyWith(color: textSecondaryColor),
+            style: AppTextStyles.heading3.copyWith(color: AppColors.textSecondary),
           ),
-          SizedBox(height: AppSpacing.small),
+          const SizedBox(height: AppSpacing.small),
           Text(
             searchController.text.isEmpty
                 ? 'Presiona el botón + para agregar el primer estudiante'
                 : 'Intenta con otros términos de búsqueda',
-            style: bodyStyle.copyWith(color: textSecondaryColor),
+            style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
             textAlign: TextAlign.center,
           ),
           if (searchController.text.isNotEmpty)
@@ -396,7 +356,7 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
               onPressed: () {
                 searchController.clear();
               },
-              child: Text('Limpiar búsqueda', style: bodyStyle),
+              child: const Text('Limpiar búsqueda'),
             ),
         ],
       ),
@@ -610,15 +570,15 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Exportar - Opciones'),
+          title: const Text('Exportar - Opciones'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextFormField(
                 controller: asignaturaController,
-                decoration: InputDecoration(labelText: 'Asignatura'),
+                decoration: const InputDecoration(labelText: 'Asignatura'),
               ),
-              SizedBox(height: AppSpacing.small),
+              const SizedBox(height: AppSpacing.small),
               Text(
                 '${viewModel.estudiantesFiltrados.length} estudiante${viewModel.estudiantesFiltrados.length != 1 ? 's' : ''}',
               ),
@@ -627,7 +587,7 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Cancelar'),
+              child: const Text('Cancelar'),
             ),
             TextButton(
               onPressed: () async {
@@ -640,7 +600,7 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
                     context,
                     MaterialPageRoute(
                       builder: (context) => Scaffold(
-                        appBar: AppBar(title: Text('Vista previa PDF')),
+                        appBar: AppBar(title: const Text('Vista previa PDF')),
                         body: PdfPreview(
                           build: (format) async => viewModel
                               .buildPdfDocument(
@@ -659,13 +619,13 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
                     context,
                     MaterialPageRoute(
                       builder: (context) => Scaffold(
-                        appBar: AppBar(title: Text('Vista previa CSV')),
+                        appBar: AppBar(title: const Text('Vista previa CSV')),
                         body: Padding(
-                          padding: EdgeInsets.all(AppSpacing.medium),
+                          padding: const EdgeInsets.all(AppSpacing.medium),
                           child: SingleChildScrollView(
                             child: SelectableText(
                               csv,
-                              style: AppTextStyles.bodyDark(context),
+                              style: AppTextStyles.body,
                             ),
                           ),
                         ),
@@ -674,7 +634,7 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
                   );
                 }
               },
-              child: Text('Vista previa'),
+              child: const Text('Vista previa'),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -711,7 +671,7 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
                   }
                 }
               },
-              child: Text('Descargar'),
+              child: const Text('Descargar'),
             ),
           ],
         );
@@ -776,11 +736,8 @@ class _EstudianteDialogState extends State<_EstudianteDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final heading2Style = AppTextStyles.heading2Dark(context);
-    final bodyStyle = AppTextStyles.bodyDark(context);
-
     return Dialog(
-      insetPadding: EdgeInsets.all(AppSpacing.medium),
+      insetPadding: const EdgeInsets.all(AppSpacing.medium),
       child: SingleChildScrollView(
         padding: MediaQuery.of(context).viewInsets,
         child: ConstrainedBox(
@@ -789,12 +746,12 @@ class _EstudianteDialogState extends State<_EstudianteDialog> {
             maxHeight: MediaQuery.of(context).size.height * 0.85,
           ),
           child: Padding(
-            padding: EdgeInsets.all(AppSpacing.medium),
+            padding: const EdgeInsets.all(AppSpacing.medium),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(widget.title, style: heading2Style),
-                SizedBox(height: AppSpacing.medium),
+                Text(widget.title, style: AppTextStyles.heading2),
+                const SizedBox(height: AppSpacing.medium),
                 Form(
                   key: _formKey,
                   child: Column(
@@ -802,34 +759,28 @@ class _EstudianteDialogState extends State<_EstudianteDialog> {
                     children: [
                       TextFormField(
                         controller: _nombresController,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           labelText: 'Nombres *',
-                          labelStyle: bodyStyle,
                           border: OutlineInputBorder(),
                         ),
-                        style: bodyStyle,
                         validator: (value) => Validators.validateName(value),
                       ),
-                      SizedBox(height: AppSpacing.small),
+                      const SizedBox(height: AppSpacing.small),
                       TextFormField(
                         controller: _paternoController,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           labelText: 'Apellido Paterno *',
-                          labelStyle: bodyStyle,
                           border: OutlineInputBorder(),
                         ),
-                        style: bodyStyle,
                         validator: (value) => Validators.validateName(value),
                       ),
-                      SizedBox(height: AppSpacing.small),
+                      const SizedBox(height: AppSpacing.small),
                       TextFormField(
                         controller: _maternoController,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           labelText: 'Apellido Materno',
-                          labelStyle: bodyStyle,
                           border: OutlineInputBorder(),
                         ),
-                        style: bodyStyle,
                         validator: (value) {
                           if (value != null && value.isNotEmpty) {
                             return Validators.validateName(value);
@@ -837,33 +788,31 @@ class _EstudianteDialogState extends State<_EstudianteDialog> {
                           return null;
                         },
                       ),
-                      SizedBox(height: AppSpacing.small),
+                      const SizedBox(height: AppSpacing.small),
                       TextFormField(
                         controller: _ciController,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           labelText: 'Cédula de Identidad *',
-                          labelStyle: bodyStyle,
                           border: OutlineInputBorder(),
                         ),
-                        style: bodyStyle,
                         keyboardType: TextInputType.number,
                         validator: (value) => Validators.validateCI(value),
                       ),
                     ],
                   ),
                 ),
-                SizedBox(height: AppSpacing.large),
+                const SizedBox(height: AppSpacing.large),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: Text('Cancelar', style: bodyStyle),
+                      child: const Text('Cancelar'),
                     ),
-                    SizedBox(width: AppSpacing.small),
+                    const SizedBox(width: AppSpacing.small),
                     ElevatedButton(
                       onPressed: _guardarEstudiante,
-                      child: Text('Guardar', style: bodyStyle),
+                      child: const Text('Guardar'),
                     ),
                   ],
                 ),

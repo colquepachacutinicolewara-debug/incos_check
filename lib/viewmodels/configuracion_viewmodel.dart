@@ -1,15 +1,12 @@
-//configuracion_viewmodel.dart
+// viewmodels/configuracion_viewmodel.dart
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/configuracion_model.dart';
-import '../utils/constants.dart';
-import '../utils/helpers.dart';
-import '../repositories/data_repository.dart';
+import '../models/database_helper.dart';
 
 class ConfiguracionViewModel with ChangeNotifier {
   final LocalAuthentication _localAuth = LocalAuthentication();
-  final DataRepository _repository;
+  final DatabaseHelper _databaseHelper = DatabaseHelper.instance;
   ConfiguracionModel _configuracion = ConfiguracionModel.defaultValues();
 
   ConfiguracionModel get configuracion => _configuracion;
@@ -20,127 +17,90 @@ class ConfiguracionViewModel with ChangeNotifier {
   List<String> get languages => _languages;
   List<String> get themes => _themes;
 
-  ConfiguracionViewModel(this._repository) {
+  ConfiguracionViewModel() { 
     _loadSettings();
   }
 
   Future<void> _loadSettings() async {
     try {
-      // Intentar cargar desde Firestore primero
-      await _loadFromFirestore();
+      await _loadFromDatabase();
     } catch (e) {
-      // Si falla Firestore, cargar desde SharedPreferences
-      print('Error cargando desde Firestore: $e');
-      await _loadFromSharedPreferences();
+      print('Error cargando configuración: $e');
     }
   }
 
-  Future<void> _loadFromFirestore() async {
+  Future<void> _loadFromDatabase() async {
     try {
-      const usuarioId = 'usuario_actual'; // Puedes ajustar esto por usuario
+      final result = await _databaseHelper.rawQuery('''
+        SELECT * FROM configuraciones WHERE id = 'config_default'
+      ''');
 
-      final snapshot = await _repository.getConfiguracion(usuarioId);
-
-      if (snapshot.exists) {
-        // CORRECCIÓN: Convertir explícitamente a Map<String, dynamic>
-        final data = snapshot.data() as Map<String, dynamic>? ?? {};
-
-        _configuracion = ConfiguracionModel.fromFirestore(snapshot.id, data);
-        // Sincronizar con SharedPreferences
-        await _syncToSharedPreferences();
+      if (result.isNotEmpty) {
+        _configuracion = ConfiguracionModel.fromMap(
+          Map<String, dynamic>.from(result.first)
+        );
       } else {
-        // Si no existe en Firestore, cargar desde SharedPreferences
-        await _loadFromSharedPreferences();
-        // Y guardar en Firestore
-        await _saveToFirestore();
+        // Insertar configuración por defecto si no existe
+        await _saveToDatabase();
       }
       notifyListeners();
     } catch (e) {
-      print('Error cargando desde Firestore: $e');
-      // Fallback a SharedPreferences
-      await _loadFromSharedPreferences();
+      print('Error cargando desde base de datos: $e');
     }
   }
 
-  Future<void> _loadFromSharedPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    _configuracion = ConfiguracionModel(
-      notificationsEnabled: prefs.getBool('notifications_enabled') ?? true,
-      darkModeEnabled: prefs.getBool('dark_mode_enabled') ?? false,
-      biometricEnabled: prefs.getBool('biometric_enabled') ?? false,
-      autoSyncEnabled: prefs.getBool('auto_sync_enabled') ?? true,
-      selectedLanguage: prefs.getString('selected_language') ?? 'Español',
-      selectedTheme: prefs.getString('selected_theme') ?? 'Sistema',
-      cacheSize: prefs.getString('cache_size') ?? "15.2 MB",
-    );
+  Future<void> _saveToDatabase() async {
+    try {
+      await _databaseHelper.rawInsert('''
+        INSERT OR REPLACE INTO configuraciones 
+        (id, notifications_enabled, dark_mode_enabled, biometric_enabled, 
+         auto_sync_enabled, selected_language, selected_theme, cache_size, last_updated)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ''', [
+        _configuracion.id ?? 'config_default',
+        _configuracion.notificationsEnabled ? 1 : 0,
+        _configuracion.darkModeEnabled ? 1 : 0,
+        _configuracion.biometricEnabled ? 1 : 0,
+        _configuracion.autoSyncEnabled ? 1 : 0,
+        _configuracion.selectedLanguage,
+        _configuracion.selectedTheme,
+        _configuracion.cacheSize,
+        DateTime.now().toIso8601String(),
+      ]);
+    } catch (e) {
+      print('Error guardando configuración: $e');
+      rethrow;
+    }
+  }
+
+  // MÉTODOS DE ACTUALIZACIÓN
+  Future<void> updateNotificationsEnabled(bool value) async {
+    _configuracion = _configuracion.copyWith(notificationsEnabled: value);
+    await _saveToDatabase();
     notifyListeners();
   }
 
-  Future<void> _syncToSharedPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(
-      'notifications_enabled',
-      _configuracion.notificationsEnabled,
-    );
-    await prefs.setBool('dark_mode_enabled', _configuracion.darkModeEnabled);
-    await prefs.setBool('biometric_enabled', _configuracion.biometricEnabled);
-    await prefs.setBool('auto_sync_enabled', _configuracion.autoSyncEnabled);
-    await prefs.setString('selected_language', _configuracion.selectedLanguage);
-    await prefs.setString('selected_theme', _configuracion.selectedTheme);
-    await prefs.setString('cache_size', _configuracion.cacheSize);
-  }
-
-  Future<void> _saveToFirestore() async {
-    try {
-      const usuarioId = 'usuario_actual'; // Puedes ajustar esto por usuario
-
-      await _repository.saveConfiguracion(usuarioId, _configuracion.toMap());
-    } catch (e) {
-      print('Error guardando en Firestore: $e');
-      // No relanzamos la excepción para no romper la funcionalidad
-    }
-  }
-
-  Future<void> _saveSetting(String key, dynamic value) async {
-    try {
-      // Guardar en SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      if (value is bool) {
-        await prefs.setBool(key, value);
-      } else if (value is String) {
-        await prefs.setString(key, value);
-      }
-
-      // Sincronizar con Firestore (en segundo plano, no esperamos)
-      _saveToFirestore();
-    } catch (e) {
-      print('Error guardando configuración: $e');
-      // Si falla Firestore, al menos tenemos SharedPreferences
-    }
-  }
-
-  // MÉTODOS DE ACTUALIZACIÓN (MANTENIENDO FUNCIONALIDAD)
-  Future<void> updateNotificationsEnabled(bool value) async {
-    _configuracion = _configuracion.copyWith(notificationsEnabled: value);
-    await _saveSetting('notifications_enabled', value);
+  Future<void> updateDarkModeEnabled(bool value) async {
+    _configuracion = _configuracion.copyWith(darkModeEnabled: value);
+    await _saveToDatabase();
     notifyListeners();
   }
 
   Future<void> updateAutoSyncEnabled(bool value) async {
     _configuracion = _configuracion.copyWith(autoSyncEnabled: value);
-    await _saveSetting('auto_sync_enabled', value);
+    await _saveToDatabase();
     notifyListeners();
   }
 
   Future<void> updateLanguage(String value) async {
     _configuracion = _configuracion.copyWith(selectedLanguage: value);
-    await _saveSetting('selected_language', value);
+    await _saveToDatabase();
     notifyListeners();
   }
 
   Future<void> updateTheme(String value) async {
     _configuracion = _configuracion.copyWith(selectedTheme: value);
-    await _saveSetting('selected_theme', value);
+    await _saveToDatabase();
     notifyListeners();
   }
 
@@ -148,15 +108,14 @@ class ConfiguracionViewModel with ChangeNotifier {
     if (_configuracion.biometricEnabled) {
       // Desactivar biometría
       _configuracion = _configuracion.copyWith(biometricEnabled: false);
-      await _saveSetting('biometric_enabled', false);
+      await _saveToDatabase();
+      notifyListeners();
     } else {
       // Activar biometría - requiere autenticación
       await _checkBiometricAvailability();
     }
-    notifyListeners();
   }
 
-  // MÉTODOS EXISTENTES (SIN CAMBIOS)
   Future<void> _checkBiometricAvailability() async {
     try {
       final bool canAuthenticate = await _localAuth.canCheckBiometrics;
@@ -165,8 +124,8 @@ class ConfiguracionViewModel with ChangeNotifier {
         throw Exception('Biometría no disponible en este dispositivo');
       }
 
-      final List<BiometricType> availableBiometrics = await _localAuth
-          .getAvailableBiometrics();
+      final List<BiometricType> availableBiometrics = 
+          await _localAuth.getAvailableBiometrics();
 
       if (availableBiometrics.isEmpty) {
         throw Exception('No hay métodos biométricos configurados');
@@ -184,7 +143,8 @@ class ConfiguracionViewModel with ChangeNotifier {
 
       if (didAuthenticate) {
         _configuracion = _configuracion.copyWith(biometricEnabled: true);
-        await _saveSetting('biometric_enabled', true);
+        await _saveToDatabase();
+        notifyListeners();
       } else {
         throw Exception('Autenticación cancelada o fallida');
       }
@@ -193,20 +153,33 @@ class ConfiguracionViewModel with ChangeNotifier {
     }
   }
 
-  void clearCache() {
+  Future<void> clearCache() async {
     _configuracion = _configuracion.copyWith(cacheSize: "0 MB");
-    // También guardar en Firestore y SharedPreferences
-    _saveSetting('cache_size', "0 MB");
+    await _saveToDatabase();
     notifyListeners();
   }
 
   // Nuevo método para sincronizar manualmente
   Future<void> syncSettings() async {
     try {
-      await _saveToFirestore();
-      await _syncToSharedPreferences();
+      await _saveToDatabase();
     } catch (e) {
       throw Exception('Error sincronizando configuración: $e');
     }
+  }
+
+  // Método para resetear a valores por defecto
+  Future<void> resetToDefaults() async {
+    _configuracion = ConfiguracionModel.defaultValues();
+    await _saveToDatabase();
+    notifyListeners();
+  }
+
+  // Método para obtener resumen de configuración
+  String get resumenConfiguracion {
+    final config = _configuracion;
+    return 'Idioma: ${config.selectedLanguage} | Tema: ${config.selectedTheme} | '
+           'Notificaciones: ${config.notificationsEnabled ? "On" : "Off"} | '
+           'Biometría: ${config.biometricEnabled ? "On" : "Off"}';
   }
 }

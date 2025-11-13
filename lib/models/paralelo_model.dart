@@ -1,5 +1,5 @@
-// paralelo_model.dart
-import 'package:cloud_firestore/cloud_firestore.dart';
+// models/paralelo_model.dart
+import 'dart:convert';
 
 class Paralelo {
   final String id;
@@ -40,80 +40,81 @@ class Paralelo {
     return {
       'id': id,
       'nombre': nombre,
-      'activo': activo,
-      'estudiantes': estudiantes,
-      'fechaCreacion': fechaCreacion?.millisecondsSinceEpoch,
-      'fechaActualizacion': fechaActualizacion?.millisecondsSinceEpoch,
+      'activo': activo ? 1 : 0,
+      'estudiantes': json.encode(estudiantes),
+      'fecha_creacion': fechaCreacion?.toIso8601String() ?? DateTime.now().toIso8601String(),
+      'fecha_actualizacion': fechaActualizacion?.toIso8601String() ?? DateTime.now().toIso8601String(),
     };
-  }
-
-  Map<String, dynamic> toFirestore() {
-    final map = {
-      'nombre': nombre,
-      'activo': activo,
-      'estudiantes': estudiantes,
-      'fechaActualizacion': FieldValue.serverTimestamp(),
-    };
-
-    if (id.isEmpty) {
-      map['fechaCreacion'] = FieldValue.serverTimestamp();
-    } else if (fechaCreacion != null) {
-      map['fechaCreacion'] = Timestamp.fromDate(fechaCreacion!);
-    }
-
-    return map;
-  }
-
-  factory Paralelo.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return Paralelo(
-      id: doc.id,
-      nombre: data['nombre'] as String? ?? '',
-      activo: data['activo'] as bool? ?? true,
-      estudiantes: List<Map<String, dynamic>>.from(data['estudiantes'] ?? []),
-      fechaCreacion: (data['fechaCreacion'] as Timestamp?)?.toDate(),
-      fechaActualizacion: (data['fechaActualizacion'] as Timestamp?)?.toDate(),
-    );
   }
 
   factory Paralelo.fromMap(Map<String, dynamic> map) {
+    List<Map<String, dynamic>> estudiantes = [];
+    try {
+      if (map['estudiantes'] is String && map['estudiantes'].toString().isNotEmpty) {
+        estudiantes = List<Map<String, dynamic>>.from(
+          json.decode(map['estudiantes']).map((x) => Map<String, dynamic>.from(x))
+        );
+      } else if (map['estudiantes'] is List) {
+        estudiantes = List<Map<String, dynamic>>.from(map['estudiantes']);
+      }
+    } catch (e) {
+      print('Error parsing estudiantes: $e');
+    }
+
     return Paralelo(
       id: map['id'] as String? ?? '',
       nombre: map['nombre'] as String? ?? '',
-      activo: map['activo'] as bool? ?? true,
-      estudiantes: List<Map<String, dynamic>>.from(map['estudiantes'] ?? []),
-      fechaCreacion: map['fechaCreacion'] is Timestamp
-          ? (map['fechaCreacion'] as Timestamp).toDate()
+      activo: (map['activo'] ?? 1) == 1,
+      estudiantes: estudiantes,
+      fechaCreacion: map['fecha_creacion'] != null
+          ? DateTime.parse(map['fecha_creacion'])
           : null,
-      fechaActualizacion: map['fechaActualizacion'] is Timestamp
-          ? (map['fechaActualizacion'] as Timestamp).toDate()
+      fechaActualizacion: map['fecha_actualizacion'] != null
+          ? DateTime.parse(map['fecha_actualizacion'])
           : null,
     );
   }
 
-  static Map<String, dynamic> createForFirestore({
+  int get totalEstudiantes => estudiantes.length;
+  bool get tieneEstudiantes => estudiantes.isNotEmpty;
+  bool get estaActivo => activo;
+
+  String get displayName => 'Paralelo $nombre';
+  String get infoCompleta => 'Paralelo $nombre - $totalEstudiantes estudiantes';
+
+  static Map<String, dynamic> createForInsert({
     required String nombre,
     bool activo = true,
   }) {
     return {
       'nombre': nombre,
-      'activo': activo,
-      'estudiantes': [],
-      'fechaCreacion': FieldValue.serverTimestamp(),
-      'fechaActualizacion': FieldValue.serverTimestamp(),
+      'activo': activo ? 1 : 0,
+      'estudiantes': '[]',
+      'fecha_creacion': DateTime.now().toIso8601String(),
+      'fecha_actualizacion': DateTime.now().toIso8601String(),
     };
   }
 
   Map<String, dynamic> toUpdateMap() {
     return {
       'nombre': nombre,
-      'activo': activo,
-      'fechaActualizacion': FieldValue.serverTimestamp(),
+      'activo': activo ? 1 : 0,
+      'estudiantes': json.encode(estudiantes),
+      'fecha_actualizacion': DateTime.now().toIso8601String(),
     };
   }
 
   @override
   String toString() {
-    return 'Paralelo($id: $nombre - ${activo ? "Activo" : "Inactivo"} - ${estudiantes.length} estudiantes)';
+    return 'Paralelo($id: $nombre - ${activo ? "Activo" : "Inactivo"} - $totalEstudiantes estudiantes)';
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is Paralelo && other.id == id;
+  }
+
+  @override
+  int get hashCode => id.hashCode;
 }

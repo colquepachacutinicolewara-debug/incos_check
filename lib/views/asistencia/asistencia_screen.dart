@@ -1,3 +1,4 @@
+// views/asistencia/asistencia_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
@@ -6,25 +7,22 @@ import 'registrar_asistencia_screen.dart';
 import 'historial_asistencia_screen.dart';
 import '../../viewmodels/asistencia_viewmodel.dart';
 import '../../models/asistencia_model.dart';
-import '../../repositories/data_repository.dart';
 
 class AsistenciaScreen extends StatelessWidget {
-  const AsistenciaScreen({super.key});
+  final Map<String, dynamic>? userData;
+
+  const AsistenciaScreen({super.key, this.userData});
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) {
-        final repository = context.read<DataRepository>();
-        return AsistenciaViewModel(repository);
-      },
-      child: const _AsistenciaScreenContent(),
-    );
+    return _AsistenciaScreenContent(userData: userData);
   }
 }
 
 class _AsistenciaScreenContent extends StatelessWidget {
-  const _AsistenciaScreenContent();
+  final Map<String, dynamic>? userData;
+
+  const _AsistenciaScreenContent({this.userData});
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +37,7 @@ class _AsistenciaScreenContent extends StatelessWidget {
         backgroundColor: viewModel.getBackgroundColor(context),
         appBar: AppBar(
           title: Text(
-            AppStrings.asistencia,
+            'Asistencia',
             style: AppTextStyles.heading1.copyWith(
               fontSize: isVerySmallScreen ? 18 : (isSmallScreen ? 20 : 24),
               color: viewModel.getTextColor(context),
@@ -59,7 +57,7 @@ class _AsistenciaScreenContent extends StatelessWidget {
         backgroundColor: viewModel.getBackgroundColor(context),
         appBar: AppBar(
           title: Text(
-            AppStrings.asistencia,
+            'Asistencia',
             style: AppTextStyles.heading1.copyWith(
               fontSize: isVerySmallScreen ? 18 : (isSmallScreen ? 20 : 24),
               color: viewModel.getTextColor(context),
@@ -114,7 +112,7 @@ class _AsistenciaScreenContent extends StatelessWidget {
       backgroundColor: viewModel.getBackgroundColor(context),
       appBar: AppBar(
         title: Text(
-          AppStrings.asistencia,
+          'Asistencia',
           style: AppTextStyles.heading1.copyWith(
             fontSize: isVerySmallScreen ? 18 : (isSmallScreen ? 20 : 24),
             color: viewModel.getTextColor(context),
@@ -459,7 +457,7 @@ class _AsistenciaScreenContent extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Estadísticas',
+              'Estadísticas de Asistencia',
               style: AppTextStyles.heading2.copyWith(
                 fontSize: isVerySmallScreen ? 16 : (isSmallScreen ? 18 : 20),
                 color: viewModel.getTextColor(context),
@@ -480,6 +478,9 @@ class _AsistenciaScreenContent extends StatelessWidget {
                   ),
                 ),
                 primaryYAxis: NumericAxis(
+                  minimum: 0,
+                  maximum: 100,
+                  interval: 20,
                   labelStyle: TextStyle(
                     fontSize: isVerySmallScreen ? 8 : (isSmallScreen ? 10 : 12),
                     color: viewModel.getChartTextColor(context),
@@ -492,6 +493,13 @@ class _AsistenciaScreenContent extends StatelessWidget {
                     yValueMapper: (AsistenciaData data, _) => data.porcentaje,
                     color: AppColors.primary,
                     borderRadius: BorderRadius.circular(AppRadius.small),
+                    dataLabelSettings: DataLabelSettings(
+                      isVisible: true,
+                      textStyle: TextStyle(
+                        fontSize: isVerySmallScreen ? 8 : (isSmallScreen ? 10 : 12),
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ],
               ),

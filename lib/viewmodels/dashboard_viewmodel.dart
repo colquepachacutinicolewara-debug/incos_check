@@ -1,10 +1,8 @@
 import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../repositories/data_repository.dart';
+import '../../models/database_helper.dart';
 
 class DashboardViewModel with ChangeNotifier {
-  final DataRepository _repository;
+  final DatabaseHelper _databaseHelper;
 
   // Estados
   int _selectedIndex = 2;
@@ -12,7 +10,7 @@ class DashboardViewModel with ChangeNotifier {
   bool _initialized = false;
   String _error = '';
   Map<String, dynamic> _dashboardData = {};
-  User? _currentUser;
+  Map<String, dynamic>? _currentUser;
   Map<String, int> _stats = {};
 
   // Cache para evitar recargas innecesarias
@@ -25,20 +23,16 @@ class DashboardViewModel with ChangeNotifier {
   bool get initialized => _initialized;
   String get error => _error;
   Map<String, dynamic> get dashboardData => _dashboardData;
-  User? get currentUser => _currentUser;
+  Map<String, dynamic>? get currentUser => _currentUser;
   Map<String, int> get stats => _stats;
 
-  DashboardViewModel(this._repository) {
+  DashboardViewModel({Map<String, dynamic>? userData}) : _databaseHelper = DatabaseHelper.instance {
+    _currentUser = userData;
     _initialize();
   }
 
   void _initialize() {
-    _initializeUser();
     _loadInitialData();
-  }
-
-  void _initializeUser() {
-    _currentUser = FirebaseAuth.instance.currentUser;
   }
 
   void _loadInitialData() {
@@ -52,7 +46,6 @@ class DashboardViewModel with ChangeNotifier {
   void changeIndex(int index) {
     if (index >= 0 && index <= 4 && _selectedIndex != index) {
       _selectedIndex = index;
-      // Notificar solo si cambió realmente
       notifyListeners();
     }
   }
@@ -89,10 +82,10 @@ class DashboardViewModel with ChangeNotifier {
   Future<void> _loadDashboardStats() async {
     try {
       final counts = await Future.wait([
-        _getCollectionCount('estudiantes'),
-        _getCollectionCount('docentes'),
-        _getCollectionCount('carreras'),
-        _getCollectionCount('cursos'),
+        _getTableCount('estudiantes'),
+        _getTableCount('docentes'),
+        _getTableCount('carreras'),
+        _getTableCount('materias'),
         _getAsistenciasHoy(),
         _getTotalAsistencias(),
       ], eagerError: true);
@@ -123,26 +116,22 @@ class DashboardViewModel with ChangeNotifier {
   Future<void> _loadUserData() async {
     if (_currentUser != null) {
       _dashboardData['user'] = {
-        'email': _currentUser!.email,
-        'displayName': _currentUser!.displayName ?? 'Usuario',
-        'photoURL': _currentUser!.photoURL,
-        'emailVerified': _currentUser!.emailVerified,
-        'creationTime': _currentUser!.metadata.creationTime?.toString(),
-        'lastSignInTime': _currentUser!.metadata.lastSignInTime?.toString(),
+        'email': _currentUser!['email'] ?? 'No especificado',
+        'displayName': _currentUser!['nombre'] ?? 'Usuario',
+        'role': _currentUser!['role'] ?? 'Usuario',
+        'carnet': _currentUser!['carnet'] ?? 'No especificado',
+        'departamento': _currentUser!['departamento'] ?? 'No especificado',
+        'fecha_registro': _currentUser!['fecha_registro'] ?? 'No especificado',
       };
     }
   }
 
-  Future<int> _getCollectionCount(String collectionName) async {
+  Future<int> _getTableCount(String tableName) async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection(collectionName)
-          .count()
-          .get()
-          .timeout(const Duration(seconds: 10));
-      return snapshot.count ?? 0;
+      final result = await _databaseHelper.rawQuery('SELECT COUNT(*) as count FROM $tableName');
+      return (result.first['count'] as int?) ?? 0;
     } catch (e) {
-      print('Error en _getCollectionCount para $collectionName: $e');
+      print('Error en _getTableCount para $tableName: $e');
       return 0;
     }
   }
@@ -150,18 +139,13 @@ class DashboardViewModel with ChangeNotifier {
   Future<int> _getAsistenciasHoy() async {
     try {
       final now = DateTime.now();
-      final startOfDay = DateTime(now.year, now.month, now.day);
-      final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59);
-
-      final snapshot = await FirebaseFirestore.instance
-          .collection('asistencias')
-          .where('fecha', isGreaterThanOrEqualTo: startOfDay)
-          .where('fecha', isLessThanOrEqualTo: endOfDay)
-          .count()
-          .get()
-          .timeout(const Duration(seconds: 10));
-
-      return snapshot.count ?? 0;
+      final today = DateTime(now.year, now.month, now.day).toIso8601String();
+      
+      final result = await _databaseHelper.rawQuery(
+        'SELECT COUNT(*) as count FROM asistencias WHERE date(ultima_actualizacion) = date(?)',
+        [today]
+      );
+      return (result.first['count'] as int?) ?? 0;
     } catch (e) {
       print('Error en _getAsistenciasHoy: $e');
       return 0;
@@ -170,12 +154,8 @@ class DashboardViewModel with ChangeNotifier {
 
   Future<int> _getTotalAsistencias() async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('asistencias')
-          .count()
-          .get()
-          .timeout(const Duration(seconds: 10));
-      return snapshot.count ?? 0;
+      final result = await _databaseHelper.rawQuery('SELECT COUNT(*) as count FROM asistencias');
+      return (result.first['count'] as int?) ?? 0;
     } catch (e) {
       print('Error en _getTotalAsistencias: $e');
       return 0;
@@ -187,7 +167,8 @@ class DashboardViewModel with ChangeNotifier {
       _loading = true;
       notifyListeners();
 
-      await FirebaseAuth.instance.signOut();
+      // Simular proceso de logout
+      await Future.delayed(const Duration(milliseconds: 500));
       _clearData();
 
       _loading = false;
@@ -206,176 +187,21 @@ class DashboardViewModel with ChangeNotifier {
     _stats = {};
     _error = '';
     _lastDataLoad = null;
+    _currentUser = null;
   }
 
-  // ========== MÉTODOS ADICIONALES COMPLETOS ==========
+  // ========== MÉTODOS ADICIONALES ==========
 
-  /// Actualizar perfil de usuario
-  Future<void> updateUserProfile({
-    required String displayName,
-    String? photoURL,
-  }) async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        await user.updateDisplayName(displayName);
-        if (photoURL != null) {
-          await user.updatePhotoURL(photoURL);
-        }
-
-        // Actualizar datos locales
-        _initializeUser();
-        notifyListeners();
-      }
-    } catch (e) {
-      throw Exception('Error al actualizar perfil: ${e.toString()}');
-    }
-  }
-
-  /// Verificar si el usuario es administrador
   Future<bool> isUserAdmin() async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        final userDoc = await FirebaseFirestore.instance
-            .collection('usuarios')
-            .doc(user.uid)
-            .get()
-            .timeout(const Duration(seconds: 5));
-
-        return userDoc.exists && userDoc.data()?['role'] == 'admin';
-      }
-      return false;
+      return _currentUser != null && _currentUser!['role'] == 'Administrador';
     } catch (e) {
       print('Error en isUserAdmin: $e');
       return false;
     }
   }
 
-  /// Obtener configuraciones del usuario
-  Future<Map<String, dynamic>> getUserSettings() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        final settingsDoc = await FirebaseFirestore.instance
-            .collection('user_settings')
-            .doc(user.uid)
-            .get()
-            .timeout(const Duration(seconds: 5));
-
-        if (settingsDoc.exists) {
-          return settingsDoc.data() ?? {};
-        }
-      }
-      return {};
-    } catch (e) {
-      print('Error en getUserSettings: $e');
-      return {};
-    }
-  }
-
-  /// Actualizar configuraciones del usuario
-  Future<void> updateUserSettings(Map<String, dynamic> settings) async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        await FirebaseFirestore.instance
-            .collection('user_settings')
-            .doc(user.uid)
-            .set(settings, SetOptions(merge: true))
-            .timeout(const Duration(seconds: 5));
-
-        // Actualizar datos locales si es necesario
-        notifyListeners();
-      }
-    } catch (e) {
-      throw Exception('Error al actualizar configuraciones: ${e.toString()}');
-    }
-  }
-
-  /// Forzar refresh de datos
-  Future<void> refreshData() async {
-    await loadDashboardData(forceRefresh: true);
-  }
-
-  /// Limpiar error
-  void clearError() {
-    if (_error.isNotEmpty) {
-      _error = '';
-      notifyListeners();
-    }
-  }
-
-  /// Verificar conexión a internet
-  Future<bool> checkConnection() async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('estudiantes')
-          .limit(1)
-          .get()
-          .timeout(const Duration(seconds: 5));
-      return true;
-    } catch (e) {
-      print('Error en checkConnection: $e');
-      return false;
-    }
-  }
-
-  /// Obtener estadística específica
-  int getStat(String key) {
-    return _stats[key] ?? 0;
-  }
-
-  /// Verificar si hay datos cargados
-  bool get hasData => _stats.isNotEmpty && _dashboardData.isNotEmpty;
-
-  /// Obtener el tiempo desde la última actualización
-  String get lastUpdateTime {
-    if (_lastDataLoad == null) return 'Nunca';
-
-    final now = DateTime.now();
-    final difference = now.difference(_lastDataLoad!);
-
-    if (difference.inMinutes < 1) return 'Hace unos segundos';
-    if (difference.inMinutes < 60) return 'Hace ${difference.inMinutes} min';
-    if (difference.inHours < 24) return 'Hace ${difference.inHours} h';
-    return 'Hace ${difference.inDays} días';
-  }
-
-  /// Obtener información del sistema
-  Map<String, dynamic> get systemInfo {
-    return {
-      'user': _currentUser?.email ?? 'No autenticado',
-      'lastUpdate': lastUpdateTime,
-      'statsCount': _stats.length,
-      'hasError': _error.isNotEmpty,
-      'isLoading': _loading,
-    };
-  }
-
-  /// Validar permisos de usuario para una sección específica
-  Future<bool> hasPermissionForSection(String section) async {
-    try {
-      final isAdmin = await isUserAdmin();
-
-      // Definir permisos por sección
-      final permissions = {
-        'Estudiantes': true, // Todos pueden ver estudiantes
-        'Docentes': isAdmin, // Solo admin puede ver docentes
-        'Carreras': isAdmin, // Solo admin puede ver carreras
-        'Cursos': true, // Todos pueden ver cursos
-        'Reportes': isAdmin, // Solo admin puede ver reportes
-        'Configuración': isAdmin, // Solo admin puede ver configuración
-      };
-
-      return permissions[section] ?? false;
-    } catch (e) {
-      print('Error en hasPermissionForSection: $e');
-      return false;
-    }
-  }
-
-  /// Obtener estadísticas detalladas por carrera
+  /// Obtener estadísticas detalladas por carrera - CORREGIDO
   Future<Map<String, dynamic>> getDetailedStats() async {
     try {
       final estudiantesByCarrera = await _getEstudiantesByCarrera();
@@ -395,19 +221,22 @@ class DashboardViewModel with ChangeNotifier {
 
   Future<Map<String, int>> _getEstudiantesByCarrera() async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('estudiantes')
-          .get()
-          .timeout(const Duration(seconds: 10));
-
-      final Map<String, int> result = {};
-
-      for (final doc in snapshot.docs) {
-        final carrera = doc.data()['carrera'] ?? 'Sin carrera';
-        result[carrera] = (result[carrera] ?? 0) + 1;
+      final result = await _databaseHelper.rawQuery('''
+        SELECT c.nombre as carrera, COUNT(e.id) as cantidad 
+        FROM estudiantes e 
+        LEFT JOIN carreras c ON e.carrera_id = c.id 
+        GROUP BY c.nombre
+      ''');
+      
+      final Map<String, int> estudiantesByCarrera = {};
+      for (final row in result) {
+        // CORRECCIÓN: Convertir explícitamente a String
+        final carrera = (row['carrera'] as String?) ?? 'Sin carrera';
+        final cantidad = (row['cantidad'] as int?) ?? 0;
+        estudiantesByCarrera[carrera] = cantidad;
       }
-
-      return result;
+      
+      return estudiantesByCarrera;
     } catch (e) {
       print('Error en _getEstudiantesByCarrera: $e');
       return {};
@@ -416,107 +245,57 @@ class DashboardViewModel with ChangeNotifier {
 
   Future<Map<String, int>> _getAsistenciasByDate() async {
     try {
-      final now = DateTime.now();
-      final startOfWeek = now.subtract(const Duration(days: 7));
-
-      final snapshot = await FirebaseFirestore.instance
-          .collection('asistencias')
-          .where('fecha', isGreaterThanOrEqualTo: startOfWeek)
-          .get()
-          .timeout(const Duration(seconds: 10));
-
-      final Map<String, int> result = {};
-
-      for (final doc in snapshot.docs) {
-        final fecha = doc.data()['fecha'];
-        if (fecha != null) {
-          final dateKey = _formatDate(fecha);
-          result[dateKey] = (result[dateKey] ?? 0) + 1;
-        }
+      final result = await _databaseHelper.rawQuery('''
+        SELECT date(ultima_actualizacion) as fecha, COUNT(*) as cantidad 
+        FROM asistencias 
+        WHERE date(ultima_actualizacion) >= date('now', '-7 days')
+        GROUP BY date(ultima_actualizacion)
+      ''');
+      
+      final Map<String, int> asistenciasByDate = {};
+      for (final row in result) {
+        final fecha = (row['fecha'] as String?) ?? 'Fecha inválida';
+        final cantidad = (row['cantidad'] as int?) ?? 0;
+        asistenciasByDate[fecha] = cantidad;
       }
-
-      return result;
+      
+      return asistenciasByDate;
     } catch (e) {
       print('Error en _getAsistenciasByDate: $e');
       return {};
     }
   }
 
-  String _formatDate(dynamic date) {
+  /// Obtener datos rápidos del dashboard
+  Future<Map<String, dynamic>> getQuickStats() async {
     try {
-      if (date is Timestamp) {
-        return date.toDate().toString().substring(0, 10);
-      } else if (date is DateTime) {
-        return date.toString().substring(0, 10);
-      }
-      return 'Fecha inválida';
+      final estudiantesCount = await _getTableCount('estudiantes');
+      final asistenciasHoy = await _getAsistenciasHoy();
+      final carrerasCount = await _getTableCount('carreras');
+
+      return {
+        'estudiantes_total': estudiantesCount,
+        'asistencias_hoy': asistenciasHoy,
+        'carreras_total': carrerasCount,
+        'ultima_actualizacion': DateTime.now().toIso8601String(),
+      };
     } catch (e) {
-      return 'Error en fecha';
+      print('Error en getQuickStats: $e');
+      return {};
     }
   }
 
-  /// Método para manejar errores de forma centralizada
-  void handleError(String methodName, dynamic error) {
-    _error = 'Error en $methodName: ${error.toString()}';
-    _loading = false;
-    notifyListeners();
+  /// Verificar si el usuario está autenticado
+  bool get isAuthenticated => _currentUser != null;
 
-    // Log del error para debugging
-    print('ERROR en $methodName: $error');
-  }
+  /// Obtener el nombre del usuario
+  String get userName => _currentUser?['nombre'] ?? 'Usuario';
 
-  /// Reiniciar el estado del ViewModel
-  void reset() {
-    _clearData();
-    _initialized = false;
-    notifyListeners();
+  /// Obtener el rol del usuario
+  String get userRole => _currentUser?['role'] ?? 'Usuario';
 
-    // Re-inicializar
-    _initialize();
-  }
-
-  /// Verificar si la aplicación necesita actualización
-  Future<bool> checkForUpdates() async {
-    try {
-      final updateDoc = await FirebaseFirestore.instance
-          .collection('app_info')
-          .doc('current_version')
-          .get()
-          .timeout(const Duration(seconds: 5));
-
-      if (updateDoc.exists) {
-        final requiredVersion =
-            updateDoc.data()?['min_required_version'] ?? '1.0.0';
-        final currentVersion =
-            '1.0.0'; // Aquí deberías obtener la versión actual de tu app
-
-        // Lógica simple de comparación de versiones
-        return _compareVersions(currentVersion, requiredVersion) < 0;
-      }
-
-      return false;
-    } catch (e) {
-      print('Error en checkForUpdates: $e');
-      return false;
-    }
-  }
-
-  int _compareVersions(String version1, String version2) {
-    final v1 = version1.split('.').map(int.parse).toList();
-    final v2 = version2.split('.').map(int.parse).toList();
-
-    for (int i = 0; i < v1.length; i++) {
-      if (v1[i] > v2[i]) return 1;
-      if (v1[i] < v2[i]) return -1;
-    }
-
-    return 0;
-  }
-
-  /// Dispose para limpiar recursos
   @override
   void dispose() {
-    // Limpiar cualquier suscripción o recurso aquí si es necesario
     super.dispose();
   }
 }

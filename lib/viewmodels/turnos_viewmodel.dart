@@ -1,236 +1,241 @@
-import 'dart:async';
+// viewmodels/turnos_viewmodel.dart
 import 'package:flutter/material.dart';
-import '../repositories/data_repository.dart';
 import '../models/turnos_model.dart';
+import '../models/database_helper.dart';
 
 class TurnosViewModel with ChangeNotifier {
-  final DataRepository _repository;
-  final String tipo;
-  final Map<String, dynamic> carrera;
+  final DatabaseHelper _databaseHelper = DatabaseHelper.instance;
+  
+  String tipo;
+  Map<String, dynamic> carrera;
 
   List<TurnoModel> _turnos = [];
   bool _isLoading = false;
   String? _error;
-  StreamSubscription? _turnosSubscription;
 
   List<TurnoModel> get turnos => _turnos;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  TurnosViewModel({
-    required this.tipo,
-    required this.carrera,
-    required DataRepository repository,
-  }) : _repository = repository {
-    _inicializarCarrera();
+  TurnosViewModel({ // ✅ CONSTRUCTOR SIMPLIFICADO
+    this.tipo = 'Turnos',
+    Map<String, dynamic>? carrera,
+  }) : carrera = carrera ?? {'id': '', 'nombre': 'General', 'color': '#1565C0'} {
+    _cargarTurnosDesdeSQLite();
   }
 
-  @override
-  void dispose() {
-    _turnosSubscription?.cancel();
-    super.dispose();
-  }
-
-  // ==================== INICIALIZACIÓN MEJORADA ====================
-  Future<void> _inicializarCarrera() async {
-    final carreraId = carrera['id'].toString();
-    _setLoading(true);
-    _error = null;
-
+  Future<void> _cargarTurnosDesdeSQLite() async {
     try {
-      // Intentar conectar con Firestore con timeout
-      final carreraExists = await _documentExistsWithTimeout(
-        'carreras',
-        carreraId,
-      );
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
 
-      if (!carreraExists) {
-        await _inicializarCarreraEnFirestore(carreraId);
-        await _agregarTurnosPorDefecto(carreraId);
+      final result = await _databaseHelper.rawQuery('''
+        SELECT * FROM turnos 
+        WHERE activo = 1 
+        ORDER BY nombre
+      ''');
+
+      _turnos = result.map((row) => 
+        TurnoModel.fromMap(row['id'].toString(), Map<String, dynamic>.from(row))
+      ).toList();
+
+      // Si no hay turnos, cargar los por defecto
+      if (_turnos.isEmpty) {
+        await _cargarTurnosPorDefecto();
       }
 
-      _setupTurnosStream(carreraId);
-    } catch (e) {
-      _handleError('Error al inicializar carrera: ${e.toString()}');
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  // Método con timeout para evitar esperas infinitas
-  Future<bool> _documentExistsWithTimeout(
-    String collection,
-    String documentId,
-  ) async {
-    try {
-      final task = _repository.documentExists(collection, documentId);
-      return await task.timeout(Duration(seconds: 10));
-    } on TimeoutException {
-      throw Exception('Timeout: No se pudo conectar con Firestore');
-    }
-  }
-
-  Future<void> _inicializarCarreraEnFirestore(String carreraId) async {
-    await _repository.crearCarrera(carreraId, {
-      'id': carreraId,
-      'nombre': carrera['nombre'],
-      'color': carrera['color'],
-      'tipo': tipo,
-      'turnos': {},
-    });
-  }
-
-  Future<void> _agregarTurnosPorDefecto(String carreraId) async {
-    final turnosPorDefecto = [
-      {
-        'id': '${carreraId}_manana',
-        'nombre': 'Mañana',
-        'icon': Icons.wb_sunny.codePoint,
-        'horario': '08:00 - 13:00',
-        'rangoAsistencia': '07:45 - 08:15',
-        'dias': 'Lunes a Viernes',
-        'color': '#FFA000',
-        'activo': true,
-        'niveles': [],
-      },
-      {
-        'id': '${carreraId}_tarde',
-        'nombre': 'Tarde',
-        'icon': Icons.brightness_6.codePoint,
-        'horario': '14:00 - 18:00',
-        'rangoAsistencia': '13:45 - 14:15',
-        'dias': 'Lunes a Viernes',
-        'color': '#FF9800',
-        'activo': true,
-        'niveles': [],
-      },
-    ];
-
-    for (final turnoData in turnosPorDefecto) {
-      final turnoId = turnoData['id'] as String;
-      await _repository.agregarTurno(carreraId, turnoId, turnoData);
-    }
-  }
-
-  // ==================== STREAM CON RECONEXIÓN ====================
-  void _setupTurnosStream(String carreraId) {
-    _turnosSubscription?.cancel();
-
-    _turnosSubscription = _repository
-        .getCarreraStream(carreraId)
-        .listen(
-          (documentSnapshot) {
-            if (documentSnapshot.exists) {
-              final data = documentSnapshot.data() as Map<String, dynamic>?;
-              if (data != null && data.containsKey('turnos')) {
-                final turnosData =
-                    data['turnos'] as Map<String, dynamic>? ?? {};
-                _procesarTurnosDesdeFirestore(turnosData);
-              } else {
-                _turnos = [];
-                notifyListeners();
-              }
-            } else {
-              _turnos = [];
-              notifyListeners();
-            }
-          },
-          onError: (error) {
-            _handleError('Error en conexión con Firestore: $error');
-          },
-        );
-  }
-
-  void _procesarTurnosDesdeFirestore(Map<String, dynamic> turnosData) {
-    try {
-      final List<TurnoModel> turnosProcesados = [];
-
-      turnosData.forEach((turnoId, turnoMap) {
-        try {
-          final turnoData = Map<String, dynamic>.from(turnoMap as Map);
-          final turno = TurnoModel.fromMap(turnoId, turnoData);
-          turnosProcesados.add(turno);
-        } catch (e) {
-          print('Error procesando turno $turnoId: $e');
-        }
-      });
-
-      turnosProcesados.sort((a, b) => a.nombre.compareTo(b.nombre));
-      _turnos = turnosProcesados;
+      _isLoading = false;
       notifyListeners();
     } catch (e) {
-      _handleError('Error al procesar turnos: $e');
+      _error = 'Error al cargar turnos: $e';
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
-  // ==================== CRUD COMPLETO ====================
-  Future<void> agregarTurno(TurnoModel nuevoTurno) async {
-    _setLoading(true);
-    _error = null;
+  Future<void> _cargarTurnosPorDefecto() async {
+    final turnosPorDefecto = [
+      TurnoModel(
+        id: 'turno_manana',
+        nombre: 'Mañana',
+        icon: Icons.wb_sunny,
+        horario: '06:30 - 12:30',
+        rangoAsistencia: '06:00-12:00',
+        dias: 'Lunes a Viernes',
+        color: '#FFA000',
+        activo: true,
+        niveles: ['Todos'],
+      ),
+      TurnoModel(
+        id: 'turno_tarde',
+        nombre: 'Tarde',
+        icon: Icons.brightness_6,
+        horario: '12:30 - 18:30',
+        rangoAsistencia: '12:00-18:00',
+        dias: 'Lunes a Viernes',
+        color: '#1976D2',
+        activo: true,
+        niveles: ['Todos'],
+      ),
+      TurnoModel(
+        id: 'turno_noche',
+        nombre: 'Noche',
+        icon: Icons.nights_stay,
+        horario: '18:30 - 22:30',
+        rangoAsistencia: '18:00-22:00',
+        dias: 'Lunes a Viernes',
+        color: '#7B1FA2',
+        activo: true,
+        niveles: ['Todos'],
+      ),
+    ];
 
+    // Insertar turnos por defecto en SQLite
+    for (final turno in turnosPorDefecto) {
+      await _databaseHelper.rawInsert('''
+        INSERT OR IGNORE INTO turnos (id, nombre, icon_code_point, horario, rango_asistencia, dias, color, activo, niveles, fecha_creacion, fecha_actualizacion)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ''', [
+        turno.id,
+        turno.nombre,
+        turno.icon.codePoint,
+        turno.horario,
+        turno.rangoAsistencia,
+        turno.dias,
+        turno.color,
+        turno.activo ? 1 : 0,
+        turno.niveles.join(','), // Guardar como string separado por comas
+        DateTime.now().toIso8601String(),
+        DateTime.now().toIso8601String(),
+      ]);
+    }
+
+    _turnos = turnosPorDefecto;
+  }
+
+  Future<bool> agregarTurno(TurnoModel nuevoTurno) async {
     try {
-      final carreraId = carrera['id'].toString();
-      final turnoData = nuevoTurno.toMap();
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
 
-      await _repository.agregarTurno(carreraId, nuevoTurno.id, turnoData);
+      // Verificar si ya existe un turno con el mismo nombre
+      final existe = await _databaseHelper.rawQuery('''
+        SELECT COUNT(*) as count FROM turnos 
+        WHERE nombre = ? AND activo = 1
+      ''', [nuevoTurno.nombre]);
+
+      final count = (existe.first['count'] as int?) ?? 0;
+      if (count > 0) {
+        _error = 'Ya existe un turno con el nombre ${nuevoTurno.nombre}';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      await _databaseHelper.rawInsert('''
+        INSERT INTO turnos (id, nombre, icon_code_point, horario, rango_asistencia, dias, color, activo, niveles, fecha_creacion, fecha_actualizacion)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ''', [
+        nuevoTurno.id,
+        nuevoTurno.nombre,
+        nuevoTurno.icon.codePoint,
+        nuevoTurno.horario,
+        nuevoTurno.rangoAsistencia,
+        nuevoTurno.dias,
+        nuevoTurno.color,
+        nuevoTurno.activo ? 1 : 0,
+        nuevoTurno.niveles.join(','),
+        DateTime.now().toIso8601String(),
+        DateTime.now().toIso8601String(),
+      ]);
+
+      await _cargarTurnosDesdeSQLite();
+      return true;
     } catch (e) {
-      _handleError('Error al agregar turno: $e');
-      rethrow;
-    } finally {
-      _setLoading(false);
+      _error = 'Error al agregar turno: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
     }
   }
 
-  Future<void> actualizarTurno(
-    String turnoId,
-    TurnoModel turnoActualizado,
-  ) async {
-    _setLoading(true);
-    _error = null;
-
+  Future<bool> actualizarTurno(TurnoModel turnoActualizado) async {
     try {
-      final carreraId = carrera['id'].toString();
-      final turnoData = turnoActualizado.toMap();
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
 
-      await _repository.actualizarTurno(carreraId, turnoId, turnoData);
+      // Verificar si ya existe otro turno con el mismo nombre (excluyendo el actual)
+      final existe = await _databaseHelper.rawQuery('''
+        SELECT COUNT(*) as count FROM turnos 
+        WHERE nombre = ? AND id != ? AND activo = 1
+      ''', [turnoActualizado.nombre, turnoActualizado.id]);
+
+      final count = (existe.first['count'] as int?) ?? 0;
+      if (count > 0) {
+        _error = 'Ya existe otro turno con el nombre ${turnoActualizado.nombre}';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      await _databaseHelper.rawUpdate('''
+        UPDATE turnos SET 
+        nombre = ?, icon_code_point = ?, horario = ?, rango_asistencia = ?, 
+        dias = ?, color = ?, activo = ?, niveles = ?, fecha_actualizacion = ?
+        WHERE id = ?
+      ''', [
+        turnoActualizado.nombre,
+        turnoActualizado.icon.codePoint,
+        turnoActualizado.horario,
+        turnoActualizado.rangoAsistencia,
+        turnoActualizado.dias,
+        turnoActualizado.color,
+        turnoActualizado.activo ? 1 : 0,
+        turnoActualizado.niveles.join(','),
+        DateTime.now().toIso8601String(),
+        turnoActualizado.id,
+      ]);
+
+      await _cargarTurnosDesdeSQLite();
+      return true;
     } catch (e) {
-      _handleError('Error al actualizar turno: $e');
-      rethrow;
-    } finally {
-      _setLoading(false);
+      _error = 'Error al actualizar turno: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
     }
   }
 
-  Future<void> eliminarTurno(String turnoId) async {
-    _setLoading(true);
-    _error = null;
-
+  Future<bool> eliminarTurno(String turnoId) async {
     try {
-      final carreraId = carrera['id'].toString();
-      await _repository.eliminarTurno(carreraId, turnoId);
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      await _databaseHelper.rawUpdate('''
+        UPDATE turnos SET activo = 0, fecha_actualizacion = ?
+        WHERE id = ?
+      ''', [
+        DateTime.now().toIso8601String(),
+        turnoId,
+      ]);
+
+      await _cargarTurnosDesdeSQLite();
+      return true;
     } catch (e) {
-      _handleError('Error al eliminar turno: $e');
-      rethrow;
-    } finally {
-      _setLoading(false);
+      _error = 'Error al eliminar turno: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
     }
   }
 
   void toggleActivarTurno(TurnoModel turno) {
     final turnoActualizado = turno.copyWith(activo: !turno.activo);
-    actualizarTurno(turno.id, turnoActualizado);
-  }
-
-  // ==================== MÉTODOS AUXILIARES ====================
-  void _setLoading(bool loading) {
-    _isLoading = loading;
-    notifyListeners();
-  }
-
-  void _handleError(String error) {
-    _error = error;
-    _setLoading(false);
-    notifyListeners();
+    actualizarTurno(turnoActualizado);
   }
 
   void clearError() {
@@ -239,7 +244,7 @@ class TurnosViewModel with ChangeNotifier {
   }
 
   Future<void> recargarTurnos() async {
-    await _inicializarCarrera();
+    await _cargarTurnosDesdeSQLite();
   }
 
   Color parseColor(String colorString) {
@@ -250,8 +255,7 @@ class TurnosViewModel with ChangeNotifier {
     }
   }
 
-  // Generar ID único para nuevo turno
   String generarTurnoId() {
-    return '${carrera['id']}_${DateTime.now().millisecondsSinceEpoch}';
+    return 'turno_${DateTime.now().millisecondsSinceEpoch}';
   }
 }

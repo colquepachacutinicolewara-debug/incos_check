@@ -2,10 +2,13 @@
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
 import '../models/estudiante_model.dart';
+import '../models/database_helper.dart';
 import '../utils/constants.dart';
 
-class AsistenciaViewModel with ChangeNotifier {
+class RegistrarAsistenciaViewModel with ChangeNotifier {
+  final DatabaseHelper _databaseHelper = DatabaseHelper.instance;
   final LocalAuthentication auth = LocalAuthentication();
+  
   List<Estudiante> estudiantes = [];
   List<bool> asistencia = [];
   bool _isLoading = false;
@@ -14,125 +17,119 @@ class AsistenciaViewModel with ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get biometricAvailable => _biometricAvailable;
 
-  // ✅ CORREGIDO: Datos de ejemplo usando el modelo actualizado
-  final List<Estudiante> estudiantesEjemplo = [
-    Estudiante(
-      id: '1',
-      nombres: 'Ana',
-      apellidoPaterno: 'García',
-      apellidoMaterno: 'López',
-      ci: '1234567',
-      fechaRegistro: '2024-01-01',
-      huellasRegistradas: 3,
-    ),
-    Estudiante(
-      id: '2',
-      nombres: 'Carlos',
-      apellidoPaterno: 'Rodríguez',
-      apellidoMaterno: 'Mendoza',
-      ci: '1234568',
-      fechaRegistro: '2024-01-01',
-      huellasRegistradas: 3,
-    ),
-    Estudiante(
-      id: '3',
-      nombres: 'María',
-      apellidoPaterno: 'Fernández',
-      apellidoMaterno: 'Castro',
-      ci: '1234569',
-      fechaRegistro: '2024-01-01',
-      huellasRegistradas: 3,
-    ),
-    Estudiante(
-      id: '4',
-      nombres: 'José',
-      apellidoPaterno: 'Martínez',
-      apellidoMaterno: 'Rojas',
-      ci: '1234570',
-      fechaRegistro: '2024-01-01',
-      huellasRegistradas: 3,
-    ),
-    Estudiante(
-      id: '5',
-      nombres: 'Laura',
-      apellidoPaterno: 'Hernández',
-      apellidoMaterno: 'Silva',
-      ci: '1234571',
-      fechaRegistro: '2024-01-01',
-      huellasRegistradas: 3,
-    ),
-    Estudiante(
-      id: '6',
-      nombres: 'Miguel',
-      apellidoPaterno: 'Sánchez',
-      apellidoMaterno: 'Vega',
-      ci: '1234572',
-      fechaRegistro: '2024-01-01',
-      huellasRegistradas: 1,
-    ),
-    Estudiante(
-      id: '7',
-      nombres: 'Elena',
-      apellidoPaterno: 'Díaz',
-      apellidoMaterno: 'Paredes',
-      ci: '1234573',
-      fechaRegistro: '2024-01-01',
-      huellasRegistradas: 0,
-    ),
-    Estudiante(
-      id: '8',
-      nombres: 'David',
-      apellidoPaterno: 'Romero',
-      apellidoMaterno: 'Quiroga',
-      ci: '1234574',
-      fechaRegistro: '2024-01-01',
-      huellasRegistradas: 3,
-    ),
-    Estudiante(
-      id: '9',
-      nombres: 'Sofía',
-      apellidoPaterno: 'Torres',
-      apellidoMaterno: 'Aguilar',
-      ci: '1234575',
-      fechaRegistro: '2024-01-01',
-      huellasRegistradas: 2,
-    ),
-    Estudiante(
-      id: '10',
-      nombres: 'Daniel',
-      apellidoPaterno: 'Vázquez',
-      apellidoMaterno: 'Campos',
-      ci: '1234576',
-      fechaRegistro: '2024-01-01',
-      huellasRegistradas: 0,
-    ),
-  ];
-
-  AsistenciaViewModel() {
-    _inicializarDatos();
+  RegistrarAsistenciaViewModel() {
+    _cargarEstudiantesDesdeSQLite();
     _checkBiometricSupport();
   }
 
-  void _inicializarDatos() {
-    estudiantes = estudiantesEjemplo;
-    asistencia = List.filled(estudiantes.length, false);
+  Future<void> _cargarEstudiantesDesdeSQLite() async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final result = await _databaseHelper.rawQuery('''
+        SELECT * FROM estudiantes 
+        WHERE activo = 1 
+        ORDER BY apellido_paterno, apellido_materno, nombres
+      ''');
+
+      estudiantes = result.map((row) => 
+        Estudiante.fromMap(Map<String, dynamic>.from(row))
+      ).toList();
+
+      // Si no hay estudiantes, cargar los de ejemplo
+      if (estudiantes.isEmpty) {
+        await _cargarEstudiantesEjemplo();
+      }
+
+      asistencia = List.filled(estudiantes.length, false);
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      print('Error cargando estudiantes: $e');
+      await _cargarEstudiantesEjemplo();
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
-  // ✅ NUEVO: Método para cargar estudiantes desde Firestore
-  void cargarEstudiantesDesdeFirestore(List<Estudiante> nuevosEstudiantes) {
-    estudiantes = nuevosEstudiantes;
+  Future<void> _cargarEstudiantesEjemplo() async {
+    final estudiantesEjemplo = [
+      Estudiante(
+        id: '1',
+        nombres: 'Ana',
+        apellidoPaterno: 'García',
+        apellidoMaterno: 'López',
+        ci: '1234567',
+        fechaRegistro: DateTime.now().toIso8601String(),
+        huellasRegistradas: 3,
+      ),
+      Estudiante(
+        id: '2',
+        nombres: 'Carlos',
+        apellidoPaterno: 'Rodríguez',
+        apellidoMaterno: 'Mendoza',
+        ci: '1234568',
+        fechaRegistro: DateTime.now().toIso8601String(),
+        huellasRegistradas: 3,
+      ),
+      Estudiante(
+        id: '3',
+        nombres: 'María',
+        apellidoPaterno: 'Fernández',
+        apellidoMaterno: 'Castro',
+        ci: '1234569',
+        fechaRegistro: DateTime.now().toIso8601String(),
+        huellasRegistradas: 3,
+      ),
+      Estudiante(
+        id: '4',
+        nombres: 'José',
+        apellidoPaterno: 'Martínez',
+        apellidoMaterno: 'Rojas',
+        ci: '1234570',
+        fechaRegistro: DateTime.now().toIso8601String(),
+        huellasRegistradas: 3,
+      ),
+      Estudiante(
+        id: '5',
+        nombres: 'Laura',
+        apellidoPaterno: 'Hernández',
+        apellidoMaterno: 'Silva',
+        ci: '1234571',
+        fechaRegistro: DateTime.now().toIso8601String(),
+        huellasRegistradas: 3,
+      ),
+    ];
+
+    // Insertar estudiantes de ejemplo en SQLite
+    for (final estudiante in estudiantesEjemplo) {
+      await _databaseHelper.rawInsert('''
+        INSERT OR IGNORE INTO estudiantes (id, nombres, apellido_paterno, apellido_materno, ci, fecha_registro, huellas_registradas, fecha_creacion, fecha_actualizacion)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ''', [
+        estudiante.id,
+        estudiante.nombres,
+        estudiante.apellidoPaterno,
+        estudiante.apellidoMaterno,
+        estudiante.ci,
+        estudiante.fechaRegistro,
+        estudiante.huellasRegistradas,
+        DateTime.now().toIso8601String(),
+        DateTime.now().toIso8601String(),
+      ]);
+    }
+
+    estudiantes = estudiantesEjemplo;
     asistencia = List.filled(estudiantes.length, false);
-    notifyListeners();
   }
 
   Future<void> _checkBiometricSupport() async {
     try {
       final bool canCheckBiometrics = await auth.canCheckBiometrics;
-      final List<BiometricType> availableBiometrics = await auth
-          .getAvailableBiometrics();
+      final List<BiometricType> availableBiometrics = await auth.getAvailableBiometrics();
 
-      _biometricAvailable =
-          canCheckBiometrics && availableBiometrics.isNotEmpty;
+      _biometricAvailable = canCheckBiometrics && availableBiometrics.isNotEmpty;
       notifyListeners();
     } catch (e) {
       _biometricAvailable = false;
@@ -171,8 +168,7 @@ class AsistenciaViewModel with ChangeNotifier {
 
       // Realizar autenticación biométrica
       final bool autenticado = await auth.authenticate(
-        localizedReason:
-            "Autentica tu identidad para ${estudiante.nombreCompleto}",
+        localizedReason: "Autentica tu identidad para ${estudiante.nombreCompleto}",
         options: const AuthenticationOptions(
           biometricOnly: true,
           useErrorDialogs: true,
@@ -181,9 +177,9 @@ class AsistenciaViewModel with ChangeNotifier {
       );
 
       if (autenticado) {
-        // Simular verificación en base de datos
-        await Future.delayed(const Duration(milliseconds: 800));
-
+        // Guardar asistencia en SQLite
+        await _guardarAsistenciaEnSQLite(estudiante.id);
+        
         asistencia[index] = true;
         _mostrarSnackbar(
           context,
@@ -209,10 +205,32 @@ class AsistenciaViewModel with ChangeNotifier {
     }
   }
 
+  Future<void> _guardarAsistenciaEnSQLite(String estudianteId) async {
+    try {
+      final now = DateTime.now();
+      await _databaseHelper.rawInsert('''
+        INSERT INTO asistencias (id, estudiante_id, periodo_id, materia_id, asistencia_registrada_hoy, datos_asistencia, ultima_actualizacion)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      ''', [
+        'asist_${estudianteId}_${now.millisecondsSinceEpoch}',
+        estudianteId,
+        'periodo_actual',
+        'materia_actual',
+        1,
+        '{"fecha": "${now.toIso8601String()}", "tipo": "biometrico"}',
+        now.toIso8601String(),
+      ]);
+    } catch (e) {
+      print('Error guardando asistencia: $e');
+    }
+  }
+
   void registrarSinHuella(int index, BuildContext context) {
     if (_isLoading || asistencia[index]) return;
 
     asistencia[index] = true;
+    _guardarAsistenciaManualEnSQLite(estudiantes[index].id);
+    
     _mostrarSnackbar(
       context,
       "✅ Asistencia manual - ${estudiantes[index].nombreCompleto}",
@@ -221,7 +239,26 @@ class AsistenciaViewModel with ChangeNotifier {
     notifyListeners();
   }
 
-  // ✅ NUEVO: Método para registrar asistencia manualmente
+  Future<void> _guardarAsistenciaManualEnSQLite(String estudianteId) async {
+    try {
+      final now = DateTime.now();
+      await _databaseHelper.rawInsert('''
+        INSERT INTO asistencias (id, estudiante_id, periodo_id, materia_id, asistencia_registrada_hoy, datos_asistencia, ultima_actualizacion)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      ''', [
+        'asist_manual_${estudianteId}_${now.millisecondsSinceEpoch}',
+        estudianteId,
+        'periodo_actual',
+        'materia_actual',
+        1,
+        '{"fecha": "${now.toIso8601String()}", "tipo": "manual"}',
+        now.toIso8601String(),
+      ]);
+    } catch (e) {
+      print('Error guardando asistencia manual: $e');
+    }
+  }
+
   void registrarAsistenciaManual(String estudianteId, BuildContext context) {
     final index = estudiantes.indexWhere((est) => est.id == estudianteId);
     if (index != -1 && !asistencia[index]) {
@@ -229,13 +266,11 @@ class AsistenciaViewModel with ChangeNotifier {
     }
   }
 
-  // ✅ NUEVO: Método para limpiar todas las asistencias
   void limpiarAsistencias() {
     asistencia = List.filled(estudiantes.length, false);
     notifyListeners();
   }
 
-  // ✅ NUEVO: Método para obtener estadísticas
   Map<String, dynamic> getEstadisticas() {
     final total = estudiantes.length;
     final presentes = asistencia.where((a) => a).length;
@@ -260,7 +295,7 @@ class AsistenciaViewModel with ChangeNotifier {
     );
   }
 
-  // Funciones para obtener colores según el tema (públicas)
+  // Funciones para obtener colores según el tema
   Color getBackgroundColor(BuildContext context) {
     return Theme.of(context).brightness == Brightness.dark
         ? Colors.grey.shade900
@@ -319,7 +354,6 @@ class AsistenciaViewModel with ChangeNotifier {
   int get totalAsistencias => asistencia.where((element) => element).length;
   int get totalEstudiantes => estudiantes.length;
 
-  // ✅ NUEVO: Buscar estudiante por ID
   Estudiante? obtenerEstudiantePorId(String id) {
     try {
       return estudiantes.firstWhere((est) => est.id == id);
@@ -328,9 +362,12 @@ class AsistenciaViewModel with ChangeNotifier {
     }
   }
 
-  // ✅ NUEVO: Verificar si un estudiante tiene asistencia registrada
   bool tieneAsistenciaRegistrada(String estudianteId) {
     final index = estudiantes.indexWhere((est) => est.id == estudianteId);
     return index != -1 ? asistencia[index] : false;
+  }
+
+  Future<void> recargarEstudiantes() async {
+    await _cargarEstudiantesDesdeSQLite();
   }
 }
