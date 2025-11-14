@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/configuracion_viewmodel.dart';
+import '../../viewmodels/auth_viewmodel.dart';
 import '../../utils/constants.dart';
 import '../../utils/helpers.dart';
 import '../../services/theme_service.dart';
@@ -15,7 +16,7 @@ class ConfiguracionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) => ConfiguracionViewModel(), // ✅ Sin parámetros
+      create: (context) => ConfiguracionViewModel(),
       child: _ConfiguracionView(userData: userData),
     );
   }
@@ -49,6 +50,419 @@ class _ConfiguracionView extends StatelessWidget {
     return Theme.of(context).cardColor;
   }
 
+  // ✅ CORREGIDO: Diálogo de cambio de contraseña
+  void _showChangePasswordDialog(BuildContext context) {
+    final configViewModel = context.read<ConfiguracionViewModel>();
+    final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
+    
+    final _currentPasswordController = TextEditingController();
+    final _newPasswordController = TextEditingController();
+    final _confirmPasswordController = TextEditingController();
+
+    String _nivelFortaleza = 'Débil';
+    Color _colorFortaleza = Colors.red;
+    List<String> _recomendaciones = [];
+
+    void _actualizarFortaleza() {
+      final validacion = configViewModel.validarFortalezaPassword(
+        _newPasswordController.text
+      );
+      
+      _nivelFortaleza = validacion['fortaleza'];
+      _colorFortaleza = validacion['colorFortaleza'];
+      _recomendaciones = List<String>.from(validacion['recomendaciones']);
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: _getCardColor(context),
+          title: Text(
+            'Cambiar Contraseña',
+            style: AppTextStyles.heading2.copyWith(
+              color: _getTextColor(context),
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Contraseña actual
+                TextField(
+                  controller: _currentPasswordController,
+                  decoration: InputDecoration(
+                    labelText: 'Contraseña actual',
+                    labelStyle: TextStyle(color: _getTextColor(context)),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: Icon(
+                      Icons.lock_outline,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  obscureText: true,
+                ),
+                const SizedBox(height: AppSpacing.medium),
+
+                // Nueva contraseña
+                TextField(
+                  controller: _newPasswordController,
+                  decoration: InputDecoration(
+                    labelText: 'Nueva contraseña',
+                    labelStyle: TextStyle(color: _getTextColor(context)),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.lock_reset, color: AppColors.primary),
+                  ),
+                  obscureText: true,
+                  onChanged: (value) {
+                    setState(() {
+                      _actualizarFortaleza();
+                    });
+                  },
+                ),
+                const SizedBox(height: AppSpacing.small),
+
+                // Indicador de fortaleza
+                if (_newPasswordController.text.isNotEmpty) ...[
+                  Row(
+                    children: [
+                      Text(
+                        'Fortaleza: ',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _getSecondaryTextColor(context),
+                        ),
+                      ),
+                      Text(
+                        _nivelFortaleza,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: _colorFortaleza,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  LinearProgressIndicator(
+                    value: _newPasswordController.text.isEmpty 
+                        ? 0 
+                        : _newPasswordController.text.length / 12,
+                    backgroundColor: Colors.grey[300],
+                    valueColor: AlwaysStoppedAnimation<Color>(_colorFortaleza),
+                  ),
+                  const SizedBox(height: AppSpacing.small),
+                ],
+
+                // Confirmar contraseña
+                TextField(
+                  controller: _confirmPasswordController,
+                  decoration: InputDecoration(
+                    labelText: 'Confirmar nueva contraseña',
+                    labelStyle: TextStyle(color: _getTextColor(context)),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: Icon(
+                      Icons.verified_user,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  obscureText: true,
+                ),
+                const SizedBox(height: AppSpacing.small),
+
+                // Recomendaciones
+                if (_recomendaciones.isNotEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.small),
+                    decoration: BoxDecoration(
+                      color: AppColors.info.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(AppRadius.small),
+                      border: Border.all(color: AppColors.info.withOpacity(0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Para una contraseña más segura:',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.info,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        ..._recomendaciones.map((recomendacion) => 
+                          _buildRecomendacionItem(recomendacion, context)
+                        ).toList(),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.small),
+                ],
+
+                // Requisitos mínimos
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.small),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(AppRadius.small),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Requisitos mínimos:',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      _buildRequisitoItem('Mínimo 6 caracteres', context),
+                    ],
+                  ),
+                ),
+
+                // Mostrar error si existe
+                if (configViewModel.errorCambioPassword != null) ...[
+                  const SizedBox(height: AppSpacing.small),
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.small),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(AppRadius.small),
+                      border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.error_outline, size: 16, color: AppColors.error),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            configViewModel.errorCambioPassword!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.error,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: configViewModel.guardando ? null : () {
+                configViewModel.limpiarErrorPassword();
+                Navigator.pop(context);
+              },
+              child: Text(
+                'Cancelar',
+                style: TextStyle(color: _getTextColor(context)),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: configViewModel.guardando ? null : () async {
+                final currentPassword = _currentPasswordController.text;
+                final newPassword = _newPasswordController.text;
+                final confirmPassword = _confirmPasswordController.text;
+
+                // Limpiar error anterior
+                configViewModel.limpiarErrorPassword();
+                authViewModel.limpiarError();
+
+                // Validaciones
+                if (currentPassword.isEmpty) {
+                  Helpers.showSnackBar(
+                    context,
+                    '❌ Ingresa tu contraseña actual',
+                    type: 'error',
+                  );
+                  return;
+                }
+
+                if (newPassword.isEmpty) {
+                  Helpers.showSnackBar(
+                    context,
+                    '❌ Ingresa una nueva contraseña',
+                    type: 'error',
+                  );
+                  return;
+                }
+
+                if (newPassword.length < 6) {
+                  Helpers.showSnackBar(
+                    context,
+                    '❌ La contraseña debe tener al menos 6 caracteres',
+                    type: 'error',
+                  );
+                  return;
+                }
+
+                if (newPassword != confirmPassword) {
+                  Helpers.showSnackBar(
+                    context,
+                    '❌ Las contraseñas no coinciden',
+                    type: 'error',
+                  );
+                  return;
+                }
+
+                try {
+                  print('🔄 Intentando cambiar contraseña desde diálogo...');
+                  
+                  final resultado = await configViewModel.cambiarPassword(
+                    currentPassword: currentPassword,
+                    newPassword: newPassword,
+                    authViewModel: authViewModel,
+                  );
+
+                  if (resultado['success'] == true) {
+                    print('✅ Contraseña cambiada exitosamente desde diálogo');
+                    
+                    _currentPasswordController.clear();
+                    _newPasswordController.clear();
+                    _confirmPasswordController.clear();
+
+                    Navigator.pop(context);
+                    Helpers.showSnackBar(
+                      context,
+                      '✅ Contraseña cambiada exitosamente',
+                      type: 'success',
+                    );
+                    
+                    // Verificar que el cambio fue real
+                    final verificado = await authViewModel.login(
+                      authViewModel.currentUser!.username, 
+                      newPassword
+                    );
+                    
+                    if (verificado) {
+                      print('🔐 Nueva contraseña verificada correctamente');
+                    } else {
+                      print('⚠️ La nueva contraseña no funciona después del cambio');
+                    }
+                  } else {
+                    // El error ya se muestra en el diálogo
+                    print('❌ Error al cambiar contraseña: ${resultado['message']}');
+                  }
+                } catch (e) {
+                  print('❌ Error en el diálogo: $e');
+                  Helpers.showSnackBar(
+                    context,
+                    '❌ Error: ${e.toString()}',
+                    type: 'error',
+                  );
+                }
+              },
+              child: configViewModel.guardando 
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Text('Cambiar Contraseña'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecomendacionItem(String text, BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, size: 12, color: AppColors.info),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 11,
+                color: _getTextColor(context),
+              ),
+            ),
+          ),
+        ],
+      ),
+      );
+  }
+
+  Widget _buildRequisitoItem(String text, BuildContext context) {
+    return Row(
+      children: [
+        Icon(Icons.check_circle_outline, size: 14, color: AppColors.primary),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 11,
+            color: _getTextColor(context),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ✅ CORREGIDO: Logout funcional
+  void _performLogout(BuildContext context) async {
+    final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
+    
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              SizedBox(width: AppSpacing.small),
+              Text('Cerrando sesión...'),
+            ],
+          ),
+          backgroundColor: AppColors.primary,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      await authViewModel.logout();
+
+      // Navegar al login
+      Navigator.pushNamedAndRemoveUntil(
+        context, 
+        '/', 
+        (route) => false
+      );
+
+      Helpers.showSnackBar(
+        context,
+        'Sesión cerrada exitosamente',
+        type: 'success',
+      );
+      
+    } catch (e) {
+      Helpers.showSnackBar(
+        context,
+        'Error al cerrar sesión: $e',
+        type: 'error',
+      );
+    }
+  }
+
   void _showLanguageDialog(BuildContext context) {
     final viewModel = context.read<ConfiguracionViewModel>();
 
@@ -59,7 +473,7 @@ class _ConfiguracionView extends StatelessWidget {
           backgroundColor: _getCardColor(dialogContext),
           title: Text(
             'Seleccionar Idioma',
-            style: AppTextStyles.heading2Dark(dialogContext).copyWith(
+            style: AppTextStyles.heading2.copyWith(
               color: _getTextColor(dialogContext),
             ),
           ),
@@ -73,7 +487,7 @@ class _ConfiguracionView extends StatelessWidget {
                 return RadioListTile(
                   title: Text(
                     language, 
-                    style: AppTextStyles.bodyDark(context).copyWith(
+                    style: AppTextStyles.body.copyWith(
                       color: _getTextColor(context),
                     ),
                   ),
@@ -117,7 +531,7 @@ class _ConfiguracionView extends StatelessWidget {
           backgroundColor: _getCardColor(dialogContext),
           title: Text(
             'Seleccionar Tema',
-            style: AppTextStyles.heading2Dark(dialogContext).copyWith(
+            style: AppTextStyles.heading2.copyWith(
               color: _getTextColor(dialogContext),
             ),
           ),
@@ -131,7 +545,7 @@ class _ConfiguracionView extends StatelessWidget {
                 return RadioListTile(
                   title: Text(
                     theme, 
-                    style: AppTextStyles.bodyDark(context).copyWith(
+                    style: AppTextStyles.body.copyWith(
                       color: _getTextColor(context),
                     ),
                   ),
@@ -173,7 +587,7 @@ class _ConfiguracionView extends StatelessWidget {
           backgroundColor: _getCardColor(dialogContext),
           title: Text(
             'Copia de Seguridad',
-            style: AppTextStyles.heading2Dark(dialogContext).copyWith(
+            style: AppTextStyles.heading2.copyWith(
               color: _getTextColor(dialogContext),
             ),
           ),
@@ -184,7 +598,7 @@ class _ConfiguracionView extends StatelessWidget {
               SizedBox(height: AppSpacing.medium),
               Text(
                 '¿Deseas crear una copia de seguridad de todos tus datos de asistencia?',
-                style: AppTextStyles.bodyDark(dialogContext).copyWith(
+                style: AppTextStyles.body.copyWith(
                   color: _getTextColor(dialogContext),
                 ),
                 textAlign: TextAlign.center,
@@ -192,7 +606,7 @@ class _ConfiguracionView extends StatelessWidget {
               SizedBox(height: AppSpacing.small),
               Text(
                 'Se guardarán: estudiantes, docentes, materias y registros de asistencia',
-                style: AppTextStyles.bodyDark(dialogContext).copyWith(
+                style: AppTextStyles.body.copyWith(
                   fontSize: 12,
                   color: _getSecondaryTextColor(dialogContext),
                 ),
@@ -227,173 +641,6 @@ class _ConfiguracionView extends StatelessWidget {
     );
   }
 
-  void _showChangePasswordDialog(BuildContext context) {
-    final _currentPasswordController = TextEditingController();
-    final _newPasswordController = TextEditingController();
-    final _confirmPasswordController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => Builder(
-        builder: (dialogContext) => AlertDialog(
-          backgroundColor: _getCardColor(dialogContext),
-          title: Text(
-            'Cambiar Contraseña',
-            style: AppTextStyles.heading2Dark(dialogContext).copyWith(
-              color: _getTextColor(dialogContext),
-            ),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: _currentPasswordController,
-                  decoration: InputDecoration(
-                    labelText: 'Contraseña actual',
-                    labelStyle: TextStyle(color: _getTextColor(context)),
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(
-                      Icons.lock_outline,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  obscureText: true,
-                ),
-                SizedBox(height: AppSpacing.medium),
-                TextField(
-                  controller: _newPasswordController,
-                  decoration: InputDecoration(
-                    labelText: 'Nueva contraseña',
-                    labelStyle: TextStyle(color: _getTextColor(context)),
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock_reset, color: AppColors.primary),
-                    hintText: 'Mín. 6 caracteres',
-                    hintStyle: TextStyle(color: _getSecondaryTextColor(context)),
-                  ),
-                  obscureText: true,
-                ),
-                SizedBox(height: AppSpacing.medium),
-                TextField(
-                  controller: _confirmPasswordController,
-                  decoration: InputDecoration(
-                    labelText: 'Confirmar nueva contraseña',
-                    labelStyle: TextStyle(color: _getTextColor(context)),
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(
-                      Icons.verified_user,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  obscureText: true,
-                ),
-                SizedBox(height: AppSpacing.small),
-                Container(
-                  padding: EdgeInsets.all(AppSpacing.small),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(AppRadius.small),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Requisitos de contraseña:',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      _buildSimpleRequirement('Mínimo 6 caracteres'),
-                      _buildSimpleRequirement('Recomendado: mayúsculas, minúsculas y números'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Cancelar',
-                style: TextStyle(color: _getTextColor(context)),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final currentPassword = _currentPasswordController.text;
-                final newPassword = _newPasswordController.text;
-                final confirmPassword = _confirmPasswordController.text;
-
-                if (newPassword != confirmPassword) {
-                  Helpers.showSnackBar(
-                    context,
-                    '❌ Las contraseñas no coinciden',
-                    type: 'error',
-                  );
-                  return;
-                }
-
-                if (newPassword.length < 6) {
-                  Helpers.showSnackBar(
-                    context,
-                    '❌ La contraseña debe tener al menos 6 caracteres',
-                    type: 'error',
-                  );
-                  return;
-                }
-
-                try {
-                  // Simular cambio de contraseña (en una app real, esto iría a tu servicio de autenticación)
-                  await Future.delayed(Duration(seconds: 1));
-
-                  _currentPasswordController.clear();
-                  _newPasswordController.clear();
-                  _confirmPasswordController.clear();
-
-                  Navigator.pop(context);
-                  Helpers.showSnackBar(
-                    context,
-                    '✅ Contraseña cambiada exitosamente',
-                    type: 'success',
-                  );
-                } catch (e) {
-                  Helpers.showSnackBar(
-                    context,
-                    '❌ Error al cambiar contraseña',
-                    type: 'error',
-                  );
-                }
-              },
-              child: Text('Cambiar Contraseña'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSimpleRequirement(String text) {
-    return Builder(
-      builder: (context) => Row(
-        children: [
-          Icon(Icons.check_circle_outline, size: 14, color: AppColors.primary),
-          SizedBox(width: 4),
-          Text(
-            text, 
-            style: TextStyle(
-              fontSize: 11,
-              color: _getTextColor(context),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showClearCacheDialog(BuildContext context) {
     final viewModel = context.read<ConfiguracionViewModel>();
 
@@ -404,7 +651,7 @@ class _ConfiguracionView extends StatelessWidget {
           backgroundColor: _getCardColor(dialogContext),
           title: Text(
             'Limpiar Caché',
-            style: AppTextStyles.heading2Dark(dialogContext).copyWith(
+            style: AppTextStyles.heading2.copyWith(
               color: _getTextColor(dialogContext),
             ),
           ),
@@ -415,7 +662,7 @@ class _ConfiguracionView extends StatelessWidget {
               SizedBox(height: AppSpacing.medium),
               Text(
                 '¿Estás seguro de que deseas limpiar el caché?',
-                style: AppTextStyles.bodyDark(dialogContext).copyWith(
+                style: AppTextStyles.body.copyWith(
                   color: _getTextColor(dialogContext),
                 ),
                 textAlign: TextAlign.center,
@@ -468,7 +715,7 @@ class _ConfiguracionView extends StatelessWidget {
               SizedBox(width: 8),
               Text(
                 'Acerca de IncosCheck',
-                style: AppTextStyles.heading2Dark(dialogContext).copyWith(
+                style: AppTextStyles.heading2.copyWith(
                   color: _getTextColor(dialogContext),
                 ),
               ),
@@ -568,7 +815,7 @@ class _ConfiguracionView extends StatelessWidget {
               SizedBox(width: 8),
               Text(
                 'Política de Privacidad',
-                style: AppTextStyles.heading2Dark(dialogContext).copyWith(
+                style: AppTextStyles.heading2.copyWith(
                   color: _getTextColor(dialogContext),
                 ),
               ),
@@ -643,50 +890,6 @@ class _ConfiguracionView extends StatelessWidget {
     );
   }
 
-  void _performLogout(BuildContext context) async {
-    try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              ),
-              SizedBox(width: AppSpacing.small),
-              Text('Cerrando sesión...'),
-            ],
-          ),
-          backgroundColor: AppColors.primary,
-          duration: Duration(seconds: 2),
-        ),
-      );
-
-      // Simular logout (en una app real, esto limpiaría la sesión)
-      await Future.delayed(Duration(seconds: 1));
-
-      Helpers.showSnackBar(
-        context,
-        'Sesión cerrada exitosamente',
-        type: 'success',
-      );
-
-      // Navegar al login (depende de tu estructura de navegación)
-      // Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-      
-    } catch (e) {
-      Helpers.showSnackBar(
-        context,
-        'Error al cerrar sesión: $e',
-        type: 'error',
-      );
-    }
-  }
-
   Widget _buildUserInfoCard(
     BuildContext context,
     Map<String, dynamic> userData, {
@@ -714,15 +917,13 @@ class _ConfiguracionView extends StatelessWidget {
         padding: EdgeInsets.all(cardPadding),
         child: Column(
           children: [
-            Builder(
-              builder: (context) => Text(
-                'Información del Usuario',
-                style: AppTextStyles.heading2Dark(context).copyWith(
-                  fontSize: titleFontSize,
-                  color: _getTextColor(context),
-                ),
-                textAlign: TextAlign.center,
+            Text(
+              'Información del Usuario',
+              style: AppTextStyles.heading2.copyWith(
+                fontSize: titleFontSize,
+                color: _getTextColor(context),
               ),
+              textAlign: TextAlign.center,
             ),
             SizedBox(height: AppSpacing.medium),
             _buildInfoRow(
@@ -757,27 +958,25 @@ class _ConfiguracionView extends StatelessWidget {
     double fontSize,
     BuildContext context,
   ) {
-    return Builder(
-      builder: (context) => Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: AppTextStyles.bodyDark(context).copyWith(
-              fontSize: fontSize,
-              fontWeight: FontWeight.bold,
-              color: _getTextColor(context),
-            ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: AppTextStyles.body.copyWith(
+            fontSize: fontSize,
+            fontWeight: FontWeight.bold,
+            color: _getTextColor(context),
           ),
-          Text(
-            value,
-            style: AppTextStyles.bodyDark(context).copyWith(
-              fontSize: fontSize, 
-              color: AppColors.primary,
-            ),
+        ),
+        Text(
+          value,
+          style: AppTextStyles.body.copyWith(
+            fontSize: fontSize, 
+            color: AppColors.primary,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -972,6 +1171,7 @@ class _ConfiguracionView extends StatelessWidget {
 
                 SizedBox(height: AppSpacing.large),
 
+                // ✅ MEJORADO: Botón de cerrar sesión funcional
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
@@ -1005,13 +1205,11 @@ class _ConfiguracionView extends StatelessWidget {
                 ),
 
                 SizedBox(height: AppSpacing.large),
-                Builder(
-                  builder: (context) => Text(
-                    'Versión 1.0.0',
-                    style: TextStyle(
-                      color: _getSecondaryTextColor(context), 
-                      fontSize: 14
-                    ),
+                Text(
+                  'Versión 1.0.0',
+                  style: TextStyle(
+                    color: _getSecondaryTextColor(context), 
+                    fontSize: 14
                   ),
                 ),
               ],
@@ -1044,22 +1242,18 @@ class _ConfiguracionView extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Builder(
-                    builder: (context) => Text(
-                      userData?['nombre'] ?? 'Usuario',
-                      style: TextStyle(
-                        fontSize: isTablet ? 20 : 18,
-                        fontWeight: FontWeight.bold,
-                        color: _getTextColor(context),
-                      ),
+                  Text(
+                    userData?['nombre'] ?? 'Usuario',
+                    style: TextStyle(
+                      fontSize: isTablet ? 20 : 18,
+                      fontWeight: FontWeight.bold,
+                      color: _getTextColor(context),
                     ),
                   ),
                   SizedBox(height: AppSpacing.small),
-                  Builder(
-                    builder: (context) => Text(
-                      userData?['email'] ?? 'No email',
-                      style: TextStyle(color: _getSecondaryTextColor(context)),
-                    ),
+                  Text(
+                    userData?['email'] ?? 'No email',
+                    style: TextStyle(color: _getSecondaryTextColor(context)),
                   ),
                   SizedBox(height: AppSpacing.small),
                   Chip(
@@ -1132,23 +1326,21 @@ class _ConfiguracionView extends StatelessWidget {
   ) {
     return Column(
       children: [
-        Builder(
-          builder: (context) => SwitchListTile(
-            title: Text(
-              title,
-              style: TextStyle(color: _getTextColor(context)),
-            ),
-            subtitle: Text(
-              subtitle,
-              style: TextStyle(
-                color: _getSecondaryTextColor(context), 
-                fontSize: 14
-              ),
-            ),
-            value: value,
-            onChanged: onChanged,
-            activeColor: AppColors.primary,
+        SwitchListTile(
+          title: Text(
+            title,
+            style: TextStyle(color: _getTextColor(context)),
           ),
+          subtitle: Text(
+            subtitle,
+            style: TextStyle(
+              color: _getSecondaryTextColor(context), 
+              fontSize: 14
+            ),
+          ),
+          value: value,
+          onChanged: onChanged,
+          activeColor: AppColors.primary,
         ),
         Divider(height: 1, color: _getSecondaryTextColor(context)),
       ],
@@ -1164,23 +1356,21 @@ class _ConfiguracionView extends StatelessWidget {
   ) {
     return Column(
       children: [
-        Builder(
-          builder: (context) => ListTile(
-            leading: Icon(icon, color: AppColors.primary),
-            title: Text(
-              title,
-              style: TextStyle(color: _getTextColor(context)),
-            ),
-            subtitle: Text(
-              subtitle,
-              style: TextStyle(
-                color: _getSecondaryTextColor(context), 
-                fontSize: 14
-              ),
-            ),
-            trailing: Icon(Icons.arrow_forward_ios, size: 16, color: _getSecondaryTextColor(context)),
-            onTap: onTap,
+        ListTile(
+          leading: Icon(icon, color: AppColors.primary),
+          title: Text(
+            title,
+            style: TextStyle(color: _getTextColor(context)),
           ),
+          subtitle: Text(
+            subtitle,
+            style: TextStyle(
+              color: _getSecondaryTextColor(context), 
+              fontSize: 14
+            ),
+          ),
+          trailing: Icon(Icons.arrow_forward_ios, size: 16, color: _getSecondaryTextColor(context)),
+          onTap: onTap,
         ),
         Divider(height: 1, color: _getSecondaryTextColor(context)),
       ],
@@ -1196,20 +1386,18 @@ class _ConfiguracionView extends StatelessWidget {
   ) {
     return Column(
       children: [
-        Builder(
-          builder: (context) => ListTile(
-            leading: Icon(icon, color: AppColors.primary),
-            title: Text(
-              title,
-              style: TextStyle(color: _getTextColor(context)),
-            ),
-            subtitle: Text(
-              value,
-              style: TextStyle(color: AppColors.primary, fontSize: 14),
-            ),
-            trailing: Icon(Icons.arrow_forward_ios, size: 16, color: _getSecondaryTextColor(context)),
-            onTap: onTap,
+        ListTile(
+          leading: Icon(icon, color: AppColors.primary),
+          title: Text(
+            title,
+            style: TextStyle(color: _getTextColor(context)),
           ),
+          subtitle: Text(
+            value,
+            style: TextStyle(color: AppColors.primary, fontSize: 14),
+          ),
+          trailing: Icon(Icons.arrow_forward_ios, size: 16, color: _getSecondaryTextColor(context)),
+          onTap: onTap,
         ),
         Divider(height: 1, color: _getSecondaryTextColor(context)),
       ],

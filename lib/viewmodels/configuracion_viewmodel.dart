@@ -1,8 +1,9 @@
-// viewmodels/configuracion_viewmodel.dart
+// viewmodels/configuracion_viewmodel.dart - VERSIÓN COMPLETA CORREGIDA
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
 import '../models/configuracion_model.dart';
 import '../models/database_helper.dart';
+import '../viewmodels/auth_viewmodel.dart';
 
 class ConfiguracionViewModel with ChangeNotifier {
   final LocalAuthentication _localAuth = LocalAuthentication();
@@ -16,6 +17,12 @@ class ConfiguracionViewModel with ChangeNotifier {
 
   List<String> get languages => _languages;
   List<String> get themes => _themes;
+
+  bool _guardando = false;
+  bool get guardando => _guardando;
+
+  String? _errorCambioPassword;
+  String? get errorCambioPassword => _errorCambioPassword;
 
   ConfiguracionViewModel() { 
     _loadSettings();
@@ -40,7 +47,6 @@ class ConfiguracionViewModel with ChangeNotifier {
           Map<String, dynamic>.from(result.first)
         );
       } else {
-        // Insertar configuración por defecto si no existe
         await _saveToDatabase();
       }
       notifyListeners();
@@ -51,6 +57,9 @@ class ConfiguracionViewModel with ChangeNotifier {
 
   Future<void> _saveToDatabase() async {
     try {
+      _guardando = true;
+      notifyListeners();
+
       await _databaseHelper.rawInsert('''
         INSERT OR REPLACE INTO configuraciones 
         (id, notifications_enabled, dark_mode_enabled, biometric_enabled, 
@@ -70,10 +79,115 @@ class ConfiguracionViewModel with ChangeNotifier {
     } catch (e) {
       print('Error guardando configuración: $e');
       rethrow;
+    } finally {
+      _guardando = false;
+      notifyListeners();
     }
   }
 
-  // MÉTODOS DE ACTUALIZACIÓN
+  // ✅ CORREGIDO: Método para cambiar contraseña MEJORADO
+  Future<Map<String, dynamic>> cambiarPassword({
+    required String currentPassword,
+    required String newPassword,
+    required AuthViewModel authViewModel,
+  }) async {
+    try {
+      _guardando = true;
+      _errorCambioPassword = null;
+      notifyListeners();
+
+      print('🔐 ConfiguracionViewModel: Iniciando cambio de contraseña...');
+      
+      // Usar el AuthViewModel para cambiar la contraseña
+      final resultado = await authViewModel.cambiarPassword(currentPassword, newPassword);
+      
+      _guardando = false;
+      notifyListeners();
+      
+      if (resultado) {
+        print('✅ ConfiguracionViewModel: Contraseña cambiada exitosamente');
+        return {
+          'success': true,
+          'message': 'Contraseña cambiada exitosamente'
+        };
+      } else {
+        _errorCambioPassword = authViewModel.error ?? 'Error desconocido al cambiar contraseña';
+        notifyListeners();
+        print('❌ ConfiguracionViewModel: Error - $_errorCambioPassword');
+        return {
+          'success': false,
+          'message': _errorCambioPassword
+        };
+      }
+    } catch (e) {
+      _guardando = false;
+      _errorCambioPassword = 'Error: ${e.toString()}';
+      notifyListeners();
+      print('❌ ConfiguracionViewModel: Error en cambiarPassword - $e');
+      return {
+        'success': false,
+        'message': _errorCambioPassword
+      };
+    }
+  }
+
+  // ✅ NUEVO: Método para validar fortaleza de contraseña
+  Map<String, dynamic> validarFortalezaPassword(String password) {
+    final errores = <String>[];
+    final recomendaciones = <String>[];
+    
+    if (password.length < 6) {
+      errores.add('La contraseña debe tener al menos 6 caracteres');
+    }
+    
+    // Verificar recomendaciones (no obligatorias)
+    if (!RegExp(r'[A-Z]').hasMatch(password)) {
+      recomendaciones.add('Incluir al menos una letra mayúscula');
+    }
+    
+    if (!RegExp(r'[a-z]').hasMatch(password)) {
+      recomendaciones.add('Incluir al menos una letra minúscula');
+    }
+    
+    if (!RegExp(r'[0-9]').hasMatch(password)) {
+      recomendaciones.add('Incluir al menos un número');
+    }
+    
+    // Calcular fortaleza
+    int fortaleza = 0;
+    if (password.length >= 8) fortaleza++;
+    if (RegExp(r'[A-Z]').hasMatch(password)) fortaleza++;
+    if (RegExp(r'[a-z]').hasMatch(password)) fortaleza++;
+    if (RegExp(r'[0-9]').hasMatch(password)) fortaleza++;
+    if (RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(password)) fortaleza++;
+    
+    String nivelFortaleza = 'Débil';
+    Color colorFortaleza = Colors.red;
+    
+    if (fortaleza >= 4) {
+      nivelFortaleza = 'Fuerte';
+      colorFortaleza = Colors.green;
+    } else if (fortaleza >= 3) {
+      nivelFortaleza = 'Media';
+      colorFortaleza = Colors.orange;
+    }
+    
+    return {
+      'esValida': errores.isEmpty,
+      'errores': errores,
+      'recomendaciones': recomendaciones,
+      'fortaleza': nivelFortaleza,
+      'colorFortaleza': colorFortaleza,
+      'puntuacion': fortaleza,
+    };
+  }
+
+  // Limpiar error de cambio de contraseña
+  void limpiarErrorPassword() {
+    _errorCambioPassword = null;
+    notifyListeners();
+  }
+
   Future<void> updateNotificationsEnabled(bool value) async {
     _configuracion = _configuracion.copyWith(notificationsEnabled: value);
     await _saveToDatabase();
@@ -106,12 +220,10 @@ class ConfiguracionViewModel with ChangeNotifier {
 
   Future<void> toggleBiometricEnabled() async {
     if (_configuracion.biometricEnabled) {
-      // Desactivar biometría
       _configuracion = _configuracion.copyWith(biometricEnabled: false);
       await _saveToDatabase();
       notifyListeners();
     } else {
-      // Activar biometría - requiere autenticación
       await _checkBiometricAvailability();
     }
   }
@@ -159,7 +271,6 @@ class ConfiguracionViewModel with ChangeNotifier {
     notifyListeners();
   }
 
-  // Nuevo método para sincronizar manualmente
   Future<void> syncSettings() async {
     try {
       await _saveToDatabase();
@@ -168,14 +279,12 @@ class ConfiguracionViewModel with ChangeNotifier {
     }
   }
 
-  // Método para resetear a valores por defecto
   Future<void> resetToDefaults() async {
     _configuracion = ConfiguracionModel.defaultValues();
     await _saveToDatabase();
     notifyListeners();
   }
 
-  // Método para obtener resumen de configuración
   String get resumenConfiguracion {
     final config = _configuracion;
     return 'Idioma: ${config.selectedLanguage} | Tema: ${config.selectedTheme} | '

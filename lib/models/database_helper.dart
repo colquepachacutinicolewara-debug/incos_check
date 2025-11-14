@@ -1,4 +1,4 @@
-// models/database_helper.dart
+// models/database_helper.dart - VERSIÓN COMPLETA CORREGIDA
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kReleaseMode;
@@ -37,7 +37,7 @@ class DatabaseHelper {
         print('📁 Base de datos existente encontrada, preservando datos...');
         _db = await openDatabase(
           path,
-          version: 2,
+          version: 3, // ✅ Incrementado a versión 3 para forzar migración
           onConfigure: (db) async {
             await db.execute('PRAGMA foreign_keys = ON');
           },
@@ -70,6 +70,8 @@ class DatabaseHelper {
         await _runDDL(db);
       } else {
         print('✅ Estructura de base de datos verificada');
+        // Verificar y migrar estructura si es necesario
+        await _migrarTablaUsuarios(db);
       }
     } catch (e) {
       print('❌ Error verificando estructura: $e');
@@ -88,7 +90,7 @@ class DatabaseHelper {
 
     final db = await openDatabase(
       path,
-      version: 2,
+      version: 3, // ✅ Incrementado a versión 3
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
       },
@@ -137,12 +139,21 @@ class DatabaseHelper {
         print('⚠️ Error en upgrade DB (posiblemente campo ya existe): $e');
       }
     }
+    
+    if (oldVersion < 3) {
+      try {
+        await _migrarTablaUsuarios(db);
+      } catch (e) {
+        print('⚠️ Error en migración a versión 3: $e');
+      }
+    }
   }
 
   // PRIMERA CREACIÓN
   Future<void> _createDB(Database db, int version) async {
     print('🏗️ Creando base de datos por primera vez...');
     await _runDDL(db);
+    await _migrarTablaUsuarios(db); // ✅ Agregar migración
   }
 
   // REFORZAR EN CADA APERTURA (solo si es primera vez)
@@ -439,7 +450,7 @@ class DatabaseHelper {
       );
     ''');
 
-    // Tabla usuarios - ACTUALIZADA CON CAMPO PASSWORD
+    // ✅ TABLA USUARIOS CORREGIDA (coma agregada)
     await db.execute('''
       CREATE TABLE IF NOT EXISTS usuarios(
         id TEXT PRIMARY KEY,
@@ -451,7 +462,8 @@ class DatabaseHelper {
         carnet TEXT,
         departamento TEXT,
         esta_activo INTEGER DEFAULT 1,
-        fecha_registro TEXT NOT NULL
+        fecha_registro TEXT NOT NULL,
+        updated_at TEXT NOT NULL
       );
     ''');
 
@@ -715,9 +727,11 @@ class DatabaseHelper {
       print('✅ Paralelos insertados');
     }
 
-    // Insertar usuario admin si no existe - ACTUALIZADO CON PASSWORD
+    // ✅ Insertar usuario admin CORREGIDO con updated_at
     final usuariosCount = await db.rawQuery('SELECT COUNT(*) AS c FROM usuarios');
     if ((usuariosCount.first['c'] as int?) == 0) {
+      final now = DateTime.now().toIso8601String();
+      
       await db.insert('usuarios', {
         'id': 'admin_001',
         'username': 'admin',
@@ -728,7 +742,8 @@ class DatabaseHelper {
         'carnet': 'ADMIN001',
         'departamento': 'Dirección',
         'esta_activo': 1,
-        'fecha_registro': DateTime.now().toIso8601String()
+        'fecha_registro': now,
+        'updated_at': now  // ✅ AGREGADO
       });
       
       await db.insert('usuarios', {
@@ -741,9 +756,10 @@ class DatabaseHelper {
         'carnet': 'DOC001',
         'departamento': 'Académico',
         'esta_activo': 1,
-        'fecha_registro': DateTime.now().toIso8601String()
+        'fecha_registro': now,
+        'updated_at': now  // ✅ AGREGADO
       });
-      print('✅ Usuarios insertados');
+      print('✅ Usuarios insertados con updated_at');
     }
 
     // Insertar configuración por defecto si no existe
@@ -810,29 +826,153 @@ class DatabaseHelper {
     await instance.initDatabase();
   }
 
-  // MÉTODO ESPECÍFICO PARA VERIFICAR CREDENCIALES DE USUARIO
-  Future<Map<String, Object?>?> verificarCredenciales(String username, String password) async {
-    final db = await database;
-    final results = await db.query(
-      'usuarios',
-      where: 'username = ? AND password = ? AND esta_activo = 1',
-      whereArgs: [username, password],
-    );
-    return results.isNotEmpty ? results.first : null;
+  // ✅ MÉTODO MIGRACIÓN PARA AGREGAR updated_at SI NO EXISTE
+  Future<void> _migrarTablaUsuarios(Database db) async {
+    try {
+      // Verificar si existe la columna updated_at
+      final tableInfo = await db.rawQuery('PRAGMA table_info(usuarios)');
+      final tieneUpdatedAt = tableInfo.any((col) => col['name'] == 'updated_at');
+      
+      if (!tieneUpdatedAt) {
+        print('🔄 Agregando columna updated_at a tabla usuarios...');
+        await db.execute('''
+          ALTER TABLE usuarios ADD COLUMN updated_at TEXT
+        ''');
+        
+        // Actualizar registros existentes con fecha actual
+        final now = DateTime.now().toIso8601String();
+        await db.update(
+          'usuarios',
+          {'updated_at': now},
+        );
+        
+        print('✅ Columna updated_at agregada exitosamente');
+      } else {
+        print('✅ Columna updated_at ya existe en tabla usuarios');
+      }
+      
+      // Debug: mostrar estructura final
+      final finalTableInfo = await db.rawQuery('PRAGMA table_info(usuarios)');
+      print('📋 Estructura final de tabla usuarios:');
+      for (var column in finalTableInfo) {
+        print('   - ${column['name']} (${column['type']})');
+      }
+      
+    } catch (e) {
+      print('⚠️ Error en migración de tabla usuarios: $e');
+    }
   }
 
-  // MÉTODO PARA ACTUALIZAR CONTRASEÑA
+  // ✅ MÉTODO DEFINITIVO ROBUSTO PARA ACTUALIZAR CONTRASEÑA
   Future<int> actualizarPassword(String userId, String nuevaPassword) async {
     final db = await database;
-    return await db.update(
-      'usuarios',
-      {
-        'password': nuevaPassword,
-        'fecha_actualizacion': DateTime.now().toIso8601String()
-      },
-      where: 'id = ?',
-      whereArgs: [userId],
-    );
+    
+    try {
+      print('🔄 Actualizando contraseña para usuario: $userId');
+      print('🔑 Nueva contraseña: $nuevaPassword');
+      
+      // Obtener estructura de la tabla para debugging
+      final tableInfo = await db.rawQuery('PRAGMA table_info(usuarios)');
+      final columnas = tableInfo.map((col) => col['name'] as String).toList();
+      print('📋 Columnas disponibles en tabla usuarios: $columnas');
+      
+      // Preparar datos para actualizar
+      Map<String, dynamic> updateData = {'password': nuevaPassword};
+      
+      // Agregar campo de timestamp según lo disponible
+      if (columnas.contains('fecha_actualizacion')) {
+        updateData['fecha_actualizacion'] = DateTime.now().toIso8601String();
+      } 
+      if (columnas.contains('updated_at')) {
+        updateData['updated_at'] = DateTime.now().toIso8601String();
+      }
+      
+      print('📦 Datos a actualizar: $updateData');
+      
+      final resultado = await db.update(
+        'usuarios',
+        updateData,
+        where: 'id = ?',
+        whereArgs: [userId],
+      );
+      
+      print('✅ Resultado de actualización: $resultado filas afectadas');
+      
+      if (resultado > 0) {
+        // Verificar la actualización
+        final usuarioActualizado = await db.query(
+          'usuarios',
+          where: 'id = ?',
+          whereArgs: [userId],
+        );
+        
+        if (usuarioActualizado.isNotEmpty) {
+          final usuario = usuarioActualizado.first;
+          print('🎉 Usuario actualizado exitosamente:');
+          print('   - Username: ${usuario['username']}');
+          print('   - Nuevo password: ${usuario['password']}');
+          if (usuario['updated_at'] != null) {
+            print('   - Updated at: ${usuario['updated_at']}');
+          }
+          if (usuario['fecha_actualizacion'] != null) {
+            print('   - Fecha actualización: ${usuario['fecha_actualizacion']}');
+          }
+        }
+      }
+      
+      return resultado;
+      
+    } catch (e) {
+      print('❌ Error en actualizarPassword: $e');
+      
+      // Fallback: intentar solo con password si hay error
+      try {
+        print('🔄 Intentando actualización solo con password (fallback)...');
+        final resultado = await db.update(
+          'usuarios',
+          {'password': nuevaPassword},
+          where: 'id = ?',
+          whereArgs: [userId],
+        );
+        print('✅ Contraseña actualizada (fallback) - Filas: $resultado');
+        return resultado;
+      } catch (e2) {
+        print('❌ Error incluso en fallback: $e2');
+        rethrow;
+      }
+    }
+  }
+
+  // ✅ MÉTODO CORREGIDO PARA VERIFICAR CREDENCIALES
+  Future<Map<String, Object?>?> verificarCredenciales(String username, String password) async {
+    final db = await database;
+    
+    try {
+      print('🔐 Verificando credenciales para: $username');
+      
+      final results = await db.query(
+        'usuarios',
+        where: 'username = ? AND password = ? AND esta_activo = 1',
+        whereArgs: [username, password],
+      );
+      
+      print('📊 Resultados de verificación: ${results.length}');
+      
+      if (results.isNotEmpty) {
+        final usuario = results.first;
+        print('✅ Usuario encontrado:');
+        print('   - ID: ${usuario['id']}');
+        print('   - Nombre: ${usuario['nombre']}');
+        print('   - Password en BD: ${usuario['password']}');
+      } else {
+        print('❌ Usuario no encontrado o credenciales incorrectas');
+      }
+      
+      return results.isNotEmpty ? results.first : null;
+    } catch (e) {
+      print('❌ Error en verificarCredenciales: $e');
+      return null;
+    }
   }
   
   // 🌟 MÉTODO PARA VERIFICAR SI LA BASE DE DATOS EXISTE

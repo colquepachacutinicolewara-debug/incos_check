@@ -1,9 +1,9 @@
-// login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:incos_check/utils/constants.dart';
-import '../../models/database_helper.dart';
-import '../../views/dashboard/dashboard_screen.dart';
+import '../../viewmodels/auth_viewmodel.dart';
+import '../../models/usuario_model.dart';
+import '../dashboard/dashboard_screen.dart';
 import '../../viewmodels/dashboard_viewmodel.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -17,8 +17,6 @@ class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
-  String? _error;
-  bool _isLoading = false;
   bool _obscurePassword = true;
 
   late AnimationController _animationController;
@@ -43,6 +41,22 @@ class _LoginScreenState extends State<LoginScreen>
         );
 
     _animationController.forward();
+    
+    // ✅ VERIFICAR SI HAY SESIÓN GUARDADA
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkExistingSession();
+    });
+  }
+
+  Future<void> _checkExistingSession() async {
+    final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
+    if (!authViewModel.sessionChecked) {
+      await authViewModel.verificarSesionGuardada();
+      
+      if (authViewModel.isLoggedIn && authViewModel.currentUser != null) {
+        _navigateToDashboard(authViewModel.currentUser!);
+      }
+    }
   }
 
   @override
@@ -80,6 +94,148 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
+  // ... (todos tus métodos _buildHeader, _buildLoginCard, etc. se mantienen igual hasta _buildErrorWidget)
+
+  Widget _buildErrorWidget() {
+    return Consumer<AuthViewModel>(
+      builder: (context, authViewModel, child) {
+        if (authViewModel.error == null) return const SizedBox();
+        
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppSpacing.medium),
+          decoration: BoxDecoration(
+            color: AppColors.error.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(AppRadius.small),
+            border: Border.all(color: AppColors.error.withOpacity(0.3)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.error_outline_rounded, color: AppColors.error, size: 20),
+              const SizedBox(width: AppSpacing.small),
+              Expanded(
+                child: Text(
+                  authViewModel.error!,
+                  style: AppTextStyles.body.copyWith(color: AppColors.error),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLoginButton() {
+    return Consumer<AuthViewModel>(
+      builder: (context, authViewModel, child) {
+        return SizedBox(
+          width: double.infinity,
+          child: AnimatedContainer(
+            duration: AppDurations.short,
+            decoration: BoxDecoration(
+              gradient: authViewModel.isLoading
+                  ? null
+                  : const LinearGradient(
+                      colors: [AppColors.primary, AppColors.secondary],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+              borderRadius: BorderRadius.circular(AppRadius.small),
+              boxShadow: authViewModel.isLoading
+                  ? []
+                  : [
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+            ),
+            child: Material(
+              color: authViewModel.isLoading ? AppColors.textSecondary : Colors.transparent,
+              borderRadius: BorderRadius.circular(AppRadius.small),
+              child: InkWell(
+                onTap: authViewModel.isLoading ? null : _login,
+                borderRadius: BorderRadius.circular(AppRadius.small),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (authViewModel.isLoading)
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      else
+                        const Icon(
+                          Icons.login_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      const SizedBox(width: AppSpacing.small),
+                      Text(
+                        authViewModel.isLoading ? 'Ingresando...' : AppStrings.login,
+                        style: AppTextStyles.button.copyWith(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _login() async {
+    final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text.trim();
+
+    final success = await authViewModel.login(username, password);
+    
+    if (success && authViewModel.currentUser != null) {
+      _navigateToDashboard(authViewModel.currentUser!);
+    }
+  }
+
+  void _navigateToDashboard(Usuario usuario) {
+    // Convertir Usuario a Map para compatibilidad con tu Dashboard actual
+    final userData = {
+      'id': usuario.id,
+      'username': usuario.username,
+      'email': usuario.email,
+      'nombre': usuario.nombre,
+      'password': usuario.password,
+      'role': usuario.role,
+      'carnet': usuario.carnet,
+      'departamento': usuario.departamento,
+      'esta_activo': usuario.estaActivo,
+      'fecha_registro': usuario.fechaRegistro.toIso8601String(),
+    };
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChangeNotifierProvider(
+          create: (context) => DashboardViewModel(userData: userData),
+          child: DashboardScreen(userData: userData),
+        ),
+      ),
+    );
+  }
+
+  // ... (el resto de tus métodos _buildHeader, _buildUsernameField, etc. se mantienen igual)
   Widget _buildHeader() {
     return Column(
       children: [
@@ -173,7 +329,7 @@ class _LoginScreenState extends State<LoginScreen>
           const SizedBox(height: AppSpacing.medium),
 
           // Mensaje de error
-          if (_error != null) _buildErrorWidget(),
+          _buildErrorWidget(),
           const SizedBox(height: AppSpacing.medium),
 
           // Botón de login
@@ -310,97 +466,6 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildErrorWidget() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.medium),
-      decoration: BoxDecoration(
-        color: AppColors.error.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(AppRadius.small),
-        border: Border.all(color: AppColors.error.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.error_outline_rounded, color: AppColors.error, size: 20),
-          const SizedBox(width: AppSpacing.small),
-          Expanded(
-            child: Text(
-              _error!,
-              style: AppTextStyles.body.copyWith(color: AppColors.error),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLoginButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: AnimatedContainer(
-        duration: AppDurations.short,
-        decoration: BoxDecoration(
-          gradient: _isLoading
-              ? null
-              : const LinearGradient(
-                  colors: [AppColors.primary, AppColors.secondary],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-          borderRadius: BorderRadius.circular(AppRadius.small),
-          boxShadow: _isLoading
-              ? []
-              : [
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.3),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-        ),
-        child: Material(
-          color: _isLoading ? AppColors.textSecondary : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppRadius.small),
-          child: InkWell(
-            onTap: _isLoading ? null : _login,
-            borderRadius: BorderRadius.circular(AppRadius.small),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (_isLoading)
-                    SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  else
-                    const Icon(
-                      Icons.login_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  const SizedBox(width: AppSpacing.small),
-                  Text(
-                    _isLoading ? 'Ingresando...' : AppStrings.login,
-                    style: AppTextStyles.button.copyWith(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildFooter() {
     return Column(
       children: [
@@ -436,89 +501,5 @@ class _LoginScreenState extends State<LoginScreen>
         ),
       ],
     );
-  }
-
-  void _login() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
-    try {
-      final username = _usernameController.text.trim();
-      final password = _passwordController.text.trim();
-
-      if (username.isEmpty || password.isEmpty) {
-        setState(() {
-          _error = 'Por favor, completa todos los campos';
-          _isLoading = false;
-        });
-        return;
-      }
-
-      // ✅ VERIFICAR CREDENCIALES EN LA BASE DE DATOS SQLite
-      final usuario = await DatabaseHelper.instance.verificarCredenciales(username, password);
-
-      if (usuario != null && usuario.isNotEmpty) {
-        // ✅ LOGIN EXITOSO - Convertir datos y navegar al dashboard
-        final userData = _convertUserData(usuario);
-        _navigateToDashboard(userData);
-      } else {
-        setState(() {
-          _error = 'Usuario o contraseña incorrectos';
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _error = 'Error al conectar con la base de datos: $e';
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  void _navigateToDashboard(Map<String, dynamic> userData) {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ChangeNotifierProvider(
-          create: (context) => DashboardViewModel(userData: userData),
-          child: DashboardScreen(userData: userData),
-        ),
-      ),
-    );
-  }
-
-  // ✅ CONVERSIÓN SEGURA DE DATOS DEL USUARIO
-  Map<String, dynamic> _convertUserData(Map<String, Object?> originalData) {
-    final Map<String, dynamic> convertedData = {};
-    
-    originalData.forEach((key, value) {
-      if (value != null) {
-        // Convertir tipos específicos según la tabla 'usuarios'
-        switch (key) {
-          case 'esta_activo':
-            convertedData[key] = value is int ? value == 1 : false;
-            break;
-          case 'id':
-          case 'username':
-          case 'email':
-          case 'nombre':
-          case 'password':
-          case 'role':
-          case 'carnet':
-          case 'departamento':
-          case 'fecha_registro':
-            convertedData[key] = value.toString();
-            break;
-          default:
-            convertedData[key] = value;
-        }
-      }
-    });
-    
-    return convertedData;
   }
 }

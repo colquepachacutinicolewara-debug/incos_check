@@ -23,7 +23,8 @@ import 'viewmodels/soporte_viewmodel.dart';
 import 'viewmodels/turnos_viewmodel.dart';
 import 'viewmodels/historial_asitencia_viewmodel.dart';
 import 'viewmodels/inicio_viewmodel.dart';
-import 'viewmodels/asistencia_viewmodel.dart'; // AÑADIR ESTE
+import 'viewmodels/asistencia_viewmodel.dart'; 
+import 'viewmodels/auth_viewmodel.dart'; 
 
 // Services
 import 'services/theme_service.dart';
@@ -70,6 +71,11 @@ class MyApp extends StatelessWidget {
         // 🌟 PROVIDER DE DATABASEHELPER - AÑADIR ESTO
         Provider<DatabaseHelper>(
           create: (context) => DatabaseHelper.instance,
+        ),
+        
+        // 🌟 AUTH VIEWMODEL - DEBE ESTAR PRIMERO
+        ChangeNotifierProvider<AuthViewModel>(
+          create: (_) => AuthViewModel(),
         ),
         
         // 🌟 SERVICIO DE TEMA
@@ -152,15 +158,15 @@ class MyApp extends StatelessWidget {
           create: (context) => AsistenciaViewModel(),
         ),
       ],
-      child: Consumer<ThemeService>(
-        builder: (context, themeService, child) {
+      child: Consumer2<ThemeService, AuthViewModel>(
+        builder: (context, themeService, authViewModel, child) {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
             title: 'INCOS Check - Sistema de Asistencia',
             theme: _buildLightTheme(),
             darkTheme: _buildDarkTheme(),
             themeMode: themeService.themeMode,
-            home: const AuthWrapper(),
+            home: AuthWrapper(authViewModel: authViewModel),
             // 🌟 RUTAS PARA NAVEGACIÓN (OPCIONAL)
             routes: {
               '/dashboard': (context) => const DashboardScreen(),
@@ -172,6 +178,7 @@ class MyApp extends StatelessWidget {
     );
   }
 
+  // ... (los métodos _buildLightTheme y _buildDarkTheme se mantienen igual)
   // 🌟 TEMA CLARO
   ThemeData _buildLightTheme() {
     return ThemeData(
@@ -452,13 +459,70 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class AuthWrapper extends StatelessWidget {
-  const AuthWrapper({super.key});
+class AuthWrapper extends StatefulWidget {
+  final AuthViewModel authViewModel;
+
+  const AuthWrapper({super.key, required this.authViewModel});
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkSession();
+  }
+
+  Future<void> _checkSession() async {
+    await widget.authViewModel.verificarSesionGuardada();
+    setState(() {
+      _initialized = true;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    // 🌟 AUTENTICACIÓN LOCAL - Siempre mostrar LoginScreen
-    // La validación de credenciales se hará contra SQLite
+    if (!_initialized) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Verificando sesión...'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Si ya está logueado, ir al dashboard
+    if (widget.authViewModel.isLoggedIn && widget.authViewModel.currentUser != null) {
+      final userData = {
+        'id': widget.authViewModel.currentUser!.id,
+        'username': widget.authViewModel.currentUser!.username,
+        'email': widget.authViewModel.currentUser!.email,
+        'nombre': widget.authViewModel.currentUser!.nombre,
+        'password': widget.authViewModel.currentUser!.password,
+        'role': widget.authViewModel.currentUser!.role,
+        'carnet': widget.authViewModel.currentUser!.carnet,
+        'departamento': widget.authViewModel.currentUser!.departamento,
+        'esta_activo': widget.authViewModel.currentUser!.estaActivo,
+        'fecha_registro': widget.authViewModel.currentUser!.fechaRegistro.toIso8601String(),
+      };
+      
+      return ChangeNotifierProvider(
+        create: (context) => DashboardViewModel(userData: userData),
+        child: DashboardScreen(userData: userData),
+      );
+    }
+    
+    // Si no está logueado, mostrar login
     return const LoginScreen();
   }
 }
