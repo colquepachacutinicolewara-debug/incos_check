@@ -1,3 +1,4 @@
+// models/estudiante_model.dart
 import 'package:intl/intl.dart';
 
 class Estudiante {
@@ -12,8 +13,8 @@ class Estudiante {
   final String? turnoId;
   final String? nivelId;
   final String? paraleloId;
-  final DateTime? fechaCreacion;
-  final DateTime? fechaActualizacion;
+  final String fechaCreacion;
+  final String fechaActualizacion;
 
   Estudiante({
     required this.id,
@@ -27,8 +28,8 @@ class Estudiante {
     this.turnoId,
     this.nivelId,
     this.paraleloId,
-    this.fechaCreacion,
-    this.fechaActualizacion,
+    required this.fechaCreacion,
+    required this.fechaActualizacion,
   });
 
   Map<String, dynamic> toMap() {
@@ -40,12 +41,12 @@ class Estudiante {
       'ci': ci,
       'fecha_registro': fechaRegistro,
       'huellas_registradas': huellasRegistradas,
-      'carrera_id': carreraId,
-      'turno_id': turnoId,
-      'nivel_id': nivelId,
-      'paralelo_id': paraleloId,
-      'fecha_creacion': fechaCreacion?.toIso8601String() ?? DateTime.now().toIso8601String(),
-      'fecha_actualizacion': fechaActualizacion?.toIso8601String() ?? DateTime.now().toIso8601String(),
+      'carrera_id': carreraId ?? '',
+      'turno_id': turnoId ?? '',
+      'nivel_id': nivelId ?? '',
+      'paralelo_id': paraleloId ?? '',
+      'fecha_creacion': fechaCreacion,
+      'fecha_actualizacion': fechaActualizacion,
     };
   }
 
@@ -63,12 +64,8 @@ class Estudiante {
       turnoId: map['turno_id']?.toString(),
       nivelId: map['nivel_id']?.toString(),
       paraleloId: map['paralelo_id']?.toString(),
-      fechaCreacion: map['fecha_creacion'] != null
-          ? DateTime.tryParse(map['fecha_creacion'].toString())
-          : null,
-      fechaActualizacion: map['fecha_actualizacion'] != null
-          ? DateTime.tryParse(map['fecha_actualizacion'].toString())
-          : null,
+      fechaCreacion: map['fecha_creacion']?.toString() ?? DateTime.now().toIso8601String(),
+      fechaActualizacion: map['fecha_actualizacion']?.toString() ?? DateTime.now().toIso8601String(),
     );
   }
 
@@ -84,8 +81,8 @@ class Estudiante {
     String? turnoId,
     String? nivelId,
     String? paraleloId,
-    DateTime? fechaCreacion,
-    DateTime? fechaActualizacion,
+    String? fechaCreacion,
+    String? fechaActualizacion,
   }) {
     return Estudiante(
       id: id ?? this.id,

@@ -1,3 +1,4 @@
+// viewmodels/estudiantes_viewmodel.dart - VERSIÓN CORREGIDA
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
@@ -17,7 +18,12 @@ class EstudiantesViewModel with ChangeNotifier {
 
   final DatabaseHelper _databaseHelper = DatabaseHelper.instance;
 
-  // Parámetros opcionales con valores por defecto
+  // Listas para los dropdowns
+  List<Map<String, dynamic>> _carreras = [];
+  List<Map<String, dynamic>> _turnos = [];
+  List<Map<String, dynamic>> _niveles = [];
+  List<Map<String, dynamic>> _paralelos = [];
+
   String tipo;
   Map<String, dynamic> carrera;
   Map<String, dynamic> turno;
@@ -30,22 +36,28 @@ class EstudiantesViewModel with ChangeNotifier {
   String? _error;
   String? get error => _error;
 
-  // CONSTRUCTOR CORREGIDO - Sin parámetro DatabaseHelper requerido
+  // Getters para las listas
+  List<Map<String, dynamic>> get carreras => _carreras;
+  List<Map<String, dynamic>> get turnos => _turnos;
+  List<Map<String, dynamic>> get niveles => _niveles;
+  List<Map<String, dynamic>> get paralelos => _paralelos;
+
+  // CONSTRUCTOR CORREGIDO
   EstudiantesViewModel({
     this.tipo = 'Estudiantes',
     Map<String, dynamic>? carrera,
     Map<String, dynamic>? turno,
     Map<String, dynamic>? nivel,
     Map<String, dynamic>? paralelo,
-  }) : carrera = carrera ?? {'id': '', 'nombre': 'General', 'color': '#1565C0'},
-       turno = turno ?? {'id': '', 'nombre': 'General'},
-       nivel = nivel ?? {'id': '', 'nombre': 'General'},
-       paralelo = paralelo ?? {'id': '', 'nombre': 'General'} {
+  }) : carrera = carrera ?? {'id': 'info', 'nombre': 'Informática', 'color': '#1565C0'},
+       turno = turno ?? {'id': 'turno_manana', 'nombre': 'Mañana'},
+       nivel = nivel ?? {'id': 'nivel_secundaria', 'nombre': 'Secundaria'},
+       paralelo = paralelo ?? {'id': 'paralelo_a', 'nombre': 'A'} {
     _inicializarViewModel();
   }
 
   void _inicializarViewModel() {
-    _cargarEstudiantesDesdeDatabase();
+    _cargarDatosIniciales();
     searchController.addListener(_filtrarEstudiantes);
   }
 
@@ -53,49 +65,102 @@ class EstudiantesViewModel with ChangeNotifier {
   List<Estudiante> get estudiantes => _estudiantes;
   List<Estudiante> get estudiantesFiltrados => _estudiantesFiltrados;
 
-  // ✅ CARGA DESDE SQLITE
-  void _cargarEstudiantesDesdeDatabase() {
+  // ✅ CARGA DATOS INICIALES (estudiantes + dropdowns) - CORREGIDO
+  Future<void> _cargarDatosIniciales() async {
     try {
       _isLoading = true;
       _error = null;
       notifyListeners();
 
-      print('🔄 Cargando estudiantes desde SQLite...');
-      print('   - Carrera: ${carrera['id']}');
-      print('   - Turno: ${turno['id']}');
-      print('   - Nivel: ${nivel['id']}');
-      print('   - Paralelo: ${paralelo['id']}');
+      print('🔄 Cargando datos iniciales...');
+      
+      // Cargar datos para dropdowns
+      await _cargarCarreras();
+      await _cargarTurnos();
+      await _cargarNiveles();
+      await _cargarParalelos();
+      
+      // Cargar estudiantes
+      await _loadEstudiantesFromDB();
 
-      _loadEstudiantesFromDB();
+      _isLoading = false;
+      notifyListeners();
+
+      print('✅ Datos iniciales cargados correctamente');
     } catch (e) {
       _onEstudiantesError(e);
     }
   }
 
+  // ✅ CARGAR CARRERAS
+  Future<void> _cargarCarreras() async {
+    try {
+      final result = await _databaseHelper.rawQuery(
+        'SELECT id, nombre, color FROM carreras WHERE activa = 1 ORDER BY nombre'
+      );
+      _carreras = result.map((row) => Map<String, dynamic>.from(row)).toList();
+      print('📚 Carreras cargadas: ${_carreras.length}');
+    } catch (e) {
+      print('❌ Error cargando carreras: $e');
+      _carreras = [];
+    }
+  }
+
+  // ✅ CARGAR TURNOS
+  Future<void> _cargarTurnos() async {
+    try {
+      final result = await _databaseHelper.rawQuery(
+        'SELECT id, nombre, color FROM turnos WHERE activo = 1 ORDER BY nombre'
+      );
+      _turnos = result.map((row) => Map<String, dynamic>.from(row)).toList();
+      print('🕒 Turnos cargados: ${_turnos.length}');
+    } catch (e) {
+      print('❌ Error cargando turnos: $e');
+      _turnos = [];
+    }
+  }
+
+  // ✅ CARGAR NIVELES
+  Future<void> _cargarNiveles() async {
+    try {
+      final result = await _databaseHelper.rawQuery(
+        'SELECT id, nombre FROM niveles WHERE activo = 1 ORDER BY orden'
+      );
+      _niveles = result.map((row) => Map<String, dynamic>.from(row)).toList();
+      print('📊 Niveles cargados: ${_niveles.length}');
+    } catch (e) {
+      print('❌ Error cargando niveles: $e');
+      _niveles = [];
+    }
+  }
+
+  // ✅ CARGAR PARALELOS
+  Future<void> _cargarParalelos() async {
+    try {
+      final result = await _databaseHelper.rawQuery(
+        'SELECT id, nombre FROM paralelos WHERE activo = 1 ORDER BY nombre'
+      );
+      _paralelos = result.map((row) => Map<String, dynamic>.from(row)).toList();
+      print('🔤 Paralelos cargados: ${_paralelos.length}');
+    } catch (e) {
+      print('❌ Error cargando paralelos: $e');
+      _paralelos = [];
+    }
+  }
+
+  // ✅ CARGA ESTUDIANTES DESDE SQLITE - CORREGIDO
   Future<void> _loadEstudiantesFromDB() async {
     try {
-      String query = 'SELECT * FROM estudiantes WHERE 1=1';
+      // ✅ CONSULTA SIMPLIFICADA - SIN FILTROS PARA VER TODOS LOS ESTUDIANTES
+      String query = 'SELECT * FROM estudiantes';
       List<Object?> params = [];
 
-      // Agregar filtros solo si los IDs no están vacíos
-      if (carrera['id']?.toString().isNotEmpty == true) {
-        query += ' AND carrera_id = ?';
-        params.add(carrera['id']?.toString());
-      }
-      if (turno['id']?.toString().isNotEmpty == true) {
-        query += ' AND turno_id = ?';
-        params.add(turno['id']?.toString());
-      }
-      if (nivel['id']?.toString().isNotEmpty == true) {
-        query += ' AND nivel_id = ?';
-        params.add(nivel['id']?.toString());
-      }
-      if (paralelo['id']?.toString().isNotEmpty == true) {
-        query += ' AND paralelo_id = ?';
-        params.add(paralelo['id']?.toString());
-      }
-
-      query += ' ORDER BY apellido_paterno, apellido_materno, nombres';
+      print('🔍 Ejecutando consulta: $query');
+      print('🎯 Filtros aplicados:');
+      print('   - Carrera: ${carrera['id']}');
+      print('   - Turno: ${turno['id']}');
+      print('   - Nivel: ${nivel['id']}');
+      print('   - Paralelo: ${paralelo['id']}');
 
       final result = await _databaseHelper.rawQuery(query, params);
 
@@ -111,6 +176,13 @@ class EstudiantesViewModel with ChangeNotifier {
       notifyListeners();
 
       print('✅ Estudiantes cargados: ${_estudiantes.length}');
+      
+      // Debug: mostrar información de los estudiantes cargados
+      for (var estudiante in _estudiantes) {
+        print('   👤 ${estudiante.nombreCompleto} - CI: ${estudiante.ci}');
+        print('      Carrera: ${estudiante.carreraId} | Turno: ${estudiante.turnoId}');
+        print('      Nivel: ${estudiante.nivelId} | Paralelo: ${estudiante.paraleloId}');
+      }
     } catch (e) {
       _onEstudiantesError(e);
     }
@@ -163,6 +235,8 @@ class EstudiantesViewModel with ChangeNotifier {
       notifyListeners();
       
       await operationFn();
+      
+      // ✅ RECARGAR TODOS LOS ESTUDIANTES SIN FILTROS
       await _loadEstudiantesFromDB();
       
       _isLoading = false;
@@ -174,31 +248,54 @@ class EstudiantesViewModel with ChangeNotifier {
     }
   }
 
-  // ✅ AGREGAR ESTUDIANTE - MEJORADO
+  // ✅ AGREGAR ESTUDIANTE - COMPLETO CON TODOS LOS CAMPOS
   Future<bool> agregarEstudiante({
     required String nombres,
     required String paterno,
     required String materno,
     required String ci,
+    required String carreraId,
+    required String turnoId,
+    required String nivelId,
+    required String paraleloId,
   }) async {
     return _executeDatabaseOperation('agregar estudiante', () async {
       // Verificar si ya existe un estudiante con el mismo CI
-      final ciExists = _estudiantes.any((e) => e.ci == ci.trim());
+      final existing = await _databaseHelper.rawQuery(
+        'SELECT COUNT(*) as count FROM estudiantes WHERE ci = ?',
+        [ci.trim()]
+      );
+      
+      final count = existing.first['count'] as int? ?? 0;
+      final ciExists = count > 0;
+      
       if (ciExists) {
-        throw Exception('Ya existe un estudiante con este CI');
+        throw Exception('Ya existe un estudiante con este CI: $ci');
       }
 
-      // Crear el estudiante
+      // Crear el estudiante con TODOS los campos
       final estudianteId = 'est_${DateTime.now().millisecondsSinceEpoch}';
       final now = DateTime.now().toIso8601String();
       final fechaRegistro = DateTime.now().toString().split(' ')[0];
 
+      print('🎯 Insertando estudiante con todos los campos:');
+      print('   - ID: $estudianteId');
+      print('   - Nombres: $nombres');
+      print('   - Paterno: $paterno');
+      print('   - Materno: $materno');
+      print('   - CI: $ci');
+      print('   - Carrera ID: $carreraId');
+      print('   - Turno ID: $turnoId');
+      print('   - Nivel ID: $nivelId');
+      print('   - Paralelo ID: $paraleloId');
+
       // Agregar a SQLite
-      await _databaseHelper.rawInsert('''
-        INSERT INTO estudiantes (id, nombres, apellido_paterno, apellido_materno, ci,
-        fecha_registro, huellas_registradas, carrera_id, turno_id, nivel_id, paralelo_id,
-        fecha_creacion, fecha_actualizacion)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      final result = await _databaseHelper.rawInsert('''
+        INSERT INTO estudiantes (
+          id, nombres, apellido_paterno, apellido_materno, ci,
+          fecha_registro, huellas_registradas, carrera_id, turno_id, 
+          nivel_id, paralelo_id, fecha_creacion, fecha_actualizacion
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''', [
         estudianteId,
         nombres.trim(),
@@ -206,46 +303,62 @@ class EstudiantesViewModel with ChangeNotifier {
         materno.trim(),
         ci.trim(),
         fechaRegistro,
-        0,
-        carrera['id']?.toString() ?? '',
-        turno['id']?.toString() ?? '',
-        nivel['id']?.toString() ?? '',
-        paralelo['id']?.toString() ?? '',
+        0, // huellas_registradas por defecto
+        carreraId.isNotEmpty ? carreraId : 'info',
+        turnoId.isNotEmpty ? turnoId : 'turno_manana',
+        nivelId.isNotEmpty ? nivelId : 'nivel_secundaria',
+        paraleloId.isNotEmpty ? paraleloId : 'paralelo_a',
         now,
         now
       ]);
 
-      print('✅ Estudiante agregado exitosamente: $nombres $paterno');
+      print('✅ Estudiante agregado exitosamente: $nombres $paterno - ID: $result');
     });
   }
 
-  // ✅ EDITAR ESTUDIANTE - MEJORADO
+  // ✅ EDITAR ESTUDIANTE - COMPLETO CON TODOS LOS CAMPOS
   Future<bool> editarEstudiante({
     required String id,
     required String nombres,
     required String paterno,
     required String materno,
     required String ci,
+    required String carreraId,
+    required String turnoId,
+    required String nivelId,
+    required String paraleloId,
   }) async {
     return _executeDatabaseOperation('editar estudiante', () async {
-      // Buscar el estudiante actual
-      final estudianteExistente = _estudiantes.firstWhere(
-        (e) => e.id == id,
-        orElse: () => throw Exception('Estudiante no encontrado'),
-      );
-
       // Verificar si el CI ya existe en otro estudiante
-      if (ci.trim() != estudianteExistente.ci) {
-        final ciExists = _estudiantes.any((e) => e.id != id && e.ci == ci.trim());
-        if (ciExists) {
-          throw Exception('Ya existe otro estudiante con este CI');
-        }
+      final existing = await _databaseHelper.rawQuery(
+        'SELECT COUNT(*) as count FROM estudiantes WHERE ci = ? AND id != ?',
+        [ci.trim(), id]
+      );
+      
+      final count = existing.first['count'] as int? ?? 0;
+      final ciExists = count > 0;
+      
+      if (ciExists) {
+        throw Exception('Ya existe otro estudiante con este CI: $ci');
       }
 
-      // Actualizar en SQLite
-      await _databaseHelper.rawUpdate('''
+      print('🎯 Actualizando estudiante:');
+      print('   - ID: $id');
+      print('   - Nuevos datos:');
+      print('     Nombres: $nombres');
+      print('     Paterno: $paterno');
+      print('     Materno: $materno');
+      print('     CI: $ci');
+      print('     Carrera: $carreraId');
+      print('     Turno: $turnoId');
+      print('     Nivel: $nivelId');
+      print('     Paralelo: $paraleloId');
+
+      // Actualizar en SQLite con TODOS los campos
+      final result = await _databaseHelper.rawUpdate('''
         UPDATE estudiantes 
         SET nombres = ?, apellido_paterno = ?, apellido_materno = ?, ci = ?,
+            carrera_id = ?, turno_id = ?, nivel_id = ?, paralelo_id = ?,
             fecha_actualizacion = ?
         WHERE id = ?
       ''', [
@@ -253,24 +366,28 @@ class EstudiantesViewModel with ChangeNotifier {
         paterno.trim(),
         materno.trim(),
         ci.trim(),
+        carreraId.isNotEmpty ? carreraId : 'info',
+        turnoId.isNotEmpty ? turnoId : 'turno_manana',
+        nivelId.isNotEmpty ? nivelId : 'nivel_secundaria',
+        paraleloId.isNotEmpty ? paraleloId : 'paralelo_a',
         DateTime.now().toIso8601String(),
         id
       ]);
 
-      print('✅ Estudiante editado exitosamente: $id');
+      print('✅ Estudiante editado exitosamente: $id - Filas afectadas: $result');
     });
   }
 
-  // ✅ ELIMINAR ESTUDIANTE - MEJORADO
+  // ✅ ELIMINAR ESTUDIANTE
   Future<bool> eliminarEstudiante(String id) async {
     return _executeDatabaseOperation('eliminar estudiante', () async {
       print('🔄 Eliminando estudiante: $id');
 
-      await _databaseHelper.rawDelete('''
+      final result = await _databaseHelper.rawDelete('''
         DELETE FROM estudiantes WHERE id = ?
       ''', [id]);
 
-      print('✅ Estudiante eliminado exitosamente: $id');
+      print('✅ Estudiante eliminado exitosamente: $id - Filas afectadas: $result');
     });
   }
 
@@ -282,7 +399,7 @@ class EstudiantesViewModel with ChangeNotifier {
     try {
       print('🔄 Actualizando huellas del estudiante: $id a $huellasRegistradas');
 
-      await _databaseHelper.rawUpdate('''
+      final result = await _databaseHelper.rawUpdate('''
         UPDATE estudiantes 
         SET huellas_registradas = ?, fecha_actualizacion = ?
         WHERE id = ?
@@ -295,7 +412,7 @@ class EstudiantesViewModel with ChangeNotifier {
       // Recargar la lista para reflejar los cambios
       await _loadEstudiantesFromDB();
 
-      print('✅ Huellas actualizadas exitosamente');
+      print('✅ Huellas actualizadas exitosamente - Filas afectadas: $result');
       return true;
     } catch (e) {
       print('❌ Error actualizando huellas: $e');
@@ -305,12 +422,12 @@ class EstudiantesViewModel with ChangeNotifier {
     }
   }
 
-  // ✅ REINTENTAR CARGA
+  // ✅ REINTENTAR CARGA - CORREGIDO
   Future<void> reintentarCarga() async {
     _error = null;
     _isLoading = true;
     notifyListeners();
-    await _loadEstudiantesFromDB();
+    await _cargarDatosIniciales();
   }
 
   // ✅ MÉTODO HELPER PARA ERRORES
@@ -321,7 +438,46 @@ class EstudiantesViewModel with ChangeNotifier {
     notifyListeners();
   }
 
-  // ✅ MÉTODOS DE EXPORTACIÓN
+  // ✅ VERIFICAR SI LA BASE DE DATOS TIENE ESTUDIANTES
+  Future<bool> tieneEstudiantes() async {
+    try {
+      final result = await _databaseHelper.rawQuery(
+        'SELECT COUNT(*) as count FROM estudiantes'
+      );
+      final count = result.first['count'] as int? ?? 0;
+      print('🔍 Verificación: La base de datos tiene $count estudiantes');
+      return count > 0;
+    } catch (e) {
+      print('❌ Error verificando estudiantes: $e');
+      return false;
+    }
+  }
+
+  // ✅ OBTENER TODOS LOS ESTUDIANTES SIN FILTROS (PARA DEBUG)
+  Future<void> cargarTodosLosEstudiantes() async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final result = await _databaseHelper.rawQuery(
+        'SELECT * FROM estudiantes ORDER BY apellido_paterno, apellido_materno, nombres'
+      );
+
+      _estudiantes = result.map((row) => 
+        Estudiante.fromMap(Map<String, dynamic>.from(row))
+      ).toList();
+
+      _isLoading = false;
+      _ordenarEstudiantes();
+      notifyListeners();
+
+      print('🎯 Todos los estudiantes cargados: ${_estudiantes.length}');
+    } catch (e) {
+      _onEstudiantesError(e);
+    }
+  }
+
+  // Los métodos de exportación permanecen igual...
   Future<void> exportarExcel({
     bool simple = true,
     String asignatura = 'BASE DE DATOS II',

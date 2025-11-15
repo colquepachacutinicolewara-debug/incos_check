@@ -1527,4 +1527,11 @@ class MateriaViewModel extends ChangeNotifier {
     _nombreController.dispose();
     super.dispose();
   }
+
+  // ✅ MÉTODO PÚBLICO PARA RECARGAR MATERIAS
+Future<void> recargarMaterias() async {
+  print('🔄 Recargando materias desde historial...');
+  await _cargarMateriasDesdeDatabase();
 }
+}
+

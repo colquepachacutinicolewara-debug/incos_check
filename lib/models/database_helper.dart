@@ -1,4 +1,4 @@
-// models/database_helper.dart - VERSIÓN COMPLETA CORREGIDA
+// models/database_helper.dart - VERSIÓN COMPLETA CORREGIDA CON TABLA BIOMÉTRICA
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kReleaseMode;
@@ -143,6 +143,7 @@ class DatabaseHelper {
     if (oldVersion < 3) {
       try {
         await _migrarTablaUsuarios(db);
+        await _migrarTablaHuellasBiometricas(db);
       } catch (e) {
         print('⚠️ Error en migración a versión 3: $e');
       }
@@ -373,7 +374,7 @@ class DatabaseHelper {
       );
     ''');
 
-    // Tabla huellas_biometricas
+    // ✅ TABLA HUELLAS_BIOMETRICAS CORREGIDA (template_data como TEXT)
     await db.execute('''
       CREATE TABLE IF NOT EXISTS huellas_biometricas(
         id TEXT PRIMARY KEY,
@@ -382,7 +383,7 @@ class DatabaseHelper {
         nombre_dedo TEXT NOT NULL,
         icono TEXT,
         registrada INTEGER DEFAULT 0,
-        template_data BLOB,
+        template_data TEXT,
         fecha_registro TEXT NOT NULL,
         UNIQUE(estudiante_id, numero_dedo),
         FOREIGN KEY(estudiante_id) REFERENCES estudiantes(id) ON UPDATE CASCADE ON DELETE CASCADE
@@ -863,6 +864,71 @@ class DatabaseHelper {
     }
   }
 
+  // ✅ MÉTODO MIGRACIÓN PARA TABLA HUELLAS BIOMÉTRICAS
+  Future<void> _migrarTablaHuellasBiometricas(Database db) async {
+    try {
+      // Verificar si existe la tabla huellas_biometricas
+      final tables = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='huellas_biometricas'"
+      );
+      
+      if (tables.isNotEmpty) {
+        // Verificar estructura de la tabla
+        final tableInfo = await db.rawQuery('PRAGMA table_info(huellas_biometricas)');
+        final columnas = tableInfo.map((col) => col['name'] as String).toList();
+        
+        print('📋 Estructura actual de huellas_biometricas: $columnas');
+        
+        // Si template_data es BLOB, migrar a TEXT
+        if (columnas.contains('template_data')) {
+          final columnaTemplate = tableInfo.firstWhere(
+            (col) => col['name'] == 'template_data',
+            orElse: () => {}
+          );
+          
+          if (columnaTemplate.isNotEmpty && columnaTemplate['type'] == 'BLOB') {
+            print('🔄 Migrando template_data de BLOB a TEXT...');
+            
+            // Crear tabla temporal
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS huellas_biometricas_temp(
+                id TEXT PRIMARY KEY,
+                estudiante_id TEXT NOT NULL,
+                numero_dedo INTEGER NOT NULL,
+                nombre_dedo TEXT NOT NULL,
+                icono TEXT,
+                registrada INTEGER DEFAULT 0,
+                template_data TEXT,
+                fecha_registro TEXT NOT NULL,
+                UNIQUE(estudiante_id, numero_dedo),
+                FOREIGN KEY(estudiante_id) REFERENCES estudiantes(id) ON UPDATE CASCADE ON DELETE CASCADE
+              );
+            ''');
+            
+            // Copiar datos
+            await db.execute('''
+              INSERT INTO huellas_biometricas_temp 
+              SELECT * FROM huellas_biometricas
+            ''');
+            
+            // Eliminar tabla original
+            await db.execute('DROP TABLE huellas_biometricas');
+            
+            // Renombrar tabla temporal
+            await db.execute('ALTER TABLE huellas_biometricas_temp RENAME TO huellas_biometricas');
+            
+            print('✅ Migración de huellas_biometricas completada');
+          } else {
+            print('✅ template_data ya es de tipo TEXT');
+          }
+        }
+      }
+      
+    } catch (e) {
+      print('⚠️ Error en migración de tabla huellas_biometricas: $e');
+    }
+  }
+
   // ✅ MÉTODO DEFINITIVO ROBUSTO PARA ACTUALIZAR CONTRASEÑA
   Future<int> actualizarPassword(String userId, String nuevaPassword) async {
     final db = await database;
@@ -1005,5 +1071,53 @@ class DatabaseHelper {
     }
     
     return info;
+  }
+
+  // 🌟 MÉTODOS ESPECÍFICOS PARA HUELLAS BIOMÉTRICAS
+  Future<int> insertarHuellaBiometrica(Map<String, dynamic> huella) async {
+    final db = await database;
+    return await db.insert('huellas_biometricas', huella);
+  }
+
+  Future<List<Map<String, Object?>>> obtenerHuellasPorEstudiante(String estudianteId) async {
+    final db = await database;
+    return await db.query(
+      'huellas_biometricas',
+      where: 'estudiante_id = ?',
+      whereArgs: [estudianteId],
+      orderBy: 'numero_dedo ASC'
+    );
+  }
+
+  Future<int> eliminarHuellaBiometrica(String huellaId) async {
+    final db = await database;
+    return await db.delete(
+      'huellas_biometricas',
+      where: 'id = ?',
+      whereArgs: [huellaId]
+    );
+  }
+
+  Future<Map<String, Object?>?> obtenerHuellaPorDedo(String estudianteId, int numeroDedo) async {
+    final db = await database;
+    final results = await db.query(
+      'huellas_biometricas',
+      where: 'estudiante_id = ? AND numero_dedo = ?',
+      whereArgs: [estudianteId, numeroDedo]
+    );
+    return results.isNotEmpty ? results.first : null;
+  }
+
+  Future<int> actualizarEstadoHuella(String estudianteId, int numeroDedo, bool registrada) async {
+    final db = await database;
+    return await db.update(
+      'huellas_biometricas',
+      {
+        'registrada': registrada ? 1 : 0,
+        'fecha_registro': DateTime.now().toIso8601String()
+      },
+      where: 'estudiante_id = ? AND numero_dedo = ?',
+      whereArgs: [estudianteId, numeroDedo]
+    );
   }
 }

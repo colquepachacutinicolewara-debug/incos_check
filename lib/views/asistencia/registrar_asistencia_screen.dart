@@ -1,3 +1,4 @@
+// screens/registrar_asistencia_screen.dart - VERSIÓN CON AMBAS OPCIONES
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/registrar_asistencia_viewmodel.dart';
@@ -9,7 +10,7 @@ class RegistrarAsistenciaScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) => RegistrarAsistenciaViewModel(), // ✅ Nombre corregido
+      create: (context) => RegistrarAsistenciaViewModel(),
       child: const _RegistrarAsistenciaView(),
     );
   }
@@ -30,22 +31,25 @@ class _RegistrarAsistenciaView extends StatelessWidget {
     );
   }
 
-  void _mostrarInfoHuella(BuildContext context) {
-    final viewModel = context.read<RegistrarAsistenciaViewModel>(); // ✅ Nombre corregido
+  void _mostrarInfo(BuildContext context) {
+    final viewModel = context.read<RegistrarAsistenciaViewModel>();
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: viewModel.getCardColor(context),
         title: Text(
-          "Información de Huellas",
+          "Información de Asistencia",
           style: TextStyle(color: viewModel.getTextColor(context)),
         ),
         content: Text(
-          "El sistema autentica con cualquier huella registrada en el dispositivo. "
-          "En una implementación real, se conectaría con una base de datos que asocie "
-          "cada huella a un estudiante específico.\n\n"
-          "Estudiantes con ⚠️ no tienen huellas suficientes registradas en el sistema.",
+          "• Toque cualquier estudiante para registrar su asistencia\n"
+          "• Los estudiantes con huellas registradas pueden usar autenticación biométrica\n"
+          "• Todos los estudiantes pueden usar registro manual\n"
+          "• El ícono 👤 indica estudiante sin huellas\n"
+          "• El ícono ✅ indica asistencia ya registrada\n"
+          "• El ícono 📝 permite registro manual\n"
+          "• El ícono 🔐 permite registro con huella",
           style: TextStyle(color: viewModel.getSecondaryTextColor(context)),
         ),
         actions: [
@@ -62,7 +66,7 @@ class _RegistrarAsistenciaView extends StatelessWidget {
   }
 
   void _mostrarEstadisticas(BuildContext context) {
-    final viewModel = context.read<RegistrarAsistenciaViewModel>(); // ✅ Nombre corregido
+    final viewModel = context.read<RegistrarAsistenciaViewModel>();
     final stats = viewModel.getEstadisticas();
 
     showDialog(
@@ -80,17 +84,17 @@ class _RegistrarAsistenciaView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildStatRow("Total Estudiantes:", "${stats['total']}", context),
+            _buildStatRow(context, "Total Estudiantes:", "${stats['total']}"),
             _buildStatRow(
+              context,
               "Presentes:",
               "${stats['presentes']}",
-              context,
               Colors.green,
             ),
             _buildStatRow(
+              context,
               "Ausentes:",
               "${stats['ausentes']}",
-              context,
               Colors.red,
             ),
             const SizedBox(height: 8),
@@ -138,12 +142,12 @@ class _RegistrarAsistenciaView extends StatelessWidget {
   }
 
   Widget _buildStatRow(
+    BuildContext context,
     String label,
-    String value,
-    BuildContext context, [
+    String value, [
     Color? color,
   ]) {
-    final viewModel = context.read<RegistrarAsistenciaViewModel>(); // ✅ Nombre corregido
+    final viewModel = context.read<RegistrarAsistenciaViewModel>();
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -171,7 +175,7 @@ class _RegistrarAsistenciaView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final viewModel = context.watch<RegistrarAsistenciaViewModel>(); // ✅ Nombre corregido
+    final viewModel = context.watch<RegistrarAsistenciaViewModel>();
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 360;
 
@@ -196,42 +200,47 @@ class _RegistrarAsistenciaView extends StatelessWidget {
           ),
           IconButton(
             icon: const Icon(Icons.info_outline, color: Colors.white),
-            onPressed: () => _mostrarInfoHuella(context),
-            tooltip: 'Información sobre huellas',
+            onPressed: () => _mostrarInfo(context),
+            tooltip: 'Información',
           ),
         ],
       ),
-      body: Padding(
-        padding: EdgeInsets.all(isSmallScreen ? 12.0 : 16.0),
-        child: Column(
-          children: [
-            // Card de escaneo QR
-            _buildQRCard(context, viewModel, isSmallScreen),
-            SizedBox(height: isSmallScreen ? 16 : 20),
+      body: viewModel.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: EdgeInsets.all(isSmallScreen ? 12.0 : 16.0),
+              child: Column(
+                children: [
+                  // Card de escaneo QR
+                  _buildQRCard(context, viewModel, isSmallScreen),
+                  SizedBox(height: isSmallScreen ? 16 : 20),
 
-            // Estado del sensor biométrico
-            if (!viewModel.biometricAvailable)
-              _buildBiometricWarning(context, viewModel),
+                  // Estado del sensor biométrico
+                  if (!viewModel.biometricAvailable)
+                    _buildBiometricWarning(context, viewModel),
 
-            // Separador
-            _buildSeparator(context, viewModel, isSmallScreen),
-            SizedBox(height: isSmallScreen ? 12 : 16),
+                  // Separador
+                  _buildSeparator(context, viewModel, isSmallScreen),
+                  SizedBox(height: isSmallScreen ? 12 : 16),
 
-            // Contador de asistencias
-            _buildAttendanceCounter(context, viewModel),
-            SizedBox(height: isSmallScreen ? 12 : 16),
+                  // Contador de asistencias
+                  _buildAttendanceCounter(context, viewModel),
+                  SizedBox(height: isSmallScreen ? 12 : 16),
 
-            // Lista de estudiantes
-            _buildStudentsList(context, viewModel, isSmallScreen),
-          ],
-        ),
-      ),
+                  // Lista de estudiantes
+                  _buildStudentsList(context, viewModel, isSmallScreen),
+                ],
+              ),
+            ),
     );
   }
 
+  // Los métodos _buildQRCard, _buildBiometricWarning, _buildSeparator, 
+  // _buildAttendanceCounter permanecen IGUALES que en la versión anterior
+
   Widget _buildQRCard(
     BuildContext context,
-    RegistrarAsistenciaViewModel viewModel, // ✅ Nombre corregido
+    RegistrarAsistenciaViewModel viewModel,
     bool isSmallScreen,
   ) {
     return Card(
@@ -284,7 +293,7 @@ class _RegistrarAsistenciaView extends StatelessWidget {
 
   Widget _buildBiometricWarning(
     BuildContext context,
-    RegistrarAsistenciaViewModel viewModel, // ✅ Nombre corregido
+    RegistrarAsistenciaViewModel viewModel,
   ) {
     return Container(
       width: double.infinity,
@@ -305,7 +314,7 @@ class _RegistrarAsistenciaView extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              "Sensor biométrico no disponible",
+              "Sensor biométrico no disponible - Solo registro manual",
               style: AppTextStyles.body.copyWith(
                 color: viewModel.getWarningColor(context),
                 fontWeight: FontWeight.w500,
@@ -319,7 +328,7 @@ class _RegistrarAsistenciaView extends StatelessWidget {
 
   Widget _buildSeparator(
     BuildContext context,
-    RegistrarAsistenciaViewModel viewModel, // ✅ Nombre corregido
+    RegistrarAsistenciaViewModel viewModel,
     bool isSmallScreen,
   ) {
     return Row(
@@ -333,7 +342,7 @@ class _RegistrarAsistenciaView extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Text(
-            'Registro por huella',
+            'Lista de Estudiantes',
             style: AppTextStyles.body.copyWith(
               fontSize: isSmallScreen ? 14 : 16,
               color: viewModel.getTextColor(context),
@@ -352,7 +361,7 @@ class _RegistrarAsistenciaView extends StatelessWidget {
 
   Widget _buildAttendanceCounter(
     BuildContext context,
-    RegistrarAsistenciaViewModel viewModel, // ✅ Nombre corregido
+    RegistrarAsistenciaViewModel viewModel,
   ) {
     final stats = viewModel.getEstadisticas();
 
@@ -406,7 +415,7 @@ class _RegistrarAsistenciaView extends StatelessWidget {
 
   Widget _buildStudentsList(
     BuildContext context,
-    RegistrarAsistenciaViewModel viewModel, // ✅ Nombre corregido
+    RegistrarAsistenciaViewModel viewModel,
     bool isSmallScreen,
   ) {
     return Expanded(
@@ -414,8 +423,9 @@ class _RegistrarAsistenciaView extends StatelessWidget {
         itemCount: viewModel.estudiantes.length,
         itemBuilder: (context, index) {
           final estudiante = viewModel.estudiantes[index];
-          final tieneHuellas = estudiante.tieneTodasLasHuellas;
+          final tieneHuellas = estudiante.tieneHuellasRegistradas;
           final asistenciaRegistrada = viewModel.asistencia[index];
+          final puedeUsarHuella = tieneHuellas && viewModel.biometricAvailable;
 
           return Card(
             margin: EdgeInsets.symmetric(
@@ -430,10 +440,12 @@ class _RegistrarAsistenciaView extends StatelessWidget {
                     ? viewModel.getSuccessColor(context).withOpacity(0.1)
                     : AppColors.primary.withOpacity(0.1),
                 child: Icon(
-                  asistenciaRegistrada ? Icons.check_circle : Icons.person,
+                  asistenciaRegistrada 
+                      ? Icons.check_circle 
+                      : (tieneHuellas ? Icons.fingerprint : Icons.person),
                   color: asistenciaRegistrada
                       ? viewModel.getSuccessColor(context)
-                      : AppColors.primary,
+                      : (tieneHuellas ? AppColors.primary : Colors.grey),
                 ),
               ),
               title: Row(
@@ -450,8 +462,8 @@ class _RegistrarAsistenciaView extends StatelessWidget {
                   ),
                   if (!tieneHuellas)
                     Icon(
-                      Icons.warning,
-                      color: viewModel.getWarningColor(context),
+                      Icons.person_outline,
+                      color: viewModel.getSecondaryTextColor(context),
                       size: 16,
                     ),
                 ],
@@ -465,95 +477,88 @@ class _RegistrarAsistenciaView extends StatelessWidget {
                       color: viewModel.getSecondaryTextColor(context),
                     ),
                   ),
-                  if (!tieneHuellas)
-                    Text(
-                      'Huellas registradas: ${estudiante.huellasRegistradas}/3',
-                      style: AppTextStyles.body.copyWith(
-                        color: viewModel.getWarningColor(context),
-                        fontSize: 12,
-                      ),
+                  Text(
+                    'Huellas: ${estudiante.huellasRegistradas}/3',
+                    style: AppTextStyles.body.copyWith(
+                      color: tieneHuellas 
+                          ? viewModel.getSuccessColor(context) 
+                          : viewModel.getWarningColor(context),
+                      fontSize: 12,
                     ),
+                  ),
                 ],
               ),
-              trailing: SizedBox(
-                width: isSmallScreen ? 110 : 130,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (!asistenciaRegistrada)
-                      ElevatedButton(
-                        onPressed: viewModel.isLoading
-                            ? null
-                            : () => viewModel.autenticarHuella(index, context),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: tieneHuellas
-                              ? AppColors.primary
-                              : viewModel.getWarningColor(context),
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(
-                            horizontal: isSmallScreen ? 8 : 12,
-                            vertical: 6,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              tieneHuellas ? Icons.fingerprint : Icons.warning,
-                              size: isSmallScreen ? 14 : 16,
-                            ),
-                            SizedBox(width: isSmallScreen ? 4 : 6),
-                            Text(
-                              tieneHuellas ? 'Huella' : 'Manual',
-                              style: TextStyle(
-                                fontSize: isSmallScreen ? 10 : 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    if (asistenciaRegistrada)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: viewModel
-                              .getSuccessColor(context)
-                              .withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: viewModel.getSuccessColor(context),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.check,
-                              color: viewModel.getSuccessColor(context),
-                              size: 14,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Registrado',
-                              style: TextStyle(
-                                color: viewModel.getSuccessColor(context),
-                                fontSize: isSmallScreen ? 10 : 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
+              trailing: asistenciaRegistrada
+                  ? _buildAsistenciaRegistrada(context, viewModel, isSmallScreen)
+                  : _buildBotonesRegistro(context, viewModel, index, puedeUsarHuella, isSmallScreen),
             ),
           );
         },
       ),
+    );
+  }
+
+  Widget _buildAsistenciaRegistrada(
+    BuildContext context,
+    RegistrarAsistenciaViewModel viewModel, 
+    bool isSmallScreen
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: viewModel.getSuccessColor(context).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: viewModel.getSuccessColor(context)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.check,
+            color: viewModel.getSuccessColor(context),
+            size: 14,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            'Presente',
+            style: TextStyle(
+              color: viewModel.getSuccessColor(context),
+              fontSize: isSmallScreen ? 10 : 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBotonesRegistro(
+    BuildContext context,
+    RegistrarAsistenciaViewModel viewModel,
+    int index,
+    bool puedeUsarHuella,
+    bool isSmallScreen
+  ) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Botón de registro manual (SIEMPRE disponible)
+        IconButton(
+          icon: Icon(Icons.assignment_turned_in, 
+              color: viewModel.getAccentColor(context), size: 20),
+          onPressed: () => viewModel.registrarManual(index, context),
+          tooltip: 'Registro manual',
+        ),
+        
+        // Botón de huella (SOLO si puede usar huella)
+        if (puedeUsarHuella)
+          IconButton(
+            icon: Icon(Icons.fingerprint, 
+                color: AppColors.primary, size: 20),
+            onPressed: () => viewModel.registrarConHuella(index, context),
+            tooltip: 'Registro con huella',
+          ),
+      ],
     );
   }
 }

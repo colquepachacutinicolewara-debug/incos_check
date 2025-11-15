@@ -1,3 +1,4 @@
+// estudiantes_screen.dart - FORMULARIO COMPLETO
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:printing/printing.dart';
@@ -423,12 +424,16 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
       context: context,
       builder: (context) => _EstudianteDialog(
         title: 'Agregar Estudiante',
-        onSave: (nombres, paterno, materno, ci) async {
+        onSave: (nombres, paterno, materno, ci, carreraId, turnoId, nivelId, paraleloId) async {
           final success = await viewModel.agregarEstudiante(
             nombres: nombres,
             paterno: paterno,
             materno: materno,
             ci: ci,
+            carreraId: carreraId,
+            turnoId: turnoId,
+            nivelId: nivelId,
+            paraleloId: paraleloId,
           );
 
           if (success && context.mounted) {
@@ -446,6 +451,10 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
             );
           }
         },
+        carreras: viewModel.carreras,
+        turnos: viewModel.turnos,
+        niveles: viewModel.niveles,
+        paralelos: viewModel.paralelos,
       ),
     );
   }
@@ -463,13 +472,21 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
         paternoInicial: estudiante.apellidoPaterno,
         maternoInicial: estudiante.apellidoMaterno,
         ciInicial: estudiante.ci,
-        onSave: (nombres, paterno, materno, ci) async {
+        carreraIdInicial: estudiante.carreraId,
+        turnoIdInicial: estudiante.turnoId,
+        nivelIdInicial: estudiante.nivelId,
+        paraleloIdInicial: estudiante.paraleloId,
+        onSave: (nombres, paterno, materno, ci, carreraId, turnoId, nivelId, paraleloId) async {
           final success = await viewModel.editarEstudiante(
             id: estudiante.id,
             nombres: nombres,
             paterno: paterno,
             materno: materno,
             ci: ci,
+            carreraId: carreraId,
+            turnoId: turnoId,
+            nivelId: nivelId,
+            paraleloId: paraleloId,
           );
 
           if (success && context.mounted) {
@@ -487,6 +504,10 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
             );
           }
         },
+        carreras: viewModel.carreras,
+        turnos: viewModel.turnos,
+        niveles: viewModel.niveles,
+        paralelos: viewModel.paralelos,
       ),
     );
   }
@@ -680,15 +701,23 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
   }
 }
 
-// Diálogo para agregar/modificar estudiantes
+// Diálogo para agregar/modificar estudiantes - FORMULARIO COMPLETO
 class _EstudianteDialog extends StatefulWidget {
   final String title;
   final String? nombresInicial;
   final String? paternoInicial;
   final String? maternoInicial;
   final String? ciInicial;
-  final Function(String nombres, String paterno, String materno, String ci)
-  onSave;
+  final String? carreraIdInicial;
+  final String? turnoIdInicial;
+  final String? nivelIdInicial;
+  final String? paraleloIdInicial;
+  final Function(String nombres, String paterno, String materno, String ci,
+      String carreraId, String turnoId, String nivelId, String paraleloId) onSave;
+  final List<Map<String, dynamic>> carreras;
+  final List<Map<String, dynamic>> turnos;
+  final List<Map<String, dynamic>> niveles;
+  final List<Map<String, dynamic>> paralelos;
 
   const _EstudianteDialog({
     required this.title,
@@ -696,7 +725,15 @@ class _EstudianteDialog extends StatefulWidget {
     this.paternoInicial,
     this.maternoInicial,
     this.ciInicial,
+    this.carreraIdInicial,
+    this.turnoIdInicial,
+    this.nivelIdInicial,
+    this.paraleloIdInicial,
     required this.onSave,
+    required this.carreras,
+    required this.turnos,
+    required this.niveles,
+    required this.paralelos,
   });
 
   @override
@@ -709,6 +746,11 @@ class _EstudianteDialogState extends State<_EstudianteDialog> {
   late TextEditingController _paternoController;
   late TextEditingController _maternoController;
   late TextEditingController _ciController;
+  
+  String? _selectedCarreraId;
+  String? _selectedTurnoId;
+  String? _selectedNivelId;
+  String? _selectedParaleloId;
 
   @override
   void initState() {
@@ -723,6 +765,11 @@ class _EstudianteDialogState extends State<_EstudianteDialog> {
       text: widget.maternoInicial ?? '',
     );
     _ciController = TextEditingController(text: widget.ciInicial ?? '');
+    
+    _selectedCarreraId = widget.carreraIdInicial;
+    _selectedTurnoId = widget.turnoIdInicial;
+    _selectedNivelId = widget.nivelIdInicial;
+    _selectedParaleloId = widget.paraleloIdInicial;
   }
 
   @override
@@ -743,7 +790,7 @@ class _EstudianteDialogState extends State<_EstudianteDialog> {
         child: ConstrainedBox(
           constraints: BoxConstraints(
             maxWidth: MediaQuery.of(context).size.width * 0.95,
-            maxHeight: MediaQuery.of(context).size.height * 0.85,
+            maxHeight: MediaQuery.of(context).size.height * 0.95,
           ),
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.medium),
@@ -757,6 +804,7 @@ class _EstudianteDialogState extends State<_EstudianteDialog> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // Nombres
                       TextFormField(
                         controller: _nombresController,
                         decoration: const InputDecoration(
@@ -766,6 +814,8 @@ class _EstudianteDialogState extends State<_EstudianteDialog> {
                         validator: (value) => Validators.validateName(value),
                       ),
                       const SizedBox(height: AppSpacing.small),
+                      
+                      // Apellido Paterno
                       TextFormField(
                         controller: _paternoController,
                         decoration: const InputDecoration(
@@ -775,6 +825,8 @@ class _EstudianteDialogState extends State<_EstudianteDialog> {
                         validator: (value) => Validators.validateName(value),
                       ),
                       const SizedBox(height: AppSpacing.small),
+                      
+                      // Apellido Materno
                       TextFormField(
                         controller: _maternoController,
                         decoration: const InputDecoration(
@@ -789,6 +841,8 @@ class _EstudianteDialogState extends State<_EstudianteDialog> {
                         },
                       ),
                       const SizedBox(height: AppSpacing.small),
+                      
+                      // CI
                       TextFormField(
                         controller: _ciController,
                         decoration: const InputDecoration(
@@ -797,6 +851,114 @@ class _EstudianteDialogState extends State<_EstudianteDialog> {
                         ),
                         keyboardType: TextInputType.number,
                         validator: (value) => Validators.validateCI(value),
+                      ),
+                      const SizedBox(height: AppSpacing.small),
+                      
+                      // Carrera Dropdown
+                      DropdownButtonFormField<String>(
+                        value: _selectedCarreraId,
+                        decoration: const InputDecoration(
+                          labelText: 'Carrera *',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: widget.carreras.map((carrera) {
+                          return DropdownMenuItem<String>(
+                            value: carrera['id']?.toString(),
+                            child: Text(carrera['nombre']?.toString() ?? ''),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedCarreraId = value;
+                          });
+                        },
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Seleccione una carrera';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.small),
+                      
+                      // Turno Dropdown
+                      DropdownButtonFormField<String>(
+                        value: _selectedTurnoId,
+                        decoration: const InputDecoration(
+                          labelText: 'Turno *',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: widget.turnos.map((turno) {
+                          return DropdownMenuItem<String>(
+                            value: turno['id']?.toString(),
+                            child: Text(turno['nombre']?.toString() ?? ''),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedTurnoId = value;
+                          });
+                        },
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Seleccione un turno';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.small),
+                      
+                      // Nivel Dropdown
+                      DropdownButtonFormField<String>(
+                        value: _selectedNivelId,
+                        decoration: const InputDecoration(
+                          labelText: 'Nivel *',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: widget.niveles.map((nivel) {
+                          return DropdownMenuItem<String>(
+                            value: nivel['id']?.toString(),
+                            child: Text(nivel['nombre']?.toString() ?? ''),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedNivelId = value;
+                          });
+                        },
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Seleccione un nivel';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.small),
+                      
+                      // Paralelo Dropdown
+                      DropdownButtonFormField<String>(
+                        value: _selectedParaleloId,
+                        decoration: const InputDecoration(
+                          labelText: 'Paralelo *',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: widget.paralelos.map((paralelo) {
+                          return DropdownMenuItem<String>(
+                            value: paralelo['id']?.toString(),
+                            child: Text(paralelo['nombre']?.toString() ?? ''),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedParaleloId = value;
+                          });
+                        },
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Seleccione un paralelo';
+                          }
+                          return null;
+                        },
                       ),
                     ],
                   ),
@@ -826,11 +988,28 @@ class _EstudianteDialogState extends State<_EstudianteDialog> {
 
   void _guardarEstudiante() {
     if (_formKey.currentState!.validate()) {
+      if (_selectedCarreraId == null || 
+          _selectedTurnoId == null || 
+          _selectedNivelId == null || 
+          _selectedParaleloId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Por favor complete todos los campos requeridos'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
       widget.onSave(
         Validators.formatName(_nombresController.text),
         Validators.formatName(_paternoController.text),
         Validators.formatName(_maternoController.text),
         _ciController.text.trim(),
+        _selectedCarreraId!,
+        _selectedTurnoId!,
+        _selectedNivelId!,
+        _selectedParaleloId!,
       );
     }
   }

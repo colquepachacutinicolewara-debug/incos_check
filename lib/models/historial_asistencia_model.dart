@@ -1,4 +1,3 @@
-// models/historial_asistencia_model.dart
 import 'dart:convert';
 
 class FiltroHistorial {

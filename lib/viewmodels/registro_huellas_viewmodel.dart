@@ -1,247 +1,334 @@
+// viewmodels/registro_huellas_viewmodel.dart
 import 'package:flutter/material.dart';
-import 'package:local_auth/local_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/biometrico_model.dart';
-import '../utils/helpers.dart';
+import '../models/huella_model.dart';
+import '../models/database_helper.dart';
+import '../services/esp32_service.dart';
 
 class RegistroHuellasViewModel with ChangeNotifier {
-  final LocalAuthentication _auth = LocalAuthentication();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final DatabaseHelper _databaseHelper = DatabaseHelper.instance;
+  
+  List<HuellaModel> _huellas = [];
+  int _huellaActual = 0;
+  bool _isLoading = false;
+  String _errorMessage = '';
+  bool _sensorConectado = false;
+  Map<String, dynamic>? _estudiante;
 
-  RegistroHuellasModel _model = RegistroHuellasModel(
-    huellas: const [
-      HuellaModel(numero: 0, nombreDedo: 'Pulgar derecho', icono: '👍'),
-      HuellaModel(numero: 1, nombreDedo: 'Índice derecho', icono: '👆'),
-      HuellaModel(numero: 2, nombreDedo: 'Medio derecho', icono: '✌️'),
-    ],
-    huellaActual: 0,
-    isLoading: false,
-    errorMessage: '',
-    estadoBiometrico: BiometricoEstadoModel(
-      disponible: false,
-      soloHuellaDigital: false,
-      mensaje: 'Verificando sensor...',
-      submensaje: 'Espere por favor',
-    ),
-  );
+  List<HuellaModel> get huellas => _huellas;
+  int get huellaActual => _huellaActual;
+  bool get isLoading => _isLoading;
+  String get errorMessage => _errorMessage;
+  bool get sensorConectado => _sensorConectado;
+  Map<String, dynamic>? get estudiante => _estudiante;
+  
+  // AÑADIR ESTA PROPIEDAD GETTER
+  int get huellasRegistradas {
+    return _huellas.where((huella) => huella.registrada).length;
+  }
 
-  RegistroHuellasModel get model => _model;
+  // Inicializar con datos de huellas por defecto
+  RegistroHuellasViewModel() {
+    _inicializarHuellas();
+    _verificarConexionSensor();
+  }
 
-  // Métodos públicos para la vista
-  Future<void> verificarSoporteBiometrico() async {
+  void _inicializarHuellas() {
+    _huellas = [
+      HuellaModel(
+        id: 'huella_0',
+        estudianteId: '',
+        numeroDedo: 1,
+        nombreDedo: 'Pulgar derecho',
+        icono: '👍',
+        registrada: false,
+        fechaRegistro: '',
+      ),
+      HuellaModel(
+        id: 'huella_1',
+        estudianteId: '',
+        numeroDedo: 2,
+        nombreDedo: 'Índice derecho',
+        icono: '👆',
+        registrada: false,
+        fechaRegistro: '',
+      ),
+      HuellaModel(
+        id: 'huella_2',
+        estudianteId: '',
+        numeroDedo: 3,
+        nombreDedo: 'Medio derecho',
+        icono: '✌️',
+        registrada: false,
+        fechaRegistro: '',
+      ),
+    ];
+  }
+
+  // Configurar estudiante para el registro
+  void configurarEstudiante(Map<String, dynamic> estudiante) {
+    _estudiante = estudiante;
+    
+    // Cargar huellas existentes del estudiante
+    _cargarHuellasEstudiante();
+    notifyListeners();
+  }
+
+  // Verificar conexión con el sensor ESP32
+  Future<void> _verificarConexionSensor() async {
+    _isLoading = true;
+    notifyListeners();
+
     try {
-      final bool canCheckBiometrics = await _auth.canCheckBiometrics;
-      final List<BiometricType> availableBiometrics = await _auth
-          .getAvailableBiometrics();
-
-      final bool tieneHuella = availableBiometrics.contains(
-        BiometricType.fingerprint,
-      );
-      final bool tieneRostro = availableBiometrics.contains(BiometricType.face);
-      final bool tieneIris = availableBiometrics.contains(BiometricType.iris);
-
-      final nuevoEstado = BiometricoEstadoModel(
-        disponible: canCheckBiometrics && availableBiometrics.isNotEmpty,
-        soloHuellaDigital: tieneHuella && !tieneRostro && !tieneIris,
-        mensaje: _getMensajeEstado(canCheckBiometrics, availableBiometrics),
-        submensaje: _getSubmensajeEstado(tieneHuella, tieneRostro, tieneIris),
-      );
-
-      _updateModel(estadoBiometrico: nuevoEstado);
+      _sensorConectado = await ESP32Service.verificarConexion();
+      _errorMessage = _sensorConectado ? '' : 'Sensor no conectado';
     } catch (e) {
-      print('Error verificando biométricos: $e');
-      _updateModel(
-        estadoBiometrico: BiometricoEstadoModel(
-          disponible: false,
-          soloHuellaDigital: false,
-          mensaje: 'Error al verificar sensor',
-          submensaje: 'Reinicie la aplicación',
-        ),
-        errorMessage: 'Error al verificar sensor biométrico',
-      );
+      _sensorConectado = false;
+      _errorMessage = 'Error verificando sensor: $e';
+    }
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  // Cargar huellas existentes del estudiante desde SQLite
+  Future<void> _cargarHuellasEstudiante() async {
+    if (_estudiante == null) return;
+
+    try {
+      final result = await _databaseHelper.rawQuery('''
+        SELECT * FROM huellas_biometricas 
+        WHERE estudiante_id = ?
+        ORDER BY numero_dedo
+      ''', [_estudiante!['id']]);
+
+      // Actualizar estado de las huellas
+      for (final row in result) {
+        final huellaDb = HuellaModel.fromMap(Map<String, dynamic>.from(row));
+        final index = _huellas.indexWhere((h) => h.numeroDedo == huellaDb.numeroDedo);
+        if (index != -1) {
+          _huellas[index] = huellaDb;
+        }
+      }
+      
+      notifyListeners();
+    } catch (e) {
+      print('❌ Error cargando huellas: $e');
     }
   }
 
-  String _getMensajeEstado(bool canCheck, List<BiometricType> disponibles) {
-    if (!canCheck) return "Sensor no disponible";
-    if (disponibles.contains(BiometricType.fingerprint))
-      return "Huella digital lista";
-    return "Método biométrico disponible";
-  }
+  // Registrar la huella actual en el sensor ESP32
+  Future<void> registrarHuellaActual() async {
+    if (_isLoading || _estudiante == null) return;
 
-  String _getSubmensajeEstado(bool huella, bool rostro, bool iris) {
-    if (huella) return "Toque el sensor para registrar";
-    if (rostro || iris) return "Se usará el método configurado";
-    return "Dispositivo no compatible con huella digital";
-  }
-
-  Future<void> registrarHuellaActual(Map<String, dynamic> estudiante) async {
-    if (_model.isLoading || _model.huellas[_model.huellaActual].registrada)
-      return;
-
-    _updateModel(isLoading: true, errorMessage: '');
+    _isLoading = true;
+    _errorMessage = '';
+    notifyListeners();
 
     try {
-      if (!_model.estadoBiometrico.disponible) {
-        _mostrarError('El dispositivo no soporta autenticación biométrica');
+      // Verificar conexión con el sensor
+      if (!_sensorConectado) {
+        _errorMessage = 'Sensor de huellas no conectado';
         return;
       }
 
-      final availableBiometrics = await _auth.getAvailableBiometrics();
-      final bool tieneHuella = availableBiometrics.contains(
-        BiometricType.fingerprint,
-      );
+      final huella = _huellas[_huellaActual];
+      
+      print('🔐 Registrando huella ${huella.nombreDedo} para estudiante ${_estudiante!['nombres']}');
 
-      if (!tieneHuella) {
-        _mostrarError(
-          'No se encontró sensor de huella digital en el dispositivo',
-        );
-        return;
-      }
+      // Usar el ID del estudiante como fingerprintId en el ESP32
+      final fingerprintId = _generarFingerprintId();
 
-      final bool authenticated = await _auth.authenticate(
-        localizedReason:
-            'Toque el sensor de huella para registrar su ${_model.huellas[_model.huellaActual].nombreDedo}',
-        options: const AuthenticationOptions(
-          biometricOnly: true,
-          useErrorDialogs: false,
-          stickyAuth: true,
-        ),
-      );
+      // Registrar huella en el sensor ESP32
+      final resultado = await ESP32Service.registrarHuella(fingerprintId);
 
-      if (authenticated) {
-        await _guardarHuellaEnFirebase(_model.huellaActual, estudiante);
-        _marcarHuellaComoRegistrada(_model.huellaActual);
+      if (resultado['exito'] == true) {
+        // Guardar huella en SQLite
+        await _guardarHuellaEnSQLite(huella, fingerprintId.toString());
+        
+        // Marcar como registrada
+        _marcarHuellaComoRegistrada(_huellaActual, fingerprintId.toString());
+        
+        _errorMessage = '✅ ${huella.nombreDedo} registrado exitosamente';
+        
+        print('✅ Huella registrada - ID: $fingerprintId');
 
         // Avanzar automáticamente si no es la última
-        if (_model.huellaActual < _model.huellas.length - 1) {
-          await Future.delayed(const Duration(seconds: 1));
+        if (_huellaActual < _huellas.length - 1) {
+          await Future.delayed(const Duration(seconds: 2));
           siguienteHuella();
         }
       } else {
-        _mostrarError('Autenticación cancelada o fallida');
+        _errorMessage = '❌ Error registrando huella: ${resultado['error'] ?? resultado['mensaje']}';
       }
     } catch (e) {
-      _manejarErrorBiometrico(e);
+      _errorMessage = '❌ Error: $e';
+      print('❌ Error en registro de huella: $e');
     } finally {
-      _updateModel(isLoading: false);
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
-  void _marcarHuellaComoRegistrada(int index) {
-    final nuevasHuellas = List<HuellaModel>.from(_model.huellas);
-    nuevasHuellas[index] = nuevasHuellas[index].copyWith(registrada: true);
-    _updateModel(huellas: nuevasHuellas);
+  // Generar ID único para la huella basado en estudiante + dedo
+  int _generarFingerprintId() {
+    final estudianteId = int.tryParse(_estudiante!['id'].replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+    final dedoId = _huellas[_huellaActual].numeroDedo;
+    
+    // Combinar ID estudiante y número de dedo para crear ID único
+    return (estudianteId % 1000) * 10 + dedoId;
   }
 
-  Future<void> _guardarHuellaEnFirebase(
-    int numeroHuella,
-    Map<String, dynamic> estudiante,
-  ) async {
+  // Guardar huella en SQLite
+  Future<void> _guardarHuellaEnSQLite(HuellaModel huella, String templateData) async {
     try {
-      final estudianteId =
-          estudiante['id']?.toString() ?? estudiante['ci'].toString();
-      final estudianteRef = _firestore
-          .collection('estudiantes')
-          .doc(estudianteId);
+      final now = DateTime.now().toIso8601String();
+      final huellaId = 'huella_${_estudiante!['id']}_${huella.numeroDedo}';
 
-      final docSnapshot = await estudianteRef.get();
-      final Map<String, dynamic> existingData = docSnapshot.data() ?? {};
+      await _databaseHelper.rawInsert('''
+        INSERT OR REPLACE INTO huellas_biometricas (
+          id, estudiante_id, numero_dedo, nombre_dedo, icono, 
+          registrada, template_data, fecha_registro
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ''', [
+        huellaId,
+        _estudiante!['id'],
+        huella.numeroDedo,
+        huella.nombreDedo,
+        huella.icono,
+        1, // registrada
+        templateData, // Guardamos el fingerprintId del ESP32
+        now,
+      ]);
 
-      List<dynamic> huellasArray = existingData['huellas'] ?? [];
+      // Actualizar contador de huellas en el estudiante
+      await _actualizarContadorHuellasEstudiante();
 
-      // Eliminar huella existente para este número
-      huellasArray.removeWhere(
-        (huella) => huella is Map && huella['numero'] == numeroHuella + 1,
-      );
-
-      final nuevaHuella = <String, dynamic>{
-        'id':
-            'huella_${estudiante['ci']}_${numeroHuella}_${DateTime.now().millisecondsSinceEpoch}',
-        'numero': numeroHuella + 1,
-        'nombreDedo': _model.huellas[numeroHuella].nombreDedo,
-        'fechaRegistro': FieldValue.serverTimestamp(),
-        'tipoDispositivo': _model.estadoBiometrico.soloHuellaDigital
-            ? 'Huella Digital'
-            : 'Biométrico',
-        'estado': 'activa',
-      };
-
-      huellasArray.add(nuevaHuella);
-
-      await estudianteRef.update({
-        'huellas': huellasArray,
-        'huellasRegistradas': huellasArray.length,
-        'tieneHuellasRegistradas': huellasArray.isNotEmpty,
-        'fechaActualizacionHuellas': FieldValue.serverTimestamp(),
-        'ultimaActualizacion': FieldValue.serverTimestamp(),
-      });
-
-      print('✅ Huella $numeroHuella guardada para estudiante $estudianteId');
+      print('💾 Huella guardada en SQLite: $huellaId');
     } catch (e) {
-      print('❌ Error guardando huella: $e');
-      throw Exception('Error al guardar en la base de datos: ${e.toString()}');
+      print('❌ Error guardando huella en SQLite: $e');
+      rethrow;
     }
   }
 
-  void _manejarErrorBiometrico(dynamic error) {
-    print('Error biométrico: $error');
+  // Actualizar contador de huellas del estudiante
+  Future<void> _actualizarContadorHuellasEstudiante() async {
+    try {
+      final countResult = await _databaseHelper.rawQuery('''
+        SELECT COUNT(*) as count FROM huellas_biometricas 
+        WHERE estudiante_id = ? AND registrada = 1
+      ''', [_estudiante!['id']]);
 
-    String mensaje = 'Error de autenticación';
-    int duracion = 3;
+      final huellasRegistradas = countResult.first['count'] as int? ?? 0;
 
-    if (error.toString().contains('LockedOut')) {
-      mensaje =
-          'Demasiados intentos fallidos. Espere 30 segundos e intente nuevamente.';
-      duracion = 5;
-    } else if (error.toString().contains('NotEnrolled')) {
-      mensaje = 'No tiene configurada la autenticación biométrica';
-    } else if (error.toString().contains('NotAvailable')) {
-      mensaje = 'Sensor biométrico no disponible en este dispositivo';
-    } else if (error.toString().contains('PasscodeNotSet')) {
-      mensaje =
-          'Configure un PIN o patrón de desbloqueo en su dispositivo primero';
-    } else {
-      mensaje = 'Error de autenticación: ${error.toString()}';
+      await _databaseHelper.rawUpdate('''
+        UPDATE estudiantes 
+        SET huellas_registradas = ?, fecha_actualizacion = ?
+        WHERE id = ?
+      ''', [
+        huellasRegistradas,
+        DateTime.now().toIso8601String(),
+        _estudiante!['id'],
+      ]);
+
+      print('📊 Huellas actualizadas: $huellasRegistradas');
+    } catch (e) {
+      print('❌ Error actualizando contador de huellas: $e');
     }
-
-    _mostrarError(mensaje, duracion: duracion);
   }
 
-  void _mostrarError(String mensaje, {int duracion = 3}) {
-    _updateModel(errorMessage: mensaje);
+  void _marcarHuellaComoRegistrada(int index, String templateData) {
+    final nuevasHuellas = List<HuellaModel>.from(_huellas);
+    nuevasHuellas[index] = nuevasHuellas[index].copyWith(
+      registrada: true,
+      templateData: templateData,
+      fechaRegistro: DateTime.now().toIso8601String(),
+      estudianteId: _estudiante!['id'],
+    );
+    _huellas = nuevasHuellas;
+    notifyListeners(); // Asegurar que se notifique el cambio
   }
 
+  // Navegación entre huellas
   void siguienteHuella() {
-    if (_model.huellaActual < _model.huellas.length - 1) {
-      _updateModel(huellaActual: _model.huellaActual + 1, errorMessage: '');
+    if (_huellaActual < _huellas.length - 1) {
+      _huellaActual++;
+      _errorMessage = '';
+      notifyListeners();
     }
   }
 
   void anteriorHuella() {
-    if (_model.huellaActual > 0) {
-      _updateModel(huellaActual: _model.huellaActual - 1, errorMessage: '');
+    if (_huellaActual > 0) {
+      _huellaActual--;
+      _errorMessage = '';
+      notifyListeners();
     }
   }
 
   void seleccionarHuella(int index) {
-    _updateModel(huellaActual: index, errorMessage: '');
+    if (index >= 0 && index < _huellas.length) {
+      _huellaActual = index;
+      _errorMessage = '';
+      notifyListeners();
+    }
   }
 
-  void _updateModel({
-    List<HuellaModel>? huellas,
-    int? huellaActual,
-    bool? isLoading,
-    String? errorMessage,
-    BiometricoEstadoModel? estadoBiometrico,
-  }) {
-    _model = _model.copyWith(
-      huellas: huellas,
-      huellaActual: huellaActual,
-      isLoading: isLoading,
-      errorMessage: errorMessage,
-      estadoBiometrico: estadoBiometrico,
-    );
+  // Verificar huella para asistencia
+  Future<bool> verificarHuellaParaAsistencia() async {
+    if (!_sensorConectado) return false;
+
+    _isLoading = true;
     notifyListeners();
+
+    try {
+      final resultado = await ESP32Service.buscarHuella();
+      
+      _isLoading = false;
+      notifyListeners();
+
+      if (resultado['encontrada'] == true) {
+        final fingerprintId = resultado['fingerprintId'] as int;
+        final confidence = resultado['confidence'] as int;
+        
+        print('✅ Huella encontrada - ID: $fingerprintId, Confianza: $confidence');
+        
+        // Aquí podrías buscar en SQLite qué estudiante tiene esta huella
+        return await _verificarHuellaEnSQLite(fingerprintId);
+      }
+      
+      return false;
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // Verificar si la huella encontrada corresponde a un estudiante
+  Future<bool> _verificarHuellaEnSQLite(int fingerprintId) async {
+    try {
+      final result = await _databaseHelper.rawQuery('''
+        SELECT estudiante_id FROM huellas_biometricas 
+        WHERE template_data = ? AND registrada = 1
+      ''', [fingerprintId.toString()]);
+
+      return result.isNotEmpty;
+    } catch (e) {
+      print('❌ Error verificando huella en SQLite: $e');
+      return false;
+    }
+  }
+
+  // Reiniciar el proceso
+  void reiniciarProceso() {
+    _huellaActual = 0;
+    _errorMessage = '';
+    _inicializarHuellas();
+    notifyListeners();
+  }
+
+  // Método para obtener el número total de huellas registradas
+  int getTotalHuellasRegistradas() {
+    return huellasRegistradas;
   }
 }

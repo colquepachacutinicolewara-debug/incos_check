@@ -3,102 +3,132 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ESP32Service {
-  static const String baseUrl = 'http://192.168.4.1'; // IP del ESP32 en modo AP
-  static const int timeoutSeconds = 10;
-
-  // Verificar conexión con ESP32
-  static Future<bool> checkConnection() async {
+  static const String baseUrl = 'http://10.61.163.202/'; // Tu IP del ESP32
+  
+  // Verificar estado del sensor
+  static Future<bool> verificarConexion() async {
     try {
-      final response = await http
-          .get(Uri.parse('$baseUrl/status'))
-          .timeout(Duration(seconds: timeoutSeconds));
+      final response = await http.get(Uri.parse('$baseUrl/status')).timeout(
+        const Duration(seconds: 5),
+      );
+      return response.statusCode == 200 && response.body.contains('Conectado');
+    } catch (e) {
+      print('❌ Error conectando al ESP32: $e');
+      return false;
+    }
+  }
+
+  // Buscar huella en el sensor
+  static Future<Map<String, dynamic>> buscarHuella() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/check')).timeout(
+        const Duration(seconds: 10),
+      );
       
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return data['status'] == 'online' && data['sensor_connected'] == true;
+        final body = response.body;
+        
+        if (body.contains('Huella encontrada')) {
+          // Extraer ID y confianza del mensaje
+          final regex = RegExp(r'ID: (\d+) Confianza: (\d+)');
+          final match = regex.firstMatch(body);
+          
+          if (match != null) {
+            final fingerprintId = int.parse(match.group(1)!);
+            final confidence = int.parse(match.group(2)!);
+            
+            return {
+              'encontrada': true,
+              'fingerprintId': fingerprintId,
+              'confidence': confidence,
+              'mensaje': body,
+            };
+          }
+        }
+        
+        return {
+          'encontrada': false,
+          'mensaje': body,
+        };
+      } else {
+        return {
+          'encontrada': false,
+          'error': 'Error HTTP: ${response.statusCode}',
+        };
       }
-      return false;
     } catch (e) {
-      print('Error de conexión ESP32: $e');
-      return false;
+      return {
+        'encontrada': false,
+        'error': 'Error de conexión: $e',
+      };
     }
   }
 
-  // Registrar nueva huella
-  static Future<Map<String, dynamic>> registerFingerprint(
-      String studentId, String studentName) async {
+  // Registrar nueva huella en el sensor
+  static Future<Map<String, dynamic>> registrarHuella(int fingerprintId) async {
     try {
-      final response = await http
-          .post(
-            Uri.parse('$baseUrl/enroll'),
-            headers: {'Content-Type': 'application/json'},
-            body: json.encode({
-              'student_id': studentId,
-              'student_name': studentName,
-            }),
-          )
-          .timeout(Duration(seconds: 30));
-
+      final response = await http.get(
+        Uri.parse('$baseUrl/enroll?id=$fingerprintId'),
+      ).timeout(const Duration(seconds: 60)); // Tiempo largo para registro completo
+      
       if (response.statusCode == 200) {
-        return json.decode(response.body);
+        return {
+          'exito': response.body.contains('éxito') || response.body.contains('almacenada'),
+          'mensaje': response.body,
+          'fingerprintId': fingerprintId,
+        };
       } else {
-        throw Exception('Error del servidor ESP32: ${response.statusCode}');
+        return {
+          'exito': false,
+          'error': 'Error HTTP: ${response.statusCode}',
+        };
       }
     } catch (e) {
-      throw Exception('Error de comunicación: $e');
+      return {
+        'exito': false,
+        'error': 'Error de conexión: $e',
+      };
     }
   }
 
-  // Verificar huella
-  static Future<Map<String, dynamic>> verifyFingerprint() async {
+  // Eliminar todas las huellas del sensor
+  static Future<Map<String, dynamic>> eliminarBaseDatos() async {
     try {
-      final response = await http
-          .get(Uri.parse('$baseUrl/verify'))
-          .timeout(Duration(seconds: 30));
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception('Error del servidor ESP32: ${response.statusCode}');
-      }
+      final response = await http.get(Uri.parse('$baseUrl/delete')).timeout(
+        const Duration(seconds: 10),
+      );
+      
+      return {
+        'exito': response.statusCode == 200,
+        'mensaje': response.body,
+      };
     } catch (e) {
-      throw Exception('Error de comunicación: $e');
+      return {
+        'exito': false,
+        'error': 'Error de conexión: $e',
+      };
     }
   }
 
-  // Obtener lista de huellas registradas
-  static Future<List<dynamic>> getRegisteredFingerprints() async {
+  // Contar huellas registradas en el sensor
+  static Future<Map<String, dynamic>> contarHuellas() async {
     try {
-      final response = await http
-          .get(Uri.parse('$baseUrl/fingerprints'))
-          .timeout(Duration(seconds: timeoutSeconds));
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception('Error del servidor ESP32: ${response.statusCode}');
-      }
+      final response = await http.get(Uri.parse('$baseUrl/count')).timeout(
+        const Duration(seconds: 5),
+      );
+      
+      return {
+        'exito': response.statusCode == 200,
+        'mensaje': response.body,
+        'count': response.body.contains('Huellas registradas:') 
+            ? int.tryParse(RegExp(r'(\d+)').firstMatch(response.body)?.group(0) ?? '0') ?? 0
+            : 0,
+      };
     } catch (e) {
-      throw Exception('Error de comunicación: $e');
-    }
-  }
-
-  // Eliminar huella
-  static Future<Map<String, dynamic>> deleteFingerprint(int fingerprintId) async {
-    try {
-      final response = await http
-          .delete(
-            Uri.parse('$baseUrl/fingerprint/$fingerprintId'),
-          )
-          .timeout(Duration(seconds: timeoutSeconds));
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception('Error del servidor ESP32: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Error de comunicación: $e');
+      return {
+        'exito': false,
+        'error': 'Error de conexión: $e',
+      };
     }
   }
 }

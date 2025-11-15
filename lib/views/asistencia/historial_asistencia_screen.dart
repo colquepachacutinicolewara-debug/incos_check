@@ -1,9 +1,10 @@
-// views/historial/historial_asistencia_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:incos_check/utils/constants.dart';
+import 'package:incos_check/views/gestion/bimestres_screen.dart';
 import '../../viewmodels/historial_asitencia_viewmodel.dart';
-import '../../models/historial_asistencia_model.dart';
-import '../../utils/constants.dart';
+import 'package:incos_check/viewmodels/materia_viewmodel.dart';
+import 'package:incos_check/models/materia_model.dart';
 
 class HistorialAsistenciaScreen extends StatefulWidget {
   const HistorialAsistenciaScreen({super.key});
@@ -23,482 +24,522 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
 
   @override
   void dispose() {
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
   }
 
   void _onSearchChanged() {
-    final viewModel = context.read<HistorialAsistenciaViewModel>();
-    viewModel.setQueryBusqueda(_searchController.text);
+    final historialViewModel = context.read<HistorialAsistenciaViewModel>();
+    historialViewModel.setQueryBusqueda(_searchController.text);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _getBackgroundColor(context),
-      appBar: AppBar(
-        title: Text(
-          'Historial de Consultas',
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => MateriaViewModel()),
+        ChangeNotifierProvider(create: (context) => HistorialAsistenciaViewModel()),
+      ],
+      child: Scaffold(
+        backgroundColor: _getBackgroundColor(context),
+        appBar: AppBar(
+          title: Text(
+            'Historial de Asistencia',
+            style: AppTextStyles.heading2.copyWith(color: Colors.white),
+          ),
+          backgroundColor: AppColors.primary,
+          iconTheme: const IconThemeData(color: Colors.white),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () {
+                final materiaViewModel = context.read<MateriaViewModel>();
+                materiaViewModel.recargarMaterias(); // ✅ CORREGIDO
+              },
+              tooltip: 'Recargar materias',
+            ),
+          ],
+        ),
+        body: Consumer2<MateriaViewModel, HistorialAsistenciaViewModel>(
+          builder: (context, materiaViewModel, historialViewModel, child) {
+            if (materiaViewModel.isLoading) {
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
+            }
+
+            return _buildContent(context, materiaViewModel, historialViewModel);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(
+    BuildContext context,
+    MateriaViewModel materiaViewModel,
+    HistorialAsistenciaViewModel historialViewModel,
+  ) {
+    // Obtener materias filtradas usando TU MateriaViewModel
+    final materiasFiltradas = _obtenerMateriasFiltradas(materiaViewModel, historialViewModel);
+
+    return Column(
+      children: [
+        // Sección de Filtros
+        _buildFiltrosSection(context, materiaViewModel, historialViewModel),
+        
+        // Título del Año (si aplica)
+        if (!historialViewModel.mostrarTodasMaterias) 
+          _buildAnioTitle(materiaViewModel.anioSeleccionado),
+        
+        // Lista de Materias
+        _buildMateriasList(context, materiasFiltradas, materiaViewModel, historialViewModel),
+      ],
+    );
+  }
+
+  List<Materia> _obtenerMateriasFiltradas(
+    MateriaViewModel materiaViewModel,
+    HistorialAsistenciaViewModel historialViewModel,
+  ) {
+    List<Materia> materiasBase;
+
+    if (historialViewModel.mostrarTodasMaterias) {
+      // Mostrar todas las materias de tu MateriaViewModel
+      materiasBase = materiaViewModel.materias;
+    } else {
+      // Filtrar por año seleccionado usando TU MateriaViewModel
+      materiasBase = materiaViewModel.materias
+          .where((materia) => materia.anio == materiaViewModel.anioSeleccionado)
+          .toList();
+    }
+
+    // Aplicar filtro de búsqueda
+    final query = historialViewModel.queryBusqueda.toLowerCase();
+    if (query.isEmpty) return materiasBase;
+
+    return materiasBase.where((materia) =>
+      materia.nombre.toLowerCase().contains(query) ||
+      materia.codigo.toLowerCase().contains(query) ||
+      materia.carrera.toLowerCase().contains(query),
+    ).toList();
+  }
+
+  Widget _buildFiltrosSection(
+    BuildContext context,
+    MateriaViewModel materiaViewModel,
+    HistorialAsistenciaViewModel historialViewModel,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: historialViewModel.getFilterBackgroundColor(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Filtrar cursos:',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: historialViewModel.getTextColor(context),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Botón para Todas las Materias
+          _buildToggleTodasMaterias(context, historialViewModel),
+          const SizedBox(height: 12),
+
+          // Selector de Año (condicional)
+          if (!historialViewModel.mostrarTodasMaterias)
+            _buildAnioSelector(context, materiaViewModel, historialViewModel),
+
+          // Buscador
+          _buildSearchField(context, historialViewModel),
+
+          // Indicador de Filtros Activos
+          if (historialViewModel.filtro.filtroActivo)
+            _buildFiltrosActivosIndicator(context, materiaViewModel, historialViewModel),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToggleTodasMaterias(
+    BuildContext context, 
+    HistorialAsistenciaViewModel historialViewModel,
+  ) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        icon: Icon(
+          historialViewModel.mostrarTodasMaterias
+              ? Icons.check_box
+              : Icons.check_box_outline_blank,
+          color: historialViewModel.mostrarTodasMaterias
+              ? AppColors.primary
+              : historialViewModel.getSecondaryTextColor(context),
+        ),
+        label: Text(
+          'Mostrar todas las materias',
           style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
+            color: historialViewModel.mostrarTodasMaterias
+                ? AppColors.primary
+                : historialViewModel.getTextColor(context),
+            fontWeight: historialViewModel.mostrarTodasMaterias
+                ? FontWeight.bold
+                : FontWeight.normal,
           ),
         ),
-        backgroundColor: AppColors.primary,
-        iconTheme: const IconThemeData(color: Colors.white),
-        actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: Colors.white),
-            onSelected: (value) {
-              final viewModel = context.read<HistorialAsistenciaViewModel>();
-              if (value == 'clear_all') {
-                _showClearAllDialog(viewModel);
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'clear_all',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete_sweep, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('Limpiar Todo'),
-                  ],
-                ),
-              ),
-            ],
+        style: OutlinedButton.styleFrom(
+          backgroundColor: historialViewModel.mostrarTodasMaterias
+              ? AppColors.primary.withOpacity(0.1)
+              : Colors.transparent,
+          side: BorderSide(
+            color: historialViewModel.mostrarTodasMaterias
+                ? AppColors.primary
+                : historialViewModel.getBorderColor(context),
           ),
-        ],
-      ),
-      body: Consumer<HistorialAsistenciaViewModel>(
-        builder: (context, viewModel, child) {
-          if (viewModel.isLoading) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(color: AppColors.primary),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Cargando historial...',
-                    style: TextStyle(
-                      color: _getSecondaryTextColor(context),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          if (viewModel.error != null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 64,
-                    color: AppColors.error,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Error: ${viewModel.error}',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: _getTextColor(context),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: viewModel.reintentarCarga,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                    ),
-                    child: const Text('Reintentar'),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return Column(
-            children: [
-              // Filtros
-              Container(
-                padding: const EdgeInsets.all(16),
-                color: viewModel.getFilterBackgroundColor(context),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Filtrar consultas:',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: viewModel.getTextColor(context),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Botón para Todas las Materias
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        icon: Icon(
-                          viewModel.mostrarTodasMaterias
-                              ? Icons.check_box
-                              : Icons.check_box_outline_blank,
-                          color: viewModel.mostrarTodasMaterias
-                              ? AppColors.primary
-                              : viewModel.getSecondaryTextColor(context),
-                        ),
-                        label: Text(
-                          'Mostrar todas las materias',
-                          style: TextStyle(
-                            color: viewModel.mostrarTodasMaterias
-                                ? AppColors.primary
-                                : viewModel.getTextColor(context),
-                            fontWeight: viewModel.mostrarTodasMaterias
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                          ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          backgroundColor: viewModel.mostrarTodasMaterias
-                              ? AppColors.primary.withOpacity(0.1)
-                              : Colors.transparent,
-                          side: BorderSide(
-                            color: viewModel.mostrarTodasMaterias
-                                ? AppColors.primary
-                                : viewModel.getBorderColor(context),
-                          ),
-                          alignment: Alignment.centerLeft,
-                        ),
-                        onPressed: viewModel.toggleMostrarTodasMaterias,
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // Buscador
-                    TextField(
-                      controller: _searchController,
-                      style: TextStyle(color: viewModel.getTextColor(context)),
-                      decoration: InputDecoration(
-                        hintText: 'Buscar en consultas...',
-                        hintStyle: TextStyle(
-                          color: viewModel.getSecondaryTextColor(context),
-                        ),
-                        prefixIcon: Icon(
-                          Icons.search,
-                          color: viewModel.getSecondaryTextColor(context),
-                        ),
-                        suffixIcon: _searchController.text.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  viewModel.setQueryBusqueda('');
-                                },
-                              )
-                            : null,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: viewModel.getBorderColor(context),
-                          ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: viewModel.getBorderColor(context),
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: AppColors.primary),
-                        ),
-                        filled: true,
-                        fillColor: viewModel.getSearchBackgroundColor(context),
-                      ),
-                    ),
-
-                    // Información del filtro aplicado
-                    if (viewModel.filtro.filtroActivo)
-                      Container(
-                        margin: const EdgeInsets.only(top: 12),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.filter_alt,
-                              color: AppColors.primary,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _obtenerTextoFiltros(viewModel),
-                                style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                            if (viewModel.filtro.filtroActivo)
-                              TextButton(
-                                onPressed: viewModel.limpiarFiltros,
-                                child: Text(
-                                  'Limpiar',
-                                  style: TextStyle(
-                                    color: AppColors.primary,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-
-              // Contador de resultados
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                color: viewModel.getFilterBackgroundColor(context),
-                child: Row(
-                  children: [
-                    Text(
-                      '${viewModel.registrosFiltrados.length} consulta${viewModel.registrosFiltrados.length != 1 ? 's' : ''} encontrada${viewModel.registrosFiltrados.length != 1 ? 's' : ''}',
-                      style: TextStyle(
-                        color: viewModel.getSecondaryTextColor(context),
-                        fontSize: 12,
-                      ),
-                    ),
-                    const Spacer(),
-                    if (viewModel.registrosFiltrados.length != viewModel.registros.length)
-                      Text(
-                        'de ${viewModel.registros.length} total',
-                        style: TextStyle(
-                          color: viewModel.getSecondaryTextColor(context),
-                          fontSize: 12,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-
-              // Lista de consultas
-              Expanded(
-                child: viewModel.registrosFiltrados.isEmpty
-                    ? _buildEmptyState(viewModel)
-                    : ListView.builder(
-                        itemCount: viewModel.registrosFiltrados.length,
-                        padding: const EdgeInsets.all(8),
-                        itemBuilder: (context, index) {
-                          final registro = viewModel.registrosFiltrados[index];
-                          return _buildRegistroCard(registro, viewModel, context);
-                        },
-                      ),
-              ),
-            ],
-          );
+          alignment: Alignment.centerLeft,
+        ),
+        onPressed: () {
+          historialViewModel.toggleMostrarTodasMaterias();
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _agregarRegistroEjemplo(context),
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: Colors.white),
-        tooltip: 'Agregar registro de ejemplo',
+    );
+  }
+
+  Widget _buildAnioSelector(
+    BuildContext context,
+    MateriaViewModel materiaViewModel,
+    HistorialAsistenciaViewModel historialViewModel,
+  ) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Nivel:',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: historialViewModel.getSecondaryTextColor(context),
+                    ),
+                  ),
+                  DropdownButton<int>(
+                    value: materiaViewModel.anioSeleccionado,
+                    isExpanded: true,
+                    underline: const SizedBox(),
+                    dropdownColor: historialViewModel.getDropdownBackgroundColor(context),
+                    items: _buildAnioDropdownItems(historialViewModel),
+                    onChanged: (value) {
+                      if (value != null) {
+                        materiaViewModel.setAnioSeleccionado(value);
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  List<DropdownMenuItem<int>> _buildAnioDropdownItems(
+    HistorialAsistenciaViewModel historialViewModel,
+  ) {
+    return [
+      DropdownMenuItem(
+        value: 1,
+        child: Row(
+          children: [
+            const Icon(Icons.circle, color: Colors.yellow, size: 16),
+            const SizedBox(width: 8),
+            Text(
+              'PRIMER AÑO',
+              style: TextStyle(color: historialViewModel.getTextColor(context)),
+            ),
+          ],
+        ),
+      ),
+      DropdownMenuItem(
+        value: 2,
+        child: Row(
+          children: [
+            const Icon(Icons.circle, color: Colors.green, size: 16),
+            const SizedBox(width: 8),
+            Text(
+              'SEGUNDO AÑO',
+              style: TextStyle(color: historialViewModel.getTextColor(context)),
+            ),
+          ],
+        ),
+      ),
+      DropdownMenuItem(
+        value: 3,
+        child: Row(
+          children: [
+            const Icon(Icons.circle, color: Colors.blue, size: 16),
+            const SizedBox(width: 8),
+            Text(
+              'TERCER AÑO',
+              style: TextStyle(color: historialViewModel.getTextColor(context)),
+            ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  Widget _buildSearchField(
+    BuildContext context, 
+    HistorialAsistenciaViewModel historialViewModel,
+  ) {
+    return TextField(
+      controller: _searchController,
+      style: TextStyle(color: historialViewModel.getTextColor(context)),
+      decoration: InputDecoration(
+        hintText: 'Buscar materia...',
+        hintStyle: TextStyle(
+          color: historialViewModel.getSecondaryTextColor(context),
+        ),
+        prefixIcon: Icon(
+          Icons.search,
+          color: historialViewModel.getSecondaryTextColor(context),
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadius.medium),
+          borderSide: BorderSide(color: historialViewModel.getBorderColor(context)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadius.medium),
+          borderSide: BorderSide(color: historialViewModel.getBorderColor(context)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadius.medium),
+          borderSide: const BorderSide(color: AppColors.primary),
+        ),
+        filled: true,
+        fillColor: historialViewModel.getSearchBackgroundColor(context),
       ),
     );
   }
 
-  Widget _buildEmptyState(HistorialAsistenciaViewModel viewModel) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+  Widget _buildFiltrosActivosIndicator(
+    BuildContext context,
+    MateriaViewModel materiaViewModel,
+    HistorialAsistenciaViewModel historialViewModel,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
         children: [
-          Icon(
-            Icons.history,
-            size: 80,
-            color: viewModel.getSecondaryTextColor(context),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No hay consultas registradas',
-            style: TextStyle(
-              fontSize: 18,
-              color: viewModel.getTextColor(context),
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Las consultas de asistencia aparecerán aquí',
-            style: TextStyle(
-              color: viewModel.getSecondaryTextColor(context),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          if (viewModel.filtro.filtroActivo)
-            ElevatedButton(
-              onPressed: viewModel.limpiarFiltros,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
+          Icon(Icons.filter_alt, color: AppColors.primary, size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              historialViewModel.obtenerTextoFiltros(materiaViewModel.anioSeleccionado),
+              style: TextStyle(
+                color: AppColors.primary,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
               ),
-              child: const Text('Limpiar filtros'),
             ),
+          ),
+          IconButton(
+            icon: Icon(Icons.clear, color: AppColors.primary, size: 16),
+            onPressed: () {
+              historialViewModel.limpiarFiltros();
+              _searchController.clear();
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildRegistroCard(
-    RegistroHistorial registro,
-    HistorialAsistenciaViewModel viewModel,
+  Widget _buildAnioTitle(int anioSeleccionado) {
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: AppSpacing.medium,
+        vertical: AppSpacing.small,
+      ),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          anioSeleccionado == 1 ? '🟡 PRIMER AÑO' :
+          anioSeleccionado == 2 ? '🟢 SEGUNDO AÑO' : '🔵 TERCER AÑO',
+          style: AppTextStyles.heading3.copyWith(
+            fontWeight: FontWeight.bold,
+            color: anioSeleccionado == 1 ? Colors.orange :
+                   anioSeleccionado == 2 ? Colors.green : Colors.blue,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMateriasList(
     BuildContext context,
+    List<Materia> materias,
+    MateriaViewModel materiaViewModel,
+    HistorialAsistenciaViewModel historialViewModel,
+  ) {
+    if (materias.isEmpty) {
+      return _buildEmptyState(historialViewModel);
+    }
+
+    return Expanded(
+      child: ListView.builder(
+        itemCount: materias.length,
+        padding: EdgeInsets.all(AppSpacing.medium),
+        itemBuilder: (context, index) {
+          final materia = materias[index];
+          return _buildMateriaCard(materia, context, materiaViewModel, historialViewModel);
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(HistorialAsistenciaViewModel historialViewModel) {
+    return Expanded(
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.search_off,
+              size: 64,
+              color: historialViewModel.getSecondaryTextColor(context),
+            ),
+            SizedBox(height: AppSpacing.medium),
+            Text(
+              'No se encontraron materias',
+              style: TextStyle(
+                color: historialViewModel.getSecondaryTextColor(context),
+              ),
+            ),
+            SizedBox(height: AppSpacing.small),
+            Text(
+              'Ajusta los filtros o recarga los datos',
+              style: TextStyle(
+                color: historialViewModel.getSecondaryTextColor(context),
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMateriaCard(
+    Materia materia,
+    BuildContext context,
+    MateriaViewModel materiaViewModel,
+    HistorialAsistenciaViewModel historialViewModel,
   ) {
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      color: viewModel.getCardColor(context),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
+      margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+      color: historialViewModel.getCardColor(context),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: AppColors.primary,
+          backgroundColor: materia.color,
           child: Icon(
-            Icons.history,
+            materiaViewModel.obtenerIconoMateria(materia.nombre),
             color: Colors.white,
             size: 20,
           ),
         ),
         title: Text(
-          'Estudiante: ${registro.estudianteId}',
+          materia.nombre,
           style: TextStyle(
             fontWeight: FontWeight.w500,
-            color: viewModel.getTextColor(context),
+            color: historialViewModel.getTextColor(context),
           ),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 4),
             Text(
-              'Materia: ${registro.materiaId}',
-              style: TextStyle(
-                color: viewModel.getSecondaryTextColor(context),
-              ),
+              'Código: ${materia.codigo}',
+              style: TextStyle(color: historialViewModel.getSecondaryTextColor(context)),
             ),
             const SizedBox(height: 4),
-            Text(
-              'Periodo: ${registro.periodoId}',
-              style: TextStyle(
-                color: viewModel.getSecondaryTextColor(context),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Row(
+            Wrap(
+              spacing: 8,
               children: [
-                Icon(
-                  Icons.calendar_today,
-                  size: 12,
-                  color: viewModel.getSecondaryTextColor(context),
+                _buildInfoChip(
+                  materia.anioDisplay,
+                  Icons.grade,
+                  materiaViewModel.getColorAnio(materia.anio),
+                  context,
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  registro.fechaConsultaFormateada,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: viewModel.getSecondaryTextColor(context),
+                _buildInfoChip(
+                  materia.carrera,
+                  Icons.school,
+                  Colors.purple,
+                  context,
+                ),
+                if (materia.paralelo.isNotEmpty)
+                  _buildInfoChip(
+                    'Paralelo ${materia.paralelo}',
+                    Icons.groups,
+                    materiaViewModel.getColorParalelo(materia.paralelo),
+                    context,
                   ),
-                ),
+                if (materia.turno.isNotEmpty)
+                  _buildInfoChip(
+                    materia.turno,
+                    materiaViewModel.obtenerIconoTurno(materia.turno),
+                    materia.turno.toLowerCase().contains('mañana') ? Colors.amber : Colors.blue,
+                    context,
+                  ),
               ],
             ),
-            if (registro.tieneFiltros) ...[
-              const SizedBox(height: 4),
-              Wrap(
-                spacing: 8,
-                children: [
-                  if (registro.filtroMostrarTodasMaterias)
-                    _buildFiltroChip('Todas materias', Icons.filter_list, context),
-                  if (registro.queryBusqueda?.isNotEmpty ?? false)
-                    _buildFiltroChip(
-                      'Busqueda: "${registro.queryBusqueda!}"',
-                      Icons.search,
-                      context,
-                    ),
-                ],
-              ),
-            ],
           ],
         ),
-        trailing: PopupMenuButton<String>(
-          icon: Icon(Icons.more_vert, size: 20, color: _getSecondaryTextColor(context)),
-          onSelected: (value) {
-            if (value == 'delete') {
-              _showDeleteDialog(registro, viewModel);
-            } else if (value == 'view_details') {
-              _showDetailsDialog(registro, context);
-            }
-          },
-          itemBuilder: (context) => [
-            PopupMenuItem(
-              value: 'view_details',
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: AppColors.primary),
-                  const SizedBox(width: 8),
-                  const Text('Ver detalles'),
-                ],
-              ),
-            ),
-            PopupMenuItem(
-              value: 'delete',
-              child: Row(
-                children: [
-                  Icon(Icons.delete, color: AppColors.error),
-                  const SizedBox(width: 8),
-                  const Text('Eliminar'),
-                ],
-              ),
-            ),
-          ],
-        ),
+        onTap: () => _navigateToBimestres(context, materia),
       ),
     );
   }
 
-  Widget _buildFiltroChip(String text, IconData icon, BuildContext context) {
+  Widget _buildInfoChip(
+    String text,
+    IconData icon,
+    Color color,
+    BuildContext context,
+  ) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 10, color: AppColors.primary),
+          Icon(icon, size: 12, color: color),
           const SizedBox(width: 4),
           Text(
             text,
             style: TextStyle(
-              color: AppColors.primary,
+              color: color,
               fontSize: 10,
+              fontWeight: FontWeight.bold,
             ),
           ),
         ],
@@ -506,177 +547,18 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
     );
   }
 
-  String _obtenerTextoFiltros(HistorialAsistenciaViewModel viewModel) {
-    List<String> filtros = [];
-
-    if (viewModel.mostrarTodasMaterias) {
-      filtros.add('Todas las materias');
-    }
-
-    if (viewModel.queryBusqueda.isNotEmpty) {
-      filtros.add('Búsqueda: "${viewModel.queryBusqueda}"');
-    }
-
-    return 'Filtros: ${filtros.join(' • ')}';
-  }
-
-  void _showDeleteDialog(RegistroHistorial registro, HistorialAsistenciaViewModel viewModel) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Eliminar Consulta'),
-        content: const Text('¿Estás seguro de que quieres eliminar esta consulta del historial?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () {
-              viewModel.eliminarRegistro(registro.id);
-              Navigator.pop(context);
-            },
-            child: const Text(
-              'Eliminar',
-              style: TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showClearAllDialog(HistorialAsistenciaViewModel viewModel) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Limpiar Todo el Historial'),
-        content: const Text('¿Estás seguro de que quieres eliminar todas las consultas del historial? Esta acción no se puede deshacer.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () {
-              viewModel.limpiarTodoElHistorial();
-              Navigator.pop(context);
-            },
-            child: const Text(
-              'Limpiar Todo',
-              style: TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showDetailsDialog(RegistroHistorial registro, BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Detalles de la Consulta'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildDetailItem('ID:', registro.id),
-              _buildDetailItem('Estudiante ID:', registro.estudianteId),
-              _buildDetailItem('Materia ID:', registro.materiaId),
-              _buildDetailItem('Periodo ID:', registro.periodoId),
-              _buildDetailItem('Fecha:', registro.fechaConsulta.toString()),
-              _buildDetailItem('Mostrar todas materias:', registro.filtroMostrarTodasMaterias.toString()),
-              if (registro.queryBusqueda != null)
-                _buildDetailItem('Búsqueda:', registro.queryBusqueda!),
-              if (registro.datosConsulta != null) ...[
-                const SizedBox(height: 8),
-                const Text(
-                  'Datos de Consulta:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  registro.datosConsulta.toString(),
-                  style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
-                ),
-              ],
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetailItem(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(value),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _agregarRegistroEjemplo(BuildContext context) {
-    final viewModel = context.read<HistorialAsistenciaViewModel>();
-    final registro = RegistroHistorial(
-      id: 'hist_${DateTime.now().millisecondsSinceEpoch}',
-      estudianteId: 'est_${DateTime.now().millisecondsSinceEpoch % 1000}',
-      materiaId: 'Matemáticas ${DateTime.now().millisecondsSinceEpoch % 5 + 1}',
-      periodoId: 'periodo_2024',
-      fechaConsulta: DateTime.now(),
-      filtroMostrarTodasMaterias: false,
-      queryBusqueda: 'ejemplo',
-      datosConsulta: {
-        'asistencias_totales': 45,
-        'asistencias_presente': 40,
-        'porcentaje': 88.9,
-        'ultima_actualizacion': DateTime.now().toIso8601String(),
-      },
-    );
-    
-    viewModel.agregarRegistroHistorial(registro);
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Registro de ejemplo agregado'),
-        backgroundColor: AppColors.success,
-      ),
-    );
-  }
-
-  // Funciones para colores del tema
   Color _getBackgroundColor(BuildContext context) {
     return Theme.of(context).brightness == Brightness.dark
         ? Colors.grey.shade900
-        : const Color(0xFFF5F5F5);
+        : AppColors.background;
   }
 
-  Color _getTextColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.white
-        : Colors.black;
-  }
-
-  Color _getSecondaryTextColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? Colors.white70
-        : Colors.black87;
+  void _navigateToBimestres(BuildContext context, Materia materia) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BimestresScreen(materiaSeleccionada: materia.nombre), // ✅ CORREGIDO
+      ),
+    );
   }
 }
