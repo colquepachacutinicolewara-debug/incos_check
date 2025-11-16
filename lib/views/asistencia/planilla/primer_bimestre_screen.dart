@@ -10,7 +10,7 @@ class PrimerBimestreScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) => PrimerBimestreViewModel(), // ✅ SIN parámetro DatabaseHelper
+      create: (context) => PrimerBimestreViewModel(),
       child: const _PrimerBimestreScreenContent(),
     );
   }

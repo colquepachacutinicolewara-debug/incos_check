@@ -28,6 +28,7 @@ import 'viewmodels/auth_viewmodel.dart';
 
 // Services
 import 'services/theme_service.dart';
+import 'services/notification_service.dart';
 
 // Views
 import 'views/dashboard/dashboard_screen.dart';
@@ -521,8 +522,21 @@ class _AuthWrapperState extends State<AuthWrapper> {
         child: DashboardScreen(userData: userData),
       );
     }
+
+    // En tu main.dart
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Inicializar notificaciones
+  await NotificationService().initialize();
+  
+  runApp(MyApp());
+}
+    
     
     // Si no está logueado, mostrar login
     return const LoginScreen();
+  
   }
+  
 }

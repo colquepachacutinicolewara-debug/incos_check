@@ -1,4 +1,4 @@
-// viewmodels/configuracion_viewmodel.dart - VERSIÓN COMPLETA CORREGIDA
+// viewmodels/configuracion_viewmodel.dart - VERSIÓN COMPLETA ACTUALIZADA
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
 import '../models/configuracion_model.dart';
@@ -12,7 +12,7 @@ class ConfiguracionViewModel with ChangeNotifier {
 
   ConfiguracionModel get configuracion => _configuracion;
 
-  final List<String> _languages = ['Español', 'English', 'Português'];
+  final List<String> _languages = ['Español'];
   final List<String> _themes = ['Sistema', 'Claro', 'Oscuro'];
 
   List<String> get languages => _languages;
@@ -85,7 +85,7 @@ class ConfiguracionViewModel with ChangeNotifier {
     }
   }
 
-  // ✅ CORREGIDO: Método para cambiar contraseña MEJORADO
+  // ✅ ACTUALIZADO: Método para cambiar contraseña
   Future<Map<String, dynamic>> cambiarPassword({
     required String currentPassword,
     required String newPassword,
@@ -191,6 +191,14 @@ class ConfiguracionViewModel with ChangeNotifier {
   Future<void> updateNotificationsEnabled(bool value) async {
     _configuracion = _configuracion.copyWith(notificationsEnabled: value);
     await _saveToDatabase();
+    
+    // Activar/desactivar notificaciones
+    if (value) {
+      _activarNotificaciones();
+    } else {
+      _desactivarNotificaciones();
+    }
+    
     notifyListeners();
   }
 
@@ -240,7 +248,7 @@ class ConfiguracionViewModel with ChangeNotifier {
           await _localAuth.getAvailableBiometrics();
 
       if (availableBiometrics.isEmpty) {
-        throw Exception('No hay métodos biométricos configurados');
+        throw Exception('No hay métodos biométricos configurados. Ve a Configuración del dispositivo para agregar huellas digitales.');
       }
 
       final bool didAuthenticate = await _localAuth.authenticate(
@@ -265,10 +273,40 @@ class ConfiguracionViewModel with ChangeNotifier {
     }
   }
 
+  // ✅ ACTUALIZADO: Limpiar caché de forma segura
   Future<void> clearCache() async {
-    _configuracion = _configuracion.copyWith(cacheSize: "0 MB");
-    await _saveToDatabase();
-    notifyListeners();
+    try {
+      // Limpiar solo caché no crítico
+      await _databaseHelper.rawDelete('''
+        DELETE FROM cache_temporal 
+        WHERE tipo IN ('imagenes', 'thumbnails', 'logs')
+      ''');
+      
+      _configuracion = _configuracion.copyWith(cacheSize: "0 MB");
+      await _saveToDatabase();
+      notifyListeners();
+    } catch (e) {
+      throw Exception('Error limpiando caché: $e');
+    }
+  }
+
+  // ✅ NUEVO: Activar notificaciones
+  void _activarNotificaciones() {
+    // Programar recordatorios
+    _programarRecordatorios();
+    print('🔔 Notificaciones activadas');
+  }
+
+  // ✅ NUEVO: Desactivar notificaciones
+  void _desactivarNotificaciones() {
+    // Cancelar recordatorios
+    print('🔕 Notificaciones desactivadas');
+  }
+
+  // ✅ NUEVO: Programar recordatorios
+  void _programarRecordatorios() {
+    print('⏰ Programando recordatorios de asistencia...');
+    // Aquí se integraría con NotificationService
   }
 
   Future<void> syncSettings() async {

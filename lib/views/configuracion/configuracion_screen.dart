@@ -7,6 +7,8 @@ import '../../utils/constants.dart';
 import '../../utils/helpers.dart';
 import '../../services/theme_service.dart';
 import '../../views/configuracion/soporte/soporte_screen.dart';
+import '../../views/configuracion/editar_perfil_screen.dart';
+import '../../models/usuario_model.dart';
 
 class ConfiguracionScreen extends StatelessWidget {
   final Map<String, dynamic>? userData;
@@ -1221,66 +1223,96 @@ class _ConfiguracionView extends StatelessWidget {
   }
 
   Widget _buildUserCard(BuildContext context, bool isTablet, Map<String, dynamic>? userData) {
-    return Card(
-      elevation: 4,
-      color: _getCardColor(context),
-      child: Padding(
-        padding: EdgeInsets.all(AppSpacing.medium),
-        child: Row(
-          children: [
-            CircleAvatar(
+  if (userData == null) return SizedBox.shrink();
+  
+  // Convertir a objeto Usuario
+  final usuario = Usuario.fromLoginData(userData);
+  
+  return Card(
+    elevation: 4,
+    color: _getCardColor(context),
+    child: Padding(
+      padding: EdgeInsets.all(AppSpacing.medium),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () {
+              // Navegar a editar perfil
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EditarPerfilScreen(usuario: usuario),
+                ),
+              ).then((usuarioActualizado) {
+                if (usuarioActualizado != null) {
+                  Helpers.showSnackBar(
+                    context,
+                    '✅ Perfil actualizado',
+                    type: 'success',
+                  );
+                }
+              });
+            },
+            child: CircleAvatar(
               radius: isTablet ? 40 : 30,
-              backgroundColor: AppColors.primary,
-              child: Icon(
-                Icons.person,
-                size: isTablet ? 30 : 20,
-                color: Colors.white,
-              ),
+              backgroundColor: usuario.colorRol,
+              backgroundImage: usuario.fotoUrl != null 
+                  ? NetworkImage(usuario.fotoUrl!) 
+                  : null,
+              child: usuario.fotoUrl == null
+                  ? Icon(
+                      usuario.iconoRol,
+                      size: isTablet ? 30 : 20,
+                      color: Colors.white,
+                    )
+                  : null,
             ),
-            SizedBox(width: AppSpacing.medium),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    userData?['nombre'] ?? 'Usuario',
-                    style: TextStyle(
-                      fontSize: isTablet ? 20 : 18,
-                      fontWeight: FontWeight.bold,
-                      color: _getTextColor(context),
-                    ),
+          ),
+          SizedBox(width: AppSpacing.medium),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  usuario.nombre,
+                  style: TextStyle(
+                    fontSize: isTablet ? 20 : 18,
+                    fontWeight: FontWeight.bold,
+                    color: _getTextColor(context),
                   ),
-                  SizedBox(height: AppSpacing.small),
-                  Text(
-                    userData?['email'] ?? 'No email',
-                    style: TextStyle(color: _getSecondaryTextColor(context)),
+                ),
+                SizedBox(height: AppSpacing.small),
+                Text(
+                  usuario.email,
+                  style: TextStyle(color: _getSecondaryTextColor(context)),
+                ),
+                SizedBox(height: AppSpacing.small),
+                Chip(
+                  label: Text(
+                    usuario.rolDisplay,
+                    style: TextStyle(color: Colors.white, fontSize: 12),
                   ),
-                  SizedBox(height: AppSpacing.small),
-                  Chip(
-                    label: Text(
-                      userData?['role'] ?? 'Usuario',
-                      style: TextStyle(color: Colors.white, fontSize: 12),
-                    ),
-                    backgroundColor: AppColors.primary,
-                  ),
-                ],
-              ),
+                  backgroundColor: usuario.colorRol,
+                ),
+              ],
             ),
-            IconButton(
-              icon: Icon(Icons.edit, color: AppColors.primary),
-              onPressed: () {
-                Helpers.showSnackBar(
-                  context,
-                  'Editar perfil de usuario',
-                  type: 'success',
-                );
-              },
-            ),
-          ],
-        ),
+          ),
+          IconButton(
+            icon: Icon(Icons.edit, color: AppColors.primary),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EditarPerfilScreen(usuario: usuario),
+                ),
+              );
+            },
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSettingsSection(
     BuildContext context,

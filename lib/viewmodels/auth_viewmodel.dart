@@ -1,4 +1,4 @@
-// viewmodels/auth_viewmodel.dart - VERSIÓN COMPLETA CORREGIDA
+// viewmodels/auth_viewmodel.dart - VERSIÓN COMPLETA ACTUALIZADA
 import 'package:flutter/foundation.dart';
 import '../models/database_helper.dart';
 import '../models/usuario_model.dart';
@@ -70,13 +70,11 @@ class AuthViewModel with ChangeNotifier {
     print('✅ Sesión cerrada exitosamente');
   }
 
-  // ✅ CORREGIDO: Método para cambiar contraseña - VERSIÓN MEJORADA
+  // ✅ ACTUALIZADO: Método para cambiar contraseña
   Future<bool> cambiarPassword(String currentPassword, String nuevaPassword) async {
     try {
       print('🔄 AuthViewModel.cambiarPassword iniciado');
       print('👤 Usuario actual: ${_currentUser?.username}');
-      print('🔑 Contraseña actual proporcionada: $currentPassword');
-      print('🆕 Nueva contraseña: $nuevaPassword');
       
       if (_currentUser == null) {
         print('❌ No hay usuario logueado');
@@ -121,19 +119,6 @@ class AuthViewModel with ChangeNotifier {
         _setError(null);
         notifyListeners();
         
-        // Verificar que funciona la nueva contraseña
-        print('🔐 Verificando nueva contraseña...');
-        final verificado = await _databaseHelper.verificarCredenciales(
-          _currentUser!.username, 
-          nuevaPassword
-        );
-        
-        if (verificado != null) {
-          print('🎉 Nueva contraseña verificada correctamente');
-        } else {
-          print('⚠️ La nueva contraseña no funciona después del cambio');
-        }
-        
         return true;
       }
       
@@ -143,6 +128,50 @@ class AuthViewModel with ChangeNotifier {
     } catch (e) {
       print('❌ Error en cambiarPassword: $e');
       _setError('Error al cambiar contraseña: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // ✅ NUEVO: Método para actualizar perfil
+  Future<bool> actualizarPerfil(Usuario usuarioActualizado) async {
+    try {
+      _setLoading(true);
+      _setError(null);
+
+      print('🔄 Actualizando perfil de usuario: ${usuarioActualizado.username}');
+
+      // Actualizar en base de datos
+      final db = await _databaseHelper.database;
+      final resultado = await db.update(
+        'usuarios',
+        {
+          'username': usuarioActualizado.username,
+          'nombre': usuarioActualizado.nombre,
+          'email': usuarioActualizado.email,
+          'telefono': usuarioActualizado.telefono,
+          'foto_url': usuarioActualizado.fotoUrl,
+        },
+        where: 'id = ?',
+        whereArgs: [usuarioActualizado.id],
+      );
+
+      if (resultado > 0) {
+        // Actualizar usuario actual
+        _currentUser = usuarioActualizado;
+        _setError(null);
+        notifyListeners();
+        
+        print('✅ Perfil actualizado exitosamente');
+        return true;
+      } else {
+        _setError('No se pudo actualizar el perfil');
+        return false;
+      }
+    } catch (e) {
+      _setError('Error al actualizar perfil: $e');
+      print('❌ Error en actualizarPerfil: $e');
       return false;
     } finally {
       _setLoading(false);
@@ -260,7 +289,7 @@ class AuthViewModel with ChangeNotifier {
     return _currentUser?.puedeVerReportes == true;
   }
 
-  // ✅ NUEVO: Método para limpiar errores
+  // Método para limpiar errores
   void limpiarError() {
     _error = null;
     notifyListeners();

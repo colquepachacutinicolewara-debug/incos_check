@@ -44,7 +44,6 @@ class __RegistroHuellasViewState extends State<_RegistroHuellasView> {
   @override
   void initState() {
     super.initState();
-    // Escuchar cambios en el ViewModel
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final viewModel = context.read<RegistroHuellasViewModel>();
       viewModel.addListener(_onViewModelChanged);
@@ -54,7 +53,6 @@ class __RegistroHuellasViewState extends State<_RegistroHuellasView> {
   void _onViewModelChanged() {
     final viewModel = context.read<RegistroHuellasViewModel>();
     
-    // Si hay huellas registradas y tenemos callback, notificar
     if (viewModel.huellasRegistradas > 0 && widget.onHuellasRegistradas != null) {
       widget.onHuellasRegistradas!(viewModel.huellasRegistradas);
     }
@@ -82,7 +80,6 @@ class __RegistroHuellasViewState extends State<_RegistroHuellasView> {
         backgroundColor: AppColors.primary,
         elevation: 2,
         actions: [
-          // Botón para finalizar
           IconButton(
             icon: const Icon(Icons.done, color: Colors.white),
             onPressed: () {
@@ -95,41 +92,46 @@ class __RegistroHuellasViewState extends State<_RegistroHuellasView> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Información del estudiante
-            _buildInfoEstudiante(context),
-            const SizedBox(height: 20),
-            
-            // Estado del sensor
-            _buildEstadoSensor(context, viewModel),
-            const SizedBox(height: 20),
-            
-            // Progreso
-            _buildProgreso(context, viewModel),
-            const SizedBox(height: 20),
-            
-            // Huella actual
-            _buildHuellaActual(context, viewModel, huellaActual),
-            const SizedBox(height: 20),
-            
-            // Mensajes de error/éxito
-            if (viewModel.errorMessage.isNotEmpty)
-              _buildMensajeError(context, viewModel),
-            
-            const Spacer(),
-            
-            // Botones de navegación
-            _buildBotonesNavegacion(context, viewModel),
-          ],
+      body: SafeArea( // ← AÑADIR SafeArea
+        child: SingleChildScrollView( // ← HACER DESLIZABLE
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Información del estudiante
+              _buildInfoEstudiante(context),
+              const SizedBox(height: 20),
+              
+              // Estado del sensor
+              _buildEstadoSensor(context, viewModel),
+              const SizedBox(height: 20),
+              
+              // Progreso
+              _buildProgreso(context, viewModel),
+              const SizedBox(height: 20),
+              
+              // Huella actual
+              _buildHuellaActual(context, viewModel, huellaActual),
+              const SizedBox(height: 20),
+              
+              // Mensajes de error/éxito
+              if (viewModel.errorMessage.isNotEmpty)
+                _buildMensajeError(context, viewModel),
+              
+              const SizedBox(height: 20), // Espacio en lugar de Spacer
+              
+              // Botones de navegación
+              _buildBotonesNavegacion(context, viewModel),
+              
+              const SizedBox(height: 20), // Espacio extra al final
+            ],
+          ),
         ),
       ),
     );
   }
 
+  // Los demás métodos _build... permanecen igual
   Widget _buildInfoEstudiante(BuildContext context) {
     return Card(
       elevation: 2,
@@ -200,6 +202,13 @@ class __RegistroHuellasViewState extends State<_RegistroHuellasView> {
               ),
             ),
           ),
+          // Botón para reconectar
+          if (!viewModel.sensorConectado)
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: viewModel.isLoading ? null : () => viewModel.reintentarConexionSensor(),
+              tooltip: 'Reintentar conexión',
+            ),
         ],
       ),
     );
@@ -311,7 +320,6 @@ class __RegistroHuellasViewState extends State<_RegistroHuellasView> {
   Widget _buildBotonesNavegacion(BuildContext context, RegistroHuellasViewModel viewModel) {
     return Row(
       children: [
-        // Botón anterior
         Expanded(
           child: ElevatedButton(
             onPressed: viewModel.huellaActual > 0 ? () => viewModel.anteriorHuella() : null,
@@ -323,15 +331,12 @@ class __RegistroHuellasViewState extends State<_RegistroHuellasView> {
           ),
         ),
         const SizedBox(width: 16),
-        
-        // Botón siguiente/Finalizar
         Expanded(
           child: ElevatedButton(
             onPressed: () {
               if (viewModel.huellaActual < viewModel.huellas.length - 1) {
                 viewModel.siguienteHuella();
               } else {
-                // Última huella, notificar y cerrar
                 if (widget.onHuellasRegistradas != null) {
                   widget.onHuellasRegistradas!(viewModel.huellasRegistradas);
                 }

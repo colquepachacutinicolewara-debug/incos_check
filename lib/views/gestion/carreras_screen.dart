@@ -8,6 +8,7 @@ import '../../views/gestion/programas/programas_screen.dart';
 import '../../viewmodels/carreras_viewmodel.dart';
 import '../../models/carrera_model.dart';
 
+
 class CarrerasScreen extends StatefulWidget {
   final String tipo;
   final String carreraSeleccionada;
@@ -74,67 +75,6 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
     );
   }
 
-  void _recargarCarreras(BuildContext context, CarrerasViewModel viewModel) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Recargar Carreras'),
-        content: Text('¿Estás seguro de que deseas recargar todas las carreras predefinidas? Esto reemplazará cualquier cambio que hayas hecho.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              viewModel.forzarRecargaCarrerasPredefinidas();
-            },
-            child: Text('Recargar', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBurbujaNotificacion(CarrerasViewModel viewModel) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: viewModel.colorBurbuja,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.check_circle, color: Colors.white),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              viewModel.mensajeBurbuja,
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          IconButton(
-            icon: Icon(Icons.close, color: Colors.white),
-            onPressed: viewModel.ocultarBurbuja,
-            iconSize: 20,
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
@@ -170,55 +110,25 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
             appBar: AppBar(
               title: Text(
                 'Carreras - ${widget.tipo}',
-                style: AppTextStyles.heading2Dark(context).copyWith(color: Colors.white),
+                style: AppTextStyles.heading2Dark(
+                  context,
+                ).copyWith(color: Colors.white),
               ),
               backgroundColor: AppColors.secondary,
-              actions: [
-                // Botón para recargar carreras
-                Consumer<CarrerasViewModel>(
-                  builder: (context, viewModel, child) {
-                    return IconButton(
-                      icon: Icon(Icons.refresh),
-                      onPressed: () => _recargarCarreras(context, viewModel),
-                      tooltip: 'Recargar carreras predefinidas',
-                    );
-                  },
-                ),
-              ],
             ),
-            body: Stack(
-              children: [
-                Column(
-                  children: [
-                    if (viewModel.carreras.isEmpty)
-                      Expanded(child: _buildEmptyState())
-                    else
-                      Expanded(
-                        child: ListView.builder(
-                          padding: EdgeInsets.all(AppSpacing.medium),
-                          itemCount: viewModel.carreras.length + 1,
-                          itemBuilder: (context, index) {
-                            if (index == viewModel.carreras.length) {
-                              return _buildProgramasCard(context);
-                            }
-                            final carrera = viewModel.carreras[index];
-                            return _buildCarreraCard(carrera, context, viewModel);
-                          },
-                        ),
-                      ),
-                  ],
-                ),
-
-                // Burbuja de notificación
-                if (viewModel.mostrarBurbuja)
-                  Positioned(
-                    top: 80,
-                    left: 16,
-                    right: 16,
-                    child: _buildBurbujaNotificacion(viewModel),
+            body: viewModel.carreras.isEmpty
+                ? _buildEmptyState()
+                : ListView.builder(
+                    padding: EdgeInsets.all(AppSpacing.medium),
+                    itemCount: viewModel.carreras.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index == viewModel.carreras.length) {
+                        return _buildProgramasCard(context);
+                      }
+                      final carrera = viewModel.carreras[index];
+                      return _buildCarreraCard(carrera, context, viewModel);
+                    },
                   ),
-              ],
-            ),
             floatingActionButton: FloatingActionButton(
               onPressed: () => _showAgregarCarreraDialog(context, viewModel),
               backgroundColor: AppColors.primary,
@@ -235,7 +145,9 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
       appBar: AppBar(
         title: Text(
           'Carreras - ${widget.tipo}',
-          style: AppTextStyles.heading2Dark(context).copyWith(color: Colors.white),
+          style: AppTextStyles.heading2Dark(
+            context,
+          ).copyWith(color: Colors.white),
         ),
         backgroundColor: AppColors.secondary,
       ),
@@ -260,7 +172,9 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
       appBar: AppBar(
         title: Text(
           'Carreras - ${widget.tipo}',
-          style: AppTextStyles.heading2Dark(context).copyWith(color: Colors.white),
+          style: AppTextStyles.heading2Dark(
+            context,
+          ).copyWith(color: Colors.white),
         ),
         backgroundColor: AppColors.secondary,
       ),
@@ -308,7 +222,9 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
           SizedBox(height: AppSpacing.medium),
           Text(
             'No hay carreras registradas',
-            style: AppTextStyles.bodyDark(context).copyWith(color: AppColors.textSecondaryDark(context)),
+            style: AppTextStyles.bodyDark(
+              context,
+            ).copyWith(color: AppColors.textSecondaryDark(context)),
           ),
           Text(
             'Presiona el botón + para agregar una carrera',
@@ -454,21 +370,27 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
                 value: 'edit',
                 child: Text(
                   'Modificar',
-                  style: AppTextStyles.bodyDark(context).copyWith(color: _getTextColor(context)),
+                  style: AppTextStyles.bodyDark(
+                    context,
+                  ).copyWith(color: _getTextColor(context)),
                 ),
               ),
               PopupMenuItem(
                 value: 'toggle_active',
                 child: Text(
                   carrera.activa ? 'Desactivar' : 'Activar',
-                  style: AppTextStyles.bodyDark(context).copyWith(color: _getTextColor(context)),
+                  style: AppTextStyles.bodyDark(
+                    context,
+                  ).copyWith(color: _getTextColor(context)),
                 ),
               ),
               PopupMenuItem(
                 value: 'delete',
                 child: Text(
                   'Eliminar',
-                  style: AppTextStyles.bodyDark(context).copyWith(color: _getTextColor(context)),
+                  style: AppTextStyles.bodyDark(
+                    context,
+                  ).copyWith(color: _getTextColor(context)),
                 ),
               ),
             ],
@@ -542,7 +464,9 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
             SnackBar(
               content: Text(
                 'Carrera "$nombre" agregada correctamente',
-                style: AppTextStyles.bodyDark(context).copyWith(color: Colors.white),
+                style: AppTextStyles.bodyDark(
+                  context,
+                ).copyWith(color: Colors.white),
               ),
               backgroundColor: AppColors.success,
             ),
@@ -572,7 +496,9 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
             SnackBar(
               content: Text(
                 'Carrera "$nombre" modificada correctamente',
-                style: AppTextStyles.bodyDark(context).copyWith(color: Colors.white),
+                style: AppTextStyles.bodyDark(
+                  context,
+                ).copyWith(color: Colors.white),
               ),
               backgroundColor: AppColors.success,
             ),
@@ -593,18 +519,24 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
         backgroundColor: Theme.of(context).cardColor,
         title: Text(
           'Eliminar Carrera',
-          style: AppTextStyles.heading2Dark(context).copyWith(color: _getTextColor(context)),
+          style: AppTextStyles.heading2Dark(
+            context,
+          ).copyWith(color: _getTextColor(context)),
         ),
         content: Text(
           '¿Estás seguro de eliminar la carrera "${carrera.nombre}"? Esta acción no se puede deshacer.',
-          style: AppTextStyles.bodyDark(context).copyWith(color: _getTextColor(context)),
+          style: AppTextStyles.bodyDark(
+            context,
+          ).copyWith(color: _getTextColor(context)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Cancelar',
-              style: AppTextStyles.bodyDark(context).copyWith(color: _getTextColor(context)),
+              style: AppTextStyles.bodyDark(
+                context,
+              ).copyWith(color: _getTextColor(context)),
             ),
           ),
           TextButton(
@@ -617,7 +549,9 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
                 SnackBar(
                   content: Text(
                     'Carrera "$nombreCarrera" eliminada',
-                    style: AppTextStyles.bodyDark(context).copyWith(color: Colors.white),
+                    style: AppTextStyles.bodyDark(
+                      context,
+                    ).copyWith(color: Colors.white),
                   ),
                   backgroundColor: AppColors.error,
                 ),
@@ -625,7 +559,9 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
             },
             child: Text(
               'Eliminar',
-              style: AppTextStyles.bodyDark(context).copyWith(color: Colors.red),
+              style: AppTextStyles.bodyDark(
+                context,
+              ).copyWith(color: Colors.red),
             ),
           ),
         ],
@@ -865,7 +801,9 @@ class _CarreraDialogState extends State<_CarreraDialog> {
       backgroundColor: Theme.of(context).cardColor,
       title: Text(
         widget.title,
-        style: AppTextStyles.heading2Dark(context).copyWith(color: _getTextColor(context)),
+        style: AppTextStyles.heading2Dark(
+          context,
+        ).copyWith(color: _getTextColor(context)),
       ),
       content: SingleChildScrollView(
         child: Column(
@@ -926,10 +864,14 @@ class _CarreraDialogState extends State<_CarreraDialog> {
               controller: _nombreController,
               decoration: InputDecoration(
                 labelText: 'Nombre de la carrera',
-                labelStyle: AppTextStyles.bodyDark(context).copyWith(color: _getTextColor(context)),
+                labelStyle: AppTextStyles.bodyDark(
+                  context,
+                ).copyWith(color: _getTextColor(context)),
                 border: OutlineInputBorder(),
                 hintText: 'O escribe un nombre personalizado',
-                hintStyle: AppTextStyles.bodyDark(context).copyWith(color: _getSecondaryTextColor(context)),
+                hintStyle: AppTextStyles.bodyDark(
+                  context,
+                ).copyWith(color: _getSecondaryTextColor(context)),
                 enabledBorder: OutlineInputBorder(
                   borderSide: BorderSide(
                     color: _getSecondaryTextColor(context),
@@ -939,7 +881,9 @@ class _CarreraDialogState extends State<_CarreraDialog> {
                   borderSide: BorderSide(color: AppColors.primary),
                 ),
               ),
-              style: AppTextStyles.bodyDark(context).copyWith(color: _getTextColor(context)),
+              style: AppTextStyles.bodyDark(
+                context,
+              ).copyWith(color: _getTextColor(context)),
               maxLines: 2,
             ),
             SizedBox(height: AppSpacing.medium),
@@ -1092,14 +1036,18 @@ class _CarreraDialogState extends State<_CarreraDialog> {
                           _nombreController.text.isNotEmpty
                               ? _nombreController.text
                               : 'Nombre de la carrera',
-                          style: AppTextStyles.heading3Dark(context).copyWith(color: _getTextColor(context)),
+                          style: AppTextStyles.heading3Dark(
+                            context,
+                          ).copyWith(color: _getTextColor(context)),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                         SizedBox(height: 4),
                         Text(
                           'Vista previa',
-                          style: AppTextStyles.bodyDark(context).copyWith(color: _getSecondaryTextColor(context)),
+                          style: AppTextStyles.bodyDark(
+                            context,
+                          ).copyWith(color: _getSecondaryTextColor(context)),
                         ),
                       ],
                     ),
@@ -1115,7 +1063,9 @@ class _CarreraDialogState extends State<_CarreraDialog> {
           onPressed: () => Navigator.pop(context),
           child: Text(
             'Cancelar',
-            style: AppTextStyles.bodyDark(context).copyWith(color: _getTextColor(context)),
+            style: AppTextStyles.bodyDark(
+              context,
+            ).copyWith(color: _getTextColor(context)),
           ),
         ),
         ElevatedButton(

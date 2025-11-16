@@ -28,36 +28,13 @@ class Docente {
     this.fechaActualizacion,
   });
 
-  Docente copyWith({
-    String? id,
-    String? apellidoPaterno,
-    String? apellidoMaterno,
-    String? nombres,
-    String? ci,
-    String? carrera,
-    String? turno,
-    String? email,
-    String? telefono,
-    String? estado,
-    DateTime? fechaCreacion,
-    DateTime? fechaActualizacion,
-  }) {
-    return Docente(
-      id: id ?? this.id,
-      apellidoPaterno: apellidoPaterno ?? this.apellidoPaterno,
-      apellidoMaterno: apellidoMaterno ?? this.apellidoMaterno,
-      nombres: nombres ?? this.nombres,
-      ci: ci ?? this.ci,
-      carrera: carrera ?? this.carrera,
-      turno: turno ?? this.turno,
-      email: email ?? this.email,
-      telefono: telefono ?? this.telefono,
-      estado: estado ?? this.estado,
-      fechaCreacion: fechaCreacion ?? this.fechaCreacion,
-      fechaActualizacion: fechaActualizacion ?? this.fechaActualizacion,
-    );
-  }
+  // Getter para verificar si está activo
+  bool get estaActivo => estado == 'ACTIVO';
 
+  // Getter para nombre completo
+  String get nombreCompleto => '$apellidoPaterno $apellidoMaterno $nombres';
+
+  // Convertir a Map para SQLite
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -70,53 +47,65 @@ class Docente {
       'email': email,
       'telefono': telefono,
       'estado': estado,
-      'fecha_creacion': fechaCreacion?.toIso8601String() ?? DateTime.now().toIso8601String(),
-      'fecha_actualizacion': fechaActualizacion?.toIso8601String() ?? DateTime.now().toIso8601String(),
+      'created_at': fechaCreacion?.toIso8601String(),
+      'updated_at': fechaActualizacion?.toIso8601String(),
     };
   }
 
+  // Crear desde Map desde SQLite
   factory Docente.fromMap(Map<String, dynamic> map) {
     return Docente(
-      id: map['id'] ?? '',
-      apellidoPaterno: map['apellido_paterno'] ?? '',
-      apellidoMaterno: map['apellido_materno'] ?? '',
-      nombres: map['nombres'] ?? '',
-      ci: map['ci'] ?? '',
-      carrera: map['carrera'] ?? '',
-      turno: map['turno'] ?? 'MAÑANA',
-      email: map['email'] ?? '',
-      telefono: map['telefono'] ?? '',
-      estado: map['estado'] ?? 'ACTIVO',
-      fechaCreacion: map['fecha_creacion'] != null
-          ? DateTime.parse(map['fecha_creacion'])
+      id: map['id'] as String,
+      apellidoPaterno: map['apellido_paterno'] as String,
+      apellidoMaterno: map['apellido_materno'] as String,
+      nombres: map['nombres'] as String,
+      ci: map['ci'] as String,
+      carrera: map['carrera'] as String,
+      turno: map['turno'] as String,
+      email: map['email'] as String,
+      telefono: map['telefono'] as String,
+      estado: map['estado'] as String,
+      fechaCreacion: map['created_at'] != null 
+          ? DateTime.parse(map['created_at'] as String)
           : null,
-      fechaActualizacion: map['fecha_actualizacion'] != null
-          ? DateTime.parse(map['fecha_actualizacion'])
+      fechaActualizacion: map['updated_at'] != null
+          ? DateTime.parse(map['updated_at'] as String)
           : null,
     );
   }
 
-  // Propiedades computadas
-  String get nombreCompleto => '$nombres $apellidoPaterno $apellidoMaterno';
-  String get nombreCorto => '$nombres $apellidoPaterno';
-  bool get estaActivo => estado == 'ACTIVO';
-
-  String get turnoDisplay {
-    switch (turno.toUpperCase()) {
-      case 'MAÑANA':
-        return 'Mañana';
-      case 'TARDE':
-        return 'Tarde';
-      case 'NOCHE':
-        return 'Noche';
-      default:
-        return turno;
-    }
+  // Copiar con nuevos valores
+  Docente copyWith({
+    String? id,
+    String? apellidoPaterno,
+    String? apellidoMaterno,
+    String? nombres,
+    String? ci,
+    String? carrera,
+    String? turno,
+    String? email,
+    String? telefono,
+    String? estado,
+  }) {
+    return Docente(
+      id: id ?? this.id,
+      apellidoPaterno: apellidoPaterno ?? this.apellidoPaterno,
+      apellidoMaterno: apellidoMaterno ?? this.apellidoMaterno,
+      nombres: nombres ?? this.nombres,
+      ci: ci ?? this.ci,
+      carrera: carrera ?? this.carrera,
+      turno: turno ?? this.turno,
+      email: email ?? this.email,
+      telefono: telefono ?? this.telefono,
+      estado: estado ?? this.estado,
+      fechaCreacion: fechaCreacion,
+      fechaActualizacion: fechaActualizacion,
+    );
   }
 
   @override
   String toString() {
-    return 'Docente($id: $nombreCompleto - $ci)';
+    return 'Docente(id: $id, nombre: $nombreCompleto, ci: $ci, carrera: $carrera, turno: $turno)';
   }
 
   @override

@@ -1,6 +1,5 @@
-// models/bimestre_model.dart
-import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'dart:convert';
 
 class PeriodoAcademico {
   final String id;

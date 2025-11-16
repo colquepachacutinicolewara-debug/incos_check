@@ -1,4 +1,4 @@
-// estudiantes_screen.dart - FORMULARIO COMPLETO
+// estudiantes_screen.dart - FORMULARIO COMPLETO CORREGIDO
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:printing/printing.dart';
@@ -8,6 +8,7 @@ import '../../utils/constants.dart';
 import '../../utils/validators.dart';
 import '../../utils/helpers.dart';
 import '../biometrico/registro_huella_screen.dart';
+import '../inicio/prueba_conexion_screen.dart';
 
 class EstudiantesListScreen extends StatefulWidget {
   final String tipo;
@@ -157,6 +158,17 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
         ),
         backgroundColor: carreraColor,
         actions: [
+          // Botón para probar conexión en el AppBar
+          IconButton(
+            icon: const Icon(Icons.wifi_find, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PruebaConexionScreen()),
+              );
+            },
+            tooltip: 'Probar conexión ESP32',
+          ),
           PopupMenuButton<String>(
             onSelected: (value) => _handleExportAction(context, value),
             itemBuilder: (BuildContext context) => [
@@ -237,10 +249,32 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAgregarEstudianteDialog(context, viewModel),
-        backgroundColor: carreraColor,
-        child: const Icon(Icons.add, color: Colors.white),
+      // BOTONES FLOTANTES CORREGIDOS
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          // Botón para probar conexión ESP32
+          FloatingActionButton(
+            heroTag: "conexion_esp32",
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PruebaConexionScreen()),
+              );
+            },
+            backgroundColor: Colors.blue,
+            mini: true,
+            child: const Icon(Icons.wifi_find, color: Colors.white),
+          ),
+          const SizedBox(height: 10),
+          // Botón principal para agregar estudiante
+          FloatingActionButton(
+            heroTag: "agregar_estudiante",
+            onPressed: () => _showAgregarEstudianteDialog(context, viewModel),
+            backgroundColor: carreraColor,
+            child: const Icon(Icons.add, color: Colors.white),
+          ),
+        ],
       ),
     );
   }

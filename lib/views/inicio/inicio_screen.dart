@@ -22,6 +22,8 @@ class _InicioScreenContent extends StatelessWidget {
 
   const _InicioScreenContent({this.userData});
 
+  
+
   // FUNCIONES HELPER para modo oscuro (igual que CarreraContaduria)
   Color _getTextColor(BuildContext context) {
     return Theme.of(context).brightness == Brightness.dark
@@ -286,6 +288,7 @@ class _InicioScreenBody extends StatelessWidget {
       ),
     );
   }
+  
 
   Widget _buildInfoRow(
     String label,

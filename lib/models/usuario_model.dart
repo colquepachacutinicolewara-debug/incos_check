@@ -12,6 +12,8 @@ class Usuario {
   final String departamento;
   final bool estaActivo;
   final DateTime fechaRegistro;
+  final String? telefono;
+  final String? fotoUrl;
 
   Usuario({
     required this.id,
@@ -24,6 +26,8 @@ class Usuario {
     required this.departamento,
     required this.estaActivo,
     required this.fechaRegistro,
+    this.telefono,
+    this.fotoUrl,
   });
 
   // Constructor para datos de prueba
@@ -34,6 +38,8 @@ class Usuario {
     required this.role,
     required this.carnet,
     required this.departamento,
+    this.telefono,
+    this.fotoUrl,
   })  : id = username,
         password = 'default123',
         estaActivo = true,
@@ -88,6 +94,8 @@ class Usuario {
       'departamento': departamento,
       'esta_activo': estaActivo ? 1 : 0,
       'fecha_registro': fechaRegistro.toIso8601String(),
+      'telefono': telefono,
+      'foto_url': fotoUrl,
     };
   }
 
@@ -105,10 +113,12 @@ class Usuario {
       fechaRegistro: map['fecha_registro'] != null
           ? DateTime.parse(map['fecha_registro'])
           : DateTime.now(),
+      telefono: map['telefono']?.toString(),
+      fotoUrl: map['foto_url']?.toString(),
     );
   }
 
-  // ✅ NUEVO: Constructor desde datos de login
+  // Constructor desde datos de login
   factory Usuario.fromLoginData(Map<String, Object?> data) {
     return Usuario(
       id: data['id']?.toString() ?? '',
@@ -125,10 +135,36 @@ class Usuario {
       fechaRegistro: data['fecha_registro'] != null
           ? DateTime.parse(data['fecha_registro'].toString())
           : DateTime.now(),
+      telefono: data['telefono']?.toString(),
+      fotoUrl: data['foto_url']?.toString(),
     );
   }
 
-  // Métodos de utilidad - MEJORADOS
+  // Método para copiar con nuevos valores (para edición)
+  Usuario copyWith({
+    String? username,
+    String? nombre,
+    String? email,
+    String? telefono,
+    String? fotoUrl,
+  }) {
+    return Usuario(
+      id: id,
+      username: username ?? this.username,
+      email: email ?? this.email,
+      nombre: nombre ?? this.nombre,
+      password: password,
+      role: role,
+      carnet: carnet,
+      departamento: departamento,
+      estaActivo: estaActivo,
+      fechaRegistro: fechaRegistro,
+      telefono: telefono ?? this.telefono,
+      fotoUrl: fotoUrl ?? this.fotoUrl,
+    );
+  }
+
+  // Métodos de utilidad
   bool get puedeGestionarUsuarios => role.toLowerCase() == 'administrador';
   bool get puedeGestionarAsistencias => 
       role.toLowerCase() == 'administrador' || role.toLowerCase() == 'docente';
