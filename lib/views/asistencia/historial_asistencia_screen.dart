@@ -15,6 +15,7 @@ class HistorialAsistenciaScreen extends StatefulWidget {
 
 class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
   final TextEditingController _searchController = TextEditingController();
+  late HistorialAsistenciaViewModel _historialViewModel;
 
   @override
   void initState() {
@@ -23,15 +24,22 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _historialViewModel = Provider.of<HistorialAsistenciaViewModel>(context, listen: false);
+  }
+
+  void _onSearchChanged() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _historialViewModel.setQueryBusqueda(_searchController.text);
+    });
+  }
+
+  @override
   void dispose() {
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
-  }
-
-  void _onSearchChanged() {
-    final historialViewModel = context.read<HistorialAsistenciaViewModel>();
-    historialViewModel.setQueryBusqueda(_searchController.text);
   }
 
   @override
@@ -55,7 +63,7 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
               icon: const Icon(Icons.refresh),
               onPressed: () {
                 final materiaViewModel = context.read<MateriaViewModel>();
-                materiaViewModel.recargarMaterias(); // ✅ CORREGIDO
+                materiaViewModel.recargarMaterias();
               },
               tooltip: 'Recargar materias',
             ),
@@ -63,10 +71,15 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
         ),
         body: Consumer2<MateriaViewModel, HistorialAsistenciaViewModel>(
           builder: (context, materiaViewModel, historialViewModel, child) {
+            // ✅ CORREGIDO: Usar error en lugar de hasError
             if (materiaViewModel.isLoading) {
               return const Center(
                 child: CircularProgressIndicator(),
               );
+            }
+
+            if (materiaViewModel.error != null && materiaViewModel.error!.isNotEmpty) {
+              return _buildErrorState(materiaViewModel, historialViewModel, context);
             }
 
             return _buildContent(context, materiaViewModel, historialViewModel);
@@ -81,7 +94,6 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
     MateriaViewModel materiaViewModel,
     HistorialAsistenciaViewModel historialViewModel,
   ) {
-    // Obtener materias filtradas usando TU MateriaViewModel
     final materiasFiltradas = _obtenerMateriasFiltradas(materiaViewModel, historialViewModel);
 
     return Column(
@@ -97,33 +109,6 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
         _buildMateriasList(context, materiasFiltradas, materiaViewModel, historialViewModel),
       ],
     );
-  }
-
-  List<Materia> _obtenerMateriasFiltradas(
-    MateriaViewModel materiaViewModel,
-    HistorialAsistenciaViewModel historialViewModel,
-  ) {
-    List<Materia> materiasBase;
-
-    if (historialViewModel.mostrarTodasMaterias) {
-      // Mostrar todas las materias de tu MateriaViewModel
-      materiasBase = materiaViewModel.materias;
-    } else {
-      // Filtrar por año seleccionado usando TU MateriaViewModel
-      materiasBase = materiaViewModel.materias
-          .where((materia) => materia.anio == materiaViewModel.anioSeleccionado)
-          .toList();
-    }
-
-    // Aplicar filtro de búsqueda
-    final query = historialViewModel.queryBusqueda.toLowerCase();
-    if (query.isEmpty) return materiasBase;
-
-    return materiasBase.where((materia) =>
-      materia.nombre.toLowerCase().contains(query) ||
-      materia.codigo.toLowerCase().contains(query) ||
-      materia.carrera.toLowerCase().contains(query),
-    ).toList();
   }
 
   Widget _buildFiltrosSection(
@@ -155,7 +140,7 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
           if (!historialViewModel.mostrarTodasMaterias)
             _buildAnioSelector(context, materiaViewModel, historialViewModel),
 
-          // Buscador
+          // Buscador - ✅ CORREGIDO
           _buildSearchField(context, historialViewModel),
 
           // Indicador de Filtros Activos
@@ -164,6 +149,111 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildSearchField(
+    BuildContext context, 
+    HistorialAsistenciaViewModel historialViewModel,
+  ) {
+    return TextField(
+      controller: _searchController,
+      style: TextStyle(color: historialViewModel.getTextColor(context)),
+      decoration: InputDecoration(
+        hintText: 'Buscar materia...',
+        hintStyle: TextStyle(
+          color: historialViewModel.getSecondaryTextColor(context),
+        ),
+        prefixIcon: Icon(
+          Icons.search,
+          color: historialViewModel.getSecondaryTextColor(context),
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadius.medium),
+          borderSide: BorderSide(color: historialViewModel.getBorderColor(context)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadius.medium),
+          borderSide: BorderSide(color: historialViewModel.getBorderColor(context)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadius.medium),
+          borderSide: const BorderSide(color: AppColors.primary),
+        ),
+        filled: true,
+        fillColor: historialViewModel.getSearchBackgroundColor(context),
+      ),
+      onChanged: (value) {
+        // ✅ CORRECCIÓN PRINCIPAL: Actualizar ViewModel directamente
+        historialViewModel.setQueryBusqueda(value);
+      },
+    );
+  }
+
+  // ... (el resto de tus métodos se mantienen igual) ...
+
+  Widget _buildErrorState(
+    MateriaViewModel materiaViewModel, 
+    HistorialAsistenciaViewModel historialViewModel,
+    BuildContext context,
+  ) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 64,
+            color: Colors.red,
+          ),
+          SizedBox(height: 16),
+          Text(
+            'Error al cargar las materias',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: historialViewModel.getTextColor(context),
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            materiaViewModel.error ?? 'Error desconocido',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: historialViewModel.getSecondaryTextColor(context),
+            ),
+          ),
+          SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () => materiaViewModel.recargarMaterias(),
+            child: Text('Reintentar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Materia> _obtenerMateriasFiltradas(
+    MateriaViewModel materiaViewModel,
+    HistorialAsistenciaViewModel historialViewModel,
+  ) {
+    List<Materia> materiasBase;
+
+    if (historialViewModel.mostrarTodasMaterias) {
+      materiasBase = materiaViewModel.materias;
+    } else {
+      materiasBase = materiaViewModel.materias
+          .where((materia) => materia.anio == materiaViewModel.anioSeleccionado)
+          .toList();
+    }
+
+    final query = historialViewModel.queryBusqueda.toLowerCase();
+    if (query.isEmpty) return materiasBase;
+
+    return materiasBase.where((materia) =>
+      materia.nombre.toLowerCase().contains(query) ||
+      materia.codigo.toLowerCase().contains(query) ||
+      materia.carrera.toLowerCase().contains(query),
+    ).toList();
   }
 
   Widget _buildToggleTodasMaterias(
@@ -235,7 +325,7 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
                     isExpanded: true,
                     underline: const SizedBox(),
                     dropdownColor: historialViewModel.getDropdownBackgroundColor(context),
-                    items: _buildAnioDropdownItems(historialViewModel),
+                    items: _buildAnioDropdownItems(historialViewModel, context),
                     onChanged: (value) {
                       if (value != null) {
                         materiaViewModel.setAnioSeleccionado(value);
@@ -254,6 +344,7 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
 
   List<DropdownMenuItem<int>> _buildAnioDropdownItems(
     HistorialAsistenciaViewModel historialViewModel,
+    BuildContext context,
   ) {
     return [
       DropdownMenuItem(
@@ -296,40 +387,6 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
         ),
       ),
     ];
-  }
-
-  Widget _buildSearchField(
-    BuildContext context, 
-    HistorialAsistenciaViewModel historialViewModel,
-  ) {
-    return TextField(
-      controller: _searchController,
-      style: TextStyle(color: historialViewModel.getTextColor(context)),
-      decoration: InputDecoration(
-        hintText: 'Buscar materia...',
-        hintStyle: TextStyle(
-          color: historialViewModel.getSecondaryTextColor(context),
-        ),
-        prefixIcon: Icon(
-          Icons.search,
-          color: historialViewModel.getSecondaryTextColor(context),
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.medium),
-          borderSide: BorderSide(color: historialViewModel.getBorderColor(context)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.medium),
-          borderSide: BorderSide(color: historialViewModel.getBorderColor(context)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.medium),
-          borderSide: const BorderSide(color: AppColors.primary),
-        ),
-        filled: true,
-        fillColor: historialViewModel.getSearchBackgroundColor(context),
-      ),
-    );
   }
 
   Widget _buildFiltrosActivosIndicator(
@@ -398,7 +455,7 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
     HistorialAsistenciaViewModel historialViewModel,
   ) {
     if (materias.isEmpty) {
-      return _buildEmptyState(historialViewModel);
+      return _buildEmptyState(historialViewModel, context);
     }
 
     return Expanded(
@@ -413,7 +470,7 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
     );
   }
 
-  Widget _buildEmptyState(HistorialAsistenciaViewModel historialViewModel) {
+  Widget _buildEmptyState(HistorialAsistenciaViewModel historialViewModel, BuildContext context) {
     return Expanded(
       child: Center(
         child: Column(
@@ -499,7 +556,7 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
                     Icons.groups,
                     materiaViewModel.getColorParalelo(materia.paralelo),
                     context,
-                  ),
+                ),
                 if (materia.turno.isNotEmpty)
                   _buildInfoChip(
                     materia.turno,
@@ -556,8 +613,18 @@ class _HistorialAsistenciaScreenState extends State<HistorialAsistenciaScreen> {
   void _navigateToBimestres(BuildContext context, Materia materia) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => BimestresScreen(materiaSeleccionada: materia.nombre), // ✅ CORREGIDO
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => 
+            BimestresScreen(materiaSeleccionada: materia.nombre),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(1.0, 0.0),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          );
+        },
       ),
     );
   }

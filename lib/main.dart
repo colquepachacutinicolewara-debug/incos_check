@@ -1,4 +1,4 @@
-// main.dart
+// main.dart - VERSIÓN COMPLETA OPTIMIZADA
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -34,6 +34,16 @@ import 'services/notification_service.dart';
 import 'views/dashboard/dashboard_screen.dart';
 import 'views/dashboard/login_screen.dart';
 
+// Colors
+class AppColors {
+  static const Color primary = Color(0xFF1565C0);
+  static const Color secondary = Color(0xFF42A5F5);
+  static const Color background = Color(0xFFF5F5F5);
+  static const Color surface = Colors.white;
+  static const Color darkBackground = Color(0xFF121212);
+  static const Color darkSurface = Color(0xFF1E1E1E);
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -53,6 +63,10 @@ Future<void> main() async {
       final count = await db.rawQuery('SELECT COUNT(*) as count FROM ${table['name']}');
       print('📋 Tabla ${table['name']}: ${count.first['count']} registros');
     }
+    
+    // 🌟 INICIALIZAR NOTIFICACIONES
+    await NotificationService().initialize();
+    print('🔔 Servicio de notificaciones inicializado');
     
   } catch (e) {
     debugPrint('❌ Error crítico al inicializar base de datos: $e');
@@ -74,7 +88,7 @@ class MyApp extends StatelessWidget {
           create: (context) => DatabaseHelper.instance,
         ),
         
-        // 🌟 AUTH VIEWMODEL - DEBE ESTAR PRIMERO
+        // 🌟 AUTH VIEWMODEL - DEBE ESTAR PRIMERO (CON EL MÉTODO initializeSession)
         ChangeNotifierProvider<AuthViewModel>(
           create: (_) => AuthViewModel(),
         ),
@@ -161,17 +175,31 @@ class MyApp extends StatelessWidget {
       ],
       child: Consumer2<ThemeService, AuthViewModel>(
         builder: (context, themeService, authViewModel, child) {
-          return MaterialApp(
-            debugShowCheckedModeBanner: false,
-            title: 'INCOS Check - Sistema de Asistencia',
-            theme: _buildLightTheme(),
-            darkTheme: _buildDarkTheme(),
-            themeMode: themeService.themeMode,
-            home: AuthWrapper(authViewModel: authViewModel),
-            // 🌟 RUTAS PARA NAVEGACIÓN (OPCIONAL)
-            routes: {
-              '/dashboard': (context) => const DashboardScreen(),
-              '/login': (context) => const LoginScreen(),
+          return FutureBuilder(
+            future: authViewModel.initializeSession(),
+            builder: (context, snapshot) {
+              // Mientras se inicializa la sesión, mostrar pantalla de carga
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return MaterialApp(
+                  debugShowCheckedModeBanner: false,
+                  home: _buildInitialLoadingScreen(),
+                );
+              }
+              
+              // Cuando ya se completó la inicialización de sesión
+              return MaterialApp(
+                debugShowCheckedModeBanner: false,
+                title: 'INCOS Check - Sistema de Asistencia',
+                theme: _buildLightTheme(),
+                darkTheme: _buildDarkTheme(),
+                themeMode: themeService.themeMode,
+                home: const AuthWrapper(),
+                // 🌟 RUTAS PARA NAVEGACIÓN (OPCIONAL)
+                routes: {
+                  '/dashboard': (context) => const DashboardScreen(),
+                  '/login': (context) => const LoginScreen(),
+                },
+              );
             },
           );
         },
@@ -179,24 +207,45 @@ class MyApp extends StatelessWidget {
     );
   }
 
-  // ... (los métodos _buildLightTheme y _buildDarkTheme se mantienen igual)
+  Widget _buildInitialLoadingScreen() {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 20),
+            Text(
+              'Inicializando aplicación...',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // 🌟 TEMA CLARO
   ThemeData _buildLightTheme() {
     return ThemeData(
       useMaterial3: true,
       colorScheme: const ColorScheme.light(
-        primary: Color(0xFF1565C0),
-        secondary: Color(0xFF42A5F5),
-        background: Color(0xFFF5F5F5),
-        surface: Colors.white,
+        primary: AppColors.primary,
+        secondary: AppColors.secondary,
+        background: AppColors.background,
+        surface: AppColors.surface,
         onPrimary: Colors.white,
         onSecondary: Colors.white,
         onBackground: Colors.black87,
         onSurface: Colors.black87,
       ),
-      scaffoldBackgroundColor: const Color(0xFFF5F5F5),
+      scaffoldBackgroundColor: AppColors.background,
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF1565C0),
+        backgroundColor: AppColors.primary,
         elevation: 2,
         centerTitle: true,
         titleTextStyle: TextStyle(
@@ -208,7 +257,7 @@ class MyApp extends StatelessWidget {
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: Colors.white,
-        selectedItemColor: Color(0xFF1565C0),
+        selectedItemColor: AppColors.primary,
         unselectedItemColor: Colors.grey,
         selectedLabelStyle: TextStyle(fontWeight: FontWeight.bold),
         showUnselectedLabels: true,
@@ -237,7 +286,7 @@ class MyApp extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFF1565C0), width: 2),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -254,7 +303,7 @@ class MyApp extends StatelessWidget {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF1565C0),
+          backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           elevation: 2,
           shape: RoundedRectangleBorder(
@@ -269,7 +318,7 @@ class MyApp extends StatelessWidget {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: const Color(0xFF1565C0),
+          foregroundColor: AppColors.primary,
           textStyle: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w500,
@@ -278,8 +327,8 @@ class MyApp extends StatelessWidget {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF1565C0),
-          side: const BorderSide(color: Color(0xFF1565C0)),
+          foregroundColor: AppColors.primary,
+          side: const BorderSide(color: AppColors.primary),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
@@ -291,7 +340,7 @@ class MyApp extends StatelessWidget {
         ),
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: Color(0xFF1565C0),
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 4,
       ),
@@ -301,7 +350,7 @@ class MyApp extends StatelessWidget {
         space: 1,
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: Color(0xFF1565C0),
+        color: AppColors.primary,
       ),
       snackBarTheme: const SnackBarThemeData(
         backgroundColor: Color(0xFF323232),
@@ -320,16 +369,16 @@ class MyApp extends StatelessWidget {
       colorScheme: const ColorScheme.dark(
         primary: Color(0xFF90CAF9),
         secondary: Color(0xFF64B5F6),
-        background: Color(0xFF121212),
-        surface: Color(0xFF1E1E1E),
+        background: AppColors.darkBackground,
+        surface: AppColors.darkSurface,
         onPrimary: Colors.black87,
         onSecondary: Colors.black87,
         onBackground: Colors.white,
         onSurface: Colors.white,
       ),
-      scaffoldBackgroundColor: const Color(0xFF121212),
+      scaffoldBackgroundColor: AppColors.darkBackground,
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF1E1E1E),
+        backgroundColor: AppColors.darkSurface,
         elevation: 2,
         centerTitle: true,
         titleTextStyle: TextStyle(
@@ -340,7 +389,7 @@ class MyApp extends StatelessWidget {
         iconTheme: IconThemeData(color: Colors.white),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: Color(0xFF1E1E1E),
+        backgroundColor: AppColors.darkSurface,
         selectedItemColor: Color(0xFF90CAF9),
         unselectedItemColor: Colors.grey,
         selectedLabelStyle: TextStyle(fontWeight: FontWeight.bold),
@@ -350,8 +399,8 @@ class MyApp extends StatelessWidget {
       ),
       cardTheme: const CardThemeData(
         elevation: 2,
-        color: Color(0xFF1E1E1E),
-        surfaceTintColor: Color(0xFF1E1E1E),
+        color: AppColors.darkSurface,
+        surfaceTintColor: AppColors.darkSurface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(12)),
         ),
@@ -359,7 +408,7 @@ class MyApp extends StatelessWidget {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFF1E1E1E),
+        fillColor: AppColors.darkSurface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: Colors.grey),
@@ -461,82 +510,82 @@ class MyApp extends StatelessWidget {
 }
 
 class AuthWrapper extends StatefulWidget {
-  final AuthViewModel authViewModel;
-
-  const AuthWrapper({super.key, required this.authViewModel});
+  const AuthWrapper({super.key});
 
   @override
   State<AuthWrapper> createState() => _AuthWrapperState();
 }
 
 class _AuthWrapperState extends State<AuthWrapper> {
-  bool _initialized = false;
+  bool _initializing = true;
 
   @override
   void initState() {
     super.initState();
-    _checkSession();
+    _initializeApp();
   }
 
-  Future<void> _checkSession() async {
-    await widget.authViewModel.verificarSesionGuardada();
+  Future<void> _initializeApp() async {
+    // Esperar un poco para asegurar que todos los providers estén listos
+    await Future.delayed(const Duration(milliseconds: 100));
+    
     setState(() {
-      _initialized = true;
+      _initializing = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_initialized) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Verificando sesión...'),
-            ],
-          ),
-        ),
-      );
+    final authViewModel = Provider.of<AuthViewModel>(context);
+
+    if (_initializing) {
+      return _buildLoadingScreen();
     }
 
-    // Si ya está logueado, ir al dashboard
-    if (widget.authViewModel.isLoggedIn && widget.authViewModel.currentUser != null) {
-      final userData = {
-        'id': widget.authViewModel.currentUser!.id,
-        'username': widget.authViewModel.currentUser!.username,
-        'email': widget.authViewModel.currentUser!.email,
-        'nombre': widget.authViewModel.currentUser!.nombre,
-        'password': widget.authViewModel.currentUser!.password,
-        'role': widget.authViewModel.currentUser!.role,
-        'carnet': widget.authViewModel.currentUser!.carnet,
-        'departamento': widget.authViewModel.currentUser!.departamento,
-        'esta_activo': widget.authViewModel.currentUser!.estaActivo,
-        'fecha_registro': widget.authViewModel.currentUser!.fechaRegistro.toIso8601String(),
-      };
-      
-      return ChangeNotifierProvider(
-        create: (context) => DashboardViewModel(userData: userData),
-        child: DashboardScreen(userData: userData),
-      );
+    // El AuthViewModel ya verificó la sesión automáticamente gracias al FutureBuilder
+    if (authViewModel.isLoggedIn) {
+      return _buildDashboard(authViewModel);
     }
 
-    // En tu main.dart
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  // Inicializar notificaciones
-  await NotificationService().initialize();
-  
-  runApp(MyApp());
-}
-    
-    
-    // Si no está logueado, mostrar login
     return const LoginScreen();
-  
   }
-  
+
+  Widget _buildLoadingScreen() {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: AppColors.primary),
+            const SizedBox(height: 20),
+            const Text(
+              'Cargando aplicación...',
+              style: TextStyle(fontSize: 16),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDashboard(AuthViewModel authViewModel) {
+    final userData = {
+      'id': authViewModel.currentUser!.id,
+      'username': authViewModel.currentUser!.username,
+      'email': authViewModel.currentUser!.email,
+      'nombre': authViewModel.currentUser!.nombre,
+      'password': authViewModel.currentUser!.password,
+      'role': authViewModel.currentUser!.role,
+      'carnet': authViewModel.currentUser!.carnet,
+      'departamento': authViewModel.currentUser!.departamento,
+      'esta_activo': authViewModel.currentUser!.estaActivo,
+      'fecha_registro': authViewModel.currentUser!.fechaRegistro.toIso8601String(),
+    };
+    
+    return ChangeNotifierProvider(
+      create: (context) => DashboardViewModel(userData: userData),
+      child: DashboardScreen(userData: userData),
+    );
+  }
 }

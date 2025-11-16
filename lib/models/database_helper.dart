@@ -1,4 +1,4 @@
-// models/database_helper.dart - VERSIÓN COMPLETA CON TODAS LAS CONSULTAS SQL
+// models/database_helper.dart - VERSIÓN COMPLETA CON SOLO CAMBIOS DPS → NOTAS_ASISTENCIA
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kReleaseMode;
@@ -149,12 +149,12 @@ class DatabaseHelper {
       }
     }
     
-    // 🆕 NUEVA MIGRACIÓN PARA VERSIÓN 4 - TABLAS NOTAS DE ASITENCIAS Y PUNTUALIDAD
+    // 🆕 NUEVA MIGRACIÓN PARA VERSIÓN 4 - TABLAS NOTAS DE ASISTENCIA Y PUNTUALIDAD
     if (oldVersion < 4) {
       try {
-        await _crearTablasDpsYDocentemateria(db);
+        await _crearTablasNotasAsistenciaYDocentemateria(db);
         await _agregarCamposPuntualidad(db);
-        print('✅ Migración a versión 4 completada - Tablas NOTAS DE ASITENCIAS creadas');
+        print('✅ Migración a versión 4 completada - Tablas NOTAS DE ASISTENCIA creadas');
       } catch (e) {
         print('⚠️ Error en upgrade a versión 4: $e');
       }
@@ -384,14 +384,14 @@ class DatabaseHelper {
       );
     ''');
 
-    // 🆕 ALTA PRIORIDAD: TABLA CRITERIOS_DPS
+    // 🆕 CORREGIDO: TABLA CONFIG_NOTAS_ASISTENCIA (NO DPS)
     await db.execute('''
       CREATE TABLE IF NOT EXISTS config_notas_asistencia(
         id TEXT PRIMARY KEY,
         nombre TEXT NOT NULL,
         descripcion TEXT,
-        formula_tipo TEXT DEFAULT 'PORCENTAJE',
-        porcentaje_total REAL DEFAULT 10.0,
+        puntaje_maximo REAL DEFAULT 10.0,
+        formula_tipo TEXT DEFAULT 'BIMESTRAL',
         parametros TEXT,
         activo INTEGER DEFAULT 1,
         fecha_creacion TEXT NOT NULL,
@@ -399,7 +399,7 @@ class DatabaseHelper {
       );
     ''');
 
-    // 🆕 ALTA PRIORIDAD: TABLA NOTAS_ASISTENCIA
+    // 🆕 CORREGIDO: TABLA NOTAS_ASISTENCIA (SIN DPS)
     await db.execute('''
       CREATE TABLE IF NOT EXISTS notas_asistencia(
         id TEXT PRIMARY KEY,
@@ -407,7 +407,7 @@ class DatabaseHelper {
         materia_id TEXT NOT NULL,
         periodo_id TEXT NOT NULL,
         bimestre_id TEXT NOT NULL,
-        criterio_dps_id TEXT NOT NULL,
+        config_asistencia_id TEXT NOT NULL,
         total_clases INTEGER DEFAULT 0,
         clases_asistidas INTEGER DEFAULT 0,
         clases_faltadas INTEGER DEFAULT 0,
@@ -421,7 +421,7 @@ class DatabaseHelper {
         FOREIGN KEY(materia_id) REFERENCES materias(id) ON UPDATE CASCADE ON DELETE CASCADE,
         FOREIGN KEY(periodo_id) REFERENCES periodos_academicos(id) ON UPDATE CASCADE ON DELETE CASCADE,
         FOREIGN KEY(bimestre_id) REFERENCES bimestres(id) ON UPDATE CASCADE ON DELETE CASCADE,
-        FOREIGN KEY(criterio_dps_id) REFERENCES criterios_dps(id) ON UPDATE CASCADE ON DELETE CASCADE
+        FOREIGN KEY(config_asistencia_id) REFERENCES config_notas_asistencia(id) ON UPDATE CASCADE ON DELETE CASCADE
       );
     ''');
 
@@ -563,6 +563,26 @@ class DatabaseHelper {
 
     // ✅ AGREGAR ÍNDICES DE OPTIMIZACIÓN AL FINAL
     await _createIndexes(db);
+
+    // 🆕 MÉTODO PARA AGREGAR COLUMNA VALUE A CONFIGURACIONES
+Future<void> _migrarTablaConfiguraciones(Database db) async {
+  try {
+    final tableInfo = await db.rawQuery('PRAGMA table_info(configuraciones)');
+    final columnas = tableInfo.map((col) => col['name'] as String).toList();
+    
+    if (!columnas.contains('value')) {
+      print('🔄 Agregando columna value a tabla configuraciones...');
+      await db.execute('''
+        ALTER TABLE configuraciones ADD COLUMN value TEXT
+      ''');
+      print('✅ Columna value agregada a configuraciones');
+    } else {
+      print('✅ Columna value ya existe en configuraciones');
+    }
+  } catch (e) {
+    print('⚠️ Error migrando tabla configuraciones: $e');
+  }
+}
   }
 
   // ====== ÍNDICES PARA OPTIMIZACIÓN ======
@@ -667,6 +687,11 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_config_notas_activo 
+      ON config_notas_asistencia(activo);
+    ''');
+
+    await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_detalle_hora_registro 
       ON detalle_asistencias(hora_registro);
     ''');
@@ -674,7 +699,7 @@ class DatabaseHelper {
     print('✅ Índices de optimización creados exitosamente');
   }
 
-  // 🌱 SEED ACTUALIZADO CON DATOS DPS
+  // 🌱 SEED ACTUALIZADO CON DATOS NOTAS_ASISTENCIA
   Future<void> _seed(Database db) async {
     print('🌱 Insertando datos iniciales...');
     
@@ -922,22 +947,22 @@ class DatabaseHelper {
       print('✅ Docente de ejemplo insertado');
     }
 
-    // 🆕 ALTA PRIORIDAD: Insertar NOTAS DE ASITENCIAS por defecto
-    final criteriosCount = await db.rawQuery('SELECT COUNT(*) AS c FROM criterios_dps');
-    if ((criteriosCount.first['c'] as int?) == 0) {
+    // 🆕 CORREGIDO: Insertar CONFIGURACIÓN DE NOTAS DE ASISTENCIA por defecto
+    final configNotasCount = await db.rawQuery('SELECT COUNT(*) AS c FROM config_notas_asistencia');
+    if ((configNotasCount.first['c'] as int?) == 0) {
       final now = DateTime.now().toIso8601String();
-      await db.insert('criterios_dps', {
-        'id': 'dps_tercero_b',
-        'nombre': 'Criterio Asistencia Tercer Año B - Sistemas',
-        'descripcion': 'Cálculo de nota de asistencia sobre 10 puntos',
-        'formula_tipo': 'PORCENTAJE',
-        'porcentaje_total': 10.0,
-        'parametros': '{"asistencia_minima": 80, "tolerancia_minutos": 15, "puntualidad_requerida": true}',
+      await db.insert('config_notas_asistencia', {
+        'id': 'config_asistencia_default',
+        'nombre': 'Configuración Notas Asistencia Tercer Año B',
+        'descripcion': 'Cálculo de nota de asistencia bimestral sobre 10 puntos',
+        'puntaje_maximo': 10.0,
+        'formula_tipo': 'BIMESTRAL',
+        'parametros': '{"asistencia_minima": 80, "tolerancia_minutos": 15, "considera_puntualidad": true}',
         'activo': 1,
         'fecha_creacion': now,
         'fecha_actualizacion': now
       });
-      print('✅ Criterio notas asitencia insertado');
+      print('✅ Configuración notas asistencia insertada');
     }
 
     // 🆕 ALTA PRIORIDAD: Insertar relación docente-materia de ejemplo
@@ -981,9 +1006,9 @@ class DatabaseHelper {
   }
 
   // 🆕 MÉTODOS DE MIGRACIÓN PARA NUEVAS TABLAS
-  Future<void> _crearTablasDpsYDocentemateria(Database db) async {
+  Future<void> _crearTablasNotasAsistenciaYDocentemateria(Database db) async {
     try {
-      print('🔄 Creando tablas notas asitencia y docente_materia...');
+      print('🔄 Creando tablas notas asistencia y docente_materia...');
       
       // Tabla docente_materia
       await db.execute('''
@@ -1007,14 +1032,14 @@ class DatabaseHelper {
         );
       ''');
 
-      // Tabla criterios_dps
+      // 🆕 CORREGIDO: Tabla config_notas_asistencia (NO DPS)
       await db.execute('''
-        CREATE TABLE IF NOT EXISTS criterios_dps(
+        CREATE TABLE IF NOT EXISTS config_notas_asistencia(
           id TEXT PRIMARY KEY,
           nombre TEXT NOT NULL,
           descripcion TEXT,
-          formula_tipo TEXT DEFAULT 'PORCENTAJE',
-          porcentaje_total REAL DEFAULT 10.0,
+          puntaje_maximo REAL DEFAULT 10.0,
+          formula_tipo TEXT DEFAULT 'BIMESTRAL',
           parametros TEXT,
           activo INTEGER DEFAULT 1,
           fecha_creacion TEXT NOT NULL,
@@ -1022,7 +1047,7 @@ class DatabaseHelper {
         );
       ''');
 
-      // Tabla notas_asistencia
+      // 🆕 CORREGIDO: Tabla notas_asistencia (SIN DPS)
       await db.execute('''
         CREATE TABLE IF NOT EXISTS notas_asistencia(
           id TEXT PRIMARY KEY,
@@ -1030,7 +1055,7 @@ class DatabaseHelper {
           materia_id TEXT NOT NULL,
           periodo_id TEXT NOT NULL,
           bimestre_id TEXT NOT NULL,
-          criterio_dps_id TEXT NOT NULL,
+          config_asistencia_id TEXT NOT NULL,
           total_clases INTEGER DEFAULT 0,
           clases_asistidas INTEGER DEFAULT 0,
           clases_faltadas INTEGER DEFAULT 0,
@@ -1044,13 +1069,13 @@ class DatabaseHelper {
           FOREIGN KEY(materia_id) REFERENCES materias(id) ON UPDATE CASCADE ON DELETE CASCADE,
           FOREIGN KEY(periodo_id) REFERENCES periodos_academicos(id) ON UPDATE CASCADE ON DELETE CASCADE,
           FOREIGN KEY(bimestre_id) REFERENCES bimestres(id) ON UPDATE CASCADE ON DELETE CASCADE,
-          FOREIGN KEY(criterio_dps_id) REFERENCES criterios_dps(id) ON UPDATE CASCADE ON DELETE CASCADE
+          FOREIGN KEY(config_asistencia_id) REFERENCES config_notas_asistencia(id) ON UPDATE CASCADE ON DELETE CASCADE
         );
       ''');
 
-      print('✅ Tablas nota asitencia y docente_materia creadas exitosamente');
+      print('✅ Tablas notas asistencia y docente_materia creadas exitosamente');
     } catch (e) {
-      print('❌ Error creando tablas DPS: $e');
+      print('❌ Error creando tablas notas asistencia: $e');
       rethrow;
     }
   }
@@ -1422,7 +1447,7 @@ class DatabaseHelper {
     );
   }
 
-  // 🆕 MÉTODOS ESPECÍFICOS PARA NUEVAS TABLAS DPS
+  // 🆕 MÉTODOS ESPECÍFICOS PARA NOTAS DE ASISTENCIA (SIN DPS)
   Future<int> asignarDocenteMateria(Map<String, dynamic> asignacion) async {
     final db = await database;
     return await db.insert('docente_materia', asignacion);
@@ -1448,30 +1473,33 @@ class DatabaseHelper {
     ''', [materiaId]);
   }
 
+  // 🆕 CORREGIDO: MÉTODO PARA CALCULAR NOTA DE ASISTENCIA BIMESTRAL
   Future<int> calcularNotaAsistencia(String estudianteId, String materiaId, String periodoId, String bimestreId) async {
     final db = await database;
     
-    // Obtener criterio notas de asistencia activo
-    final criterios = await db.query('criterios_dps', where: 'activo = 1', limit: 1);
-    if (criterios.isEmpty) {
-      throw Exception('No hay criterios notas de asistencia activos');
+    // Obtener configuración de notas de asistencia activa
+    final configs = await db.query('config_notas_asistencia', where: 'activo = 1', limit: 1);
+    if (configs.isEmpty) {
+      throw Exception('No hay configuración de notas de asistencia activa');
     }
     
-    final criterio = criterios.first;
-    final criterioId = criterio['id'] as String;
+    final config = configs.first;
+    final configId = config['id'] as String;
+    final puntajeMaximo = config['puntaje_maximo'] as double? ?? 10.0;
     
-    // Calcular asistencia
+    // Calcular asistencia del bimestre
     final asistenciaData = await db.rawQuery('''
       SELECT 
         COUNT(*) as total_clases,
         SUM(CASE WHEN da.estado = 'A' THEN 1 ELSE 0 END) as clases_asistidas
       FROM asistencias a
       JOIN detalle_asistencias da ON a.id = da.asistencia_id
-      WHERE a.estudiante_id = ? AND a.materia_id = ? AND a.periodo_id = ?
-    ''', [estudianteId, materiaId, periodoId]);
+      JOIN bimestres b ON a.periodo_id = b.periodo_id
+      WHERE a.estudiante_id = ? AND a.materia_id = ? AND a.periodo_id = ? AND b.id = ?
+    ''', [estudianteId, materiaId, periodoId, bimestreId]);
     
     if (asistenciaData.isEmpty) {
-      throw Exception('No se encontraron datos de asistencia');
+      throw Exception('No se encontraron datos de asistencia para el bimestre');
     }
     
     final data = asistenciaData.first;
@@ -1479,8 +1507,8 @@ class DatabaseHelper {
     final clasesAsistidas = data['clases_asistidas'] as int? ?? 0;
     final porcentajeAsistencia = totalClases > 0 ? (clasesAsistidas / totalClases) * 100 : 0.0;
     
-    // Calcular nota según criterio (fórmula simple por ahora)
-    double notaCalculada = (porcentajeAsistencia / 100) * (criterio['porcentaje_total'] as double? ?? 10.0);
+    // Calcular nota sobre 10 puntos
+    double notaCalculada = (porcentajeAsistencia / 100) * puntajeMaximo;
     
     // Insertar o actualizar nota
     final notaExistente = await db.query(
@@ -1495,7 +1523,7 @@ class DatabaseHelper {
       'materia_id': materiaId,
       'periodo_id': periodoId,
       'bimestre_id': bimestreId,
-      'criterio_dps_id': criterioId,
+      'config_asistencia_id': configId,
       'total_clases': totalClases,
       'clases_asistidas': clasesAsistidas,
       'clases_faltadas': totalClases - clasesAsistidas,
@@ -1503,7 +1531,7 @@ class DatabaseHelper {
       'nota_calculada': notaCalculada,
       'estado': 'CALCULADO',
       'fecha_calculo': now,
-      'observaciones': 'Calculado automáticamente'
+      'observaciones': 'Calculado automáticamente - Nota sobre ${puntajeMaximo.toInt()} puntos'
     };
     
     if (notaExistente.isNotEmpty) {
@@ -1522,13 +1550,26 @@ class DatabaseHelper {
   Future<List<Map<String, Object?>>> obtenerNotasAsistenciaPorEstudiante(String estudianteId, String periodoId) async {
     final db = await database;
     return await db.rawQuery('''
-      SELECT na.*, m.nombre as materia_nombre, b.nombre as bimestre_nombre
+      SELECT na.*, m.nombre as materia_nombre, b.nombre as bimestre_nombre,
+             cna.puntaje_maximo as puntaje_maximo
       FROM notas_asistencia na
       JOIN materias m ON na.materia_id = m.id
       JOIN bimestres b ON na.bimestre_id = b.id
+      JOIN config_notas_asistencia cna ON na.config_asistencia_id = cna.id
       WHERE na.estudiante_id = ? AND na.periodo_id = ?
       ORDER BY m.nombre, b.nombre
     ''', [estudianteId, periodoId]);
+  }
+
+  // 🆕 MÉTODO PARA OBTENER CONFIGURACIÓN DE NOTAS DE ASISTENCIA ACTIVA
+  Future<Map<String, Object?>?> obtenerConfiguracionNotasAsistenciaActiva() async {
+    final db = await database;
+    final results = await db.query(
+      'config_notas_asistencia',
+      where: 'activo = 1',
+      limit: 1
+    );
+    return results.isNotEmpty ? results.first : null;
   }
 
   // =================================================================
@@ -1626,7 +1667,7 @@ class DatabaseHelper {
   Future<String?> obtenerPeriodoActivo() async {
     final db = await database;
     final result = await db.rawQuery('''
-      SELECT id FROM periodos WHERE activo = 1 LIMIT 1
+      SELECT id FROM periodos_academicos WHERE estado = 'ACTIVO' LIMIT 1
     ''');
     return result.isNotEmpty ? result.first['id']?.toString() : null;
   }
@@ -1647,6 +1688,7 @@ class DatabaseHelper {
     ''');
   }
 
+  // ✅ CORREGIDO: MÉTODO obtenerFechasBimestre CON LA BARRA INVERTIDA
   Future<Map<String, String>?> obtenerFechasBimestre(String bimestreId) async {
     final db = await database;
     final bimestreInfo = await db.rawQuery(

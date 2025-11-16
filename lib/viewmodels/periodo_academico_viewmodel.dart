@@ -1,10 +1,10 @@
-// viewmodels/periodo_academico_viewmodel.dart
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import '../models/bimestre_model.dart';
 import '../models/database_helper.dart';
 
 class PeriodoAcademicoViewModel with ChangeNotifier {
-  final DatabaseHelper _databaseHelper = DatabaseHelper.instance; // ✅ Cambio aquí
+  final DatabaseHelper _databaseHelper = DatabaseHelper.instance;
 
   List<PeriodoAcademico> _periodos = [];
   List<PeriodoAcademico> get periodos => _periodos;
@@ -21,12 +21,17 @@ class PeriodoAcademicoViewModel with ChangeNotifier {
   final TextEditingController _fechaFinController = TextEditingController();
   final TextEditingController _descripcionController = TextEditingController();
 
+  // Variables para edición
+  String _periodoEditandoId = '';
+  String _estadoSeleccionado = 'Planificado';
+
   TextEditingController get nombreController => _nombreController;
   TextEditingController get fechaInicioController => _fechaInicioController;
   TextEditingController get fechaFinController => _fechaFinController;
   TextEditingController get descripcionController => _descripcionController;
+  String get estadoSeleccionado => _estadoSeleccionado;
 
-  PeriodoAcademicoViewModel() { // ✅ Constructor sin parámetros
+  PeriodoAcademicoViewModel() {
     cargarPeriodos();
   }
 
@@ -95,7 +100,7 @@ class PeriodoAcademicoViewModel with ChangeNotifier {
           fechaInicio: DateTime(2024, 6, 1),
           fechaFin: DateTime(2024, 7, 31),
           estado: 'Planificado',
-          fechasClases: [],
+          fechasClases: _generarFechasClases(DateTime(2024, 6, 1), DateTime(2024, 7, 31)),
           descripcion: 'Tercer período académico 2024',
           fechaCreacion: DateTime(2024, 5, 15),
         ),
@@ -107,7 +112,7 @@ class PeriodoAcademicoViewModel with ChangeNotifier {
           fechaInicio: DateTime(2024, 8, 1),
           fechaFin: DateTime(2024, 9, 30),
           estado: 'Planificado',
-          fechasClases: [],
+          fechasClases: _generarFechasClases(DateTime(2024, 8, 1), DateTime(2024, 9, 30)),
           descripcion: 'Cuarto período académico 2024',
           fechaCreacion: DateTime(2024, 7, 15),
         ),
@@ -115,9 +120,11 @@ class PeriodoAcademicoViewModel with ChangeNotifier {
 
       for (final periodo in periodosPredefinidos) {
         await _databaseHelper.rawInsert('''
-          INSERT INTO periodos_academicos (id, nombre, tipo, numero, fecha_inicio, fecha_fin, 
-          estado, fechas_clases, descripcion, fecha_creacion, fecha_actualizacion)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO periodos_academicos (
+            id, nombre, tipo, numero, fecha_inicio, fecha_fin, 
+            estado, fechas_clases, descripcion, fecha_creacion,
+            total_clases, duracion_dias
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', [
           periodo.id,
           periodo.nombre,
@@ -126,10 +133,11 @@ class PeriodoAcademicoViewModel with ChangeNotifier {
           periodo.fechaInicio.toIso8601String(),
           periodo.fechaFin.toIso8601String(),
           periodo.estado,
-          periodo.fechasClases.join(','),
+          json.encode(periodo.fechasClases),
           periodo.descripcion,
           periodo.fechaCreacion.toIso8601String(),
-          DateTime.now().toIso8601String(),
+          periodo.totalClasesComputed,
+          periodo.duracionDiasComputed,
         ]);
       }
 
@@ -137,7 +145,62 @@ class PeriodoAcademicoViewModel with ChangeNotifier {
       print('✅ ${_periodos.length} periodos académicos insertados en SQLite');
     } catch (e) {
       print('❌ Error insertando periodos predefinidos: $e');
+      // Si hay error, cargar datos en memoria
+      _cargarPeriodosEnMemoria();
     }
+  }
+
+  void _cargarPeriodosEnMemoria() {
+    _periodos = [
+      PeriodoAcademico(
+        id: 'bim1_memoria',
+        nombre: 'Primer Bimestre',
+        tipo: 'Bimestral',
+        numero: 1,
+        fechaInicio: DateTime(2024, 2, 1),
+        fechaFin: DateTime(2024, 3, 31),
+        estado: 'Finalizado',
+        fechasClases: _generarFechasClases(DateTime(2024, 2, 1), DateTime(2024, 3, 31)),
+        descripcion: 'Primer período académico 2024',
+        fechaCreacion: DateTime(2024, 1, 15),
+      ),
+      PeriodoAcademico(
+        id: 'bim2_memoria',
+        nombre: 'Segundo Bimestre',
+        tipo: 'Bimestral',
+        numero: 2,
+        fechaInicio: DateTime(2024, 4, 1),
+        fechaFin: DateTime(2024, 5, 31),
+        estado: 'En Curso',
+        fechasClases: _generarFechasClases(DateTime(2024, 4, 1), DateTime(2024, 5, 31)),
+        descripcion: 'Segundo período académico 2024',
+        fechaCreacion: DateTime(2024, 3, 15),
+      ),
+      PeriodoAcademico(
+        id: 'bim3_memoria',
+        nombre: 'Tercer Bimestre',
+        tipo: 'Bimestral',
+        numero: 3,
+        fechaInicio: DateTime(2024, 6, 1),
+        fechaFin: DateTime(2024, 7, 31),
+        estado: 'Planificado',
+        fechasClases: _generarFechasClases(DateTime(2024, 6, 1), DateTime(2024, 7, 31)),
+        descripcion: 'Tercer período académico 2024',
+        fechaCreacion: DateTime(2024, 5, 15),
+      ),
+      PeriodoAcademico(
+        id: 'bim4_memoria',
+        nombre: 'Cuarto Bimestre',
+        tipo: 'Bimestral',
+        numero: 4,
+        fechaInicio: DateTime(2024, 8, 1),
+        fechaFin: DateTime(2024, 9, 30),
+        estado: 'Planificado',
+        fechasClases: _generarFechasClases(DateTime(2024, 8, 1), DateTime(2024, 9, 30)),
+        descripcion: 'Cuarto período académico 2024',
+        fechaCreacion: DateTime(2024, 7, 15),
+      ),
+    ];
   }
 
   Future<void> _cargarPeriodosExistentes() async {
@@ -154,6 +217,7 @@ class PeriodoAcademicoViewModel with ChangeNotifier {
       print('✅ ${_periodos.length} periodos académicos cargados desde SQLite');
     } catch (e) {
       print('❌ Error cargando periodos desde SQLite: $e');
+      _cargarPeriodosEnMemoria();
     }
   }
 
@@ -172,87 +236,221 @@ class PeriodoAcademicoViewModel with ChangeNotifier {
     return fechas;
   }
 
-  Future<bool> agregarPeriodo(PeriodoAcademico periodo) async {
+  // ✅ MÉTODO PARA EDITAR FECHAS - RESPONDIENDO A TU PREGUNTA
+  Future<bool> editarFechasPeriodo(
+    String periodoId,
+    DateTime nuevaFechaInicio,
+    DateTime nuevaFechaFin,
+  ) async {
     try {
-      // Verificar si ya existe un periodo con el mismo número
-      final existe = await _databaseHelper.rawQuery('''
-        SELECT COUNT(*) as count FROM periodos_academicos 
-        WHERE numero = ? AND tipo = ?
-      ''', [periodo.numero, periodo.tipo]);
-
-      final count = (existe.first['count'] as int?) ?? 0;
-      if (count > 0) {
-        _error = 'Ya existe un período con el mismo número y tipo';
+      final periodoIndex = _periodos.indexWhere((p) => p.id == periodoId);
+      if (periodoIndex == -1) {
+        _error = 'Período no encontrado';
         notifyListeners();
         return false;
       }
 
-      await _databaseHelper.rawInsert('''
-        INSERT INTO periodos_academicos (id, nombre, tipo, numero, fecha_inicio, fecha_fin, 
-        estado, fechas_clases, descripcion, fecha_creacion, fecha_actualizacion)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      final periodoActual = _periodos[periodoIndex];
+      final nuevasFechasClases = _generarFechasClases(nuevaFechaInicio, nuevaFechaFin);
+
+      final periodoActualizado = periodoActual.copyWith(
+        fechaInicio: nuevaFechaInicio,
+        fechaFin: nuevaFechaFin,
+        fechasClases: nuevasFechasClases,
+      );
+
+      // Actualizar en SQLite
+      await _databaseHelper.rawUpdate('''
+        UPDATE periodos_academicos SET 
+        fecha_inicio = ?, fecha_fin = ?, fechas_clases = ?,
+        total_clases = ?, duracion_dias = ?
+        WHERE id = ?
       ''', [
-        periodo.id,
-        periodo.nombre,
-        periodo.tipo,
-        periodo.numero,
-        periodo.fechaInicio.toIso8601String(),
-        periodo.fechaFin.toIso8601String(),
-        periodo.estado,
-        periodo.fechasClases.join(','),
-        periodo.descripcion,
-        periodo.fechaCreacion.toIso8601String(),
-        DateTime.now().toIso8601String(),
+        nuevaFechaInicio.toIso8601String(),
+        nuevaFechaFin.toIso8601String(),
+        json.encode(nuevasFechasClases),
+        nuevasFechasClases.length,
+        nuevaFechaFin.difference(nuevaFechaInicio).inDays,
+        periodoId,
       ]);
 
-      await cargarPeriodos();
-      _limpiarFormulario();
+      _periodos[periodoIndex] = periodoActualizado;
+      notifyListeners();
+      
+      print('✅ Fechas del período actualizadas correctamente');
       return true;
     } catch (e) {
-      _error = 'Error al agregar período: $e';
+      _error = 'Error al editar fechas: $e';
       notifyListeners();
       return false;
     }
   }
 
-  Future<bool> actualizarPeriodo(PeriodoAcademico periodo) async {
+  // ✅ MÉTODO COMPLETO PARA EDITAR PERIODO
+  Future<bool> editarPeriodoCompleto(
+    String periodoId,
+    String nuevoNombre,
+    String nuevoTipo,
+    int nuevoNumero,
+    DateTime nuevaFechaInicio,
+    DateTime nuevaFechaFin,
+    String nuevoEstado,
+    String nuevaDescripcion,
+  ) async {
     try {
-      // Verificar si ya existe otro periodo con el mismo número (excluyendo el actual)
-      final existe = await _databaseHelper.rawQuery('''
-        SELECT COUNT(*) as count FROM periodos_academicos 
-        WHERE numero = ? AND tipo = ? AND id != ?
-      ''', [periodo.numero, periodo.tipo, periodo.id]);
-
-      final count = (existe.first['count'] as int?) ?? 0;
-      if (count > 0) {
-        _error = 'Ya existe otro período con el mismo número y tipo';
+      final periodoIndex = _periodos.indexWhere((p) => p.id == periodoId);
+      if (periodoIndex == -1) {
+        _error = 'Período no encontrado';
         notifyListeners();
         return false;
       }
 
+      // Verificar si ya existe otro periodo con el mismo número
+      if (nuevoNumero != _periodos[periodoIndex].numero) {
+        final existe = await _databaseHelper.rawQuery('''
+          SELECT COUNT(*) as count FROM periodos_academicos 
+          WHERE numero = ? AND tipo = ? AND id != ?
+        ''', [nuevoNumero, nuevoTipo, periodoId]);
+
+        final count = (existe.first['count'] as int?) ?? 0;
+        if (count > 0) {
+          _error = 'Ya existe otro período con el mismo número y tipo';
+          notifyListeners();
+          return false;
+        }
+      }
+
+      final nuevasFechasClases = _generarFechasClases(nuevaFechaInicio, nuevaFechaFin);
+
+      final periodoActualizado = PeriodoAcademico(
+        id: periodoId,
+        nombre: nuevoNombre,
+        tipo: nuevoTipo,
+        numero: nuevoNumero,
+        fechaInicio: nuevaFechaInicio,
+        fechaFin: nuevaFechaFin,
+        estado: nuevoEstado,
+        fechasClases: nuevasFechasClases,
+        descripcion: nuevaDescripcion,
+        fechaCreacion: _periodos[periodoIndex].fechaCreacion,
+      );
+
+      // Actualizar en SQLite
       await _databaseHelper.rawUpdate('''
         UPDATE periodos_academicos SET 
         nombre = ?, tipo = ?, numero = ?, fecha_inicio = ?, fecha_fin = ?,
-        estado = ?, fechas_clases = ?, descripcion = ?, fecha_actualizacion = ?
+        estado = ?, fechas_clases = ?, descripcion = ?,
+        total_clases = ?, duracion_dias = ?
         WHERE id = ?
       ''', [
-        periodo.nombre,
-        periodo.tipo,
-        periodo.numero,
-        periodo.fechaInicio.toIso8601String(),
-        periodo.fechaFin.toIso8601String(),
-        periodo.estado,
-        periodo.fechasClases.join(','),
-        periodo.descripcion,
-        DateTime.now().toIso8601String(),
-        periodo.id,
+        nuevoNombre,
+        nuevoTipo,
+        nuevoNumero,
+        nuevaFechaInicio.toIso8601String(),
+        nuevaFechaFin.toIso8601String(),
+        nuevoEstado,
+        json.encode(nuevasFechasClases),
+        nuevaDescripcion,
+        nuevasFechasClases.length,
+        nuevaFechaFin.difference(nuevaFechaInicio).inDays,
+        periodoId,
       ]);
 
-      await cargarPeriodos();
+      _periodos[periodoIndex] = periodoActualizado;
       _limpiarFormulario();
+      notifyListeners();
+      
+      print('✅ Período actualizado correctamente');
       return true;
     } catch (e) {
-      _error = 'Error al actualizar período: $e';
+      _error = 'Error al editar período: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  void cargarPeriodoParaEditar(PeriodoAcademico periodo) {
+    _periodoEditandoId = periodo.id;
+    _nombreController.text = periodo.nombre;
+    _fechaInicioController.text = _formatDateForInput(periodo.fechaInicio);
+    _fechaFinController.text = _formatDateForInput(periodo.fechaFin);
+    _descripcionController.text = periodo.descripcion;
+    _estadoSeleccionado = periodo.estado;
+    notifyListeners();
+  }
+
+  void setEstadoSeleccionado(String estado) {
+    _estadoSeleccionado = estado;
+    notifyListeners();
+  }
+
+  String _formatDateForInput(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  DateTime? _parseDateFromInput(String dateString) {
+    try {
+      return DateTime.parse(dateString);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // ✅ MÉTODO SIMPLIFICADO PARA GUARDAR EDICIÓN DESDE FORMULARIO
+  Future<bool> guardarEdicionPeriodo() async {
+    if (_nombreController.text.isEmpty ||
+        _fechaInicioController.text.isEmpty ||
+        _fechaFinController.text.isEmpty) {
+      _error = 'Nombre y fechas son requeridos';
+      notifyListeners();
+      return false;
+    }
+
+    final fechaInicio = _parseDateFromInput(_fechaInicioController.text);
+    final fechaFin = _parseDateFromInput(_fechaFinController.text);
+
+    if (fechaInicio == null || fechaFin == null) {
+      _error = 'Formato de fecha inválido';
+      notifyListeners();
+      return false;
+    }
+
+    if (fechaFin.isBefore(fechaInicio)) {
+      _error = 'La fecha fin no puede ser anterior a la fecha inicio';
+      notifyListeners();
+      return false;
+    }
+
+    final periodoOriginal = _periodos.firstWhere((p) => p.id == _periodoEditandoId);
+
+    return await editarPeriodoCompleto(
+      _periodoEditandoId,
+      _nombreController.text,
+      periodoOriginal.tipo, // Mantener el tipo original o permitir cambiar
+      periodoOriginal.numero, // Mantener el número original
+      fechaInicio,
+      fechaFin,
+      _estadoSeleccionado,
+      _descripcionController.text,
+    );
+  }
+
+  Future<bool> cambiarEstadoPeriodo(String id, String nuevoEstado) async {
+    try {
+      final periodoIndex = _periodos.indexWhere((p) => p.id == id);
+      if (periodoIndex == -1) return false;
+
+      final periodoActualizado = _periodos[periodoIndex].copyWith(estado: nuevoEstado);
+
+      await _databaseHelper.rawUpdate('''
+        UPDATE periodos_academicos SET estado = ? WHERE id = ?
+      ''', [nuevoEstado, id]);
+
+      _periodos[periodoIndex] = periodoActualizado;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = 'Error al cambiar estado: $e';
       notifyListeners();
       return false;
     }
@@ -264,7 +462,8 @@ class PeriodoAcademicoViewModel with ChangeNotifier {
         DELETE FROM periodos_academicos WHERE id = ?
       ''', [id]);
 
-      await cargarPeriodos();
+      _periodos.removeWhere((p) => p.id == id);
+      notifyListeners();
       return true;
     } catch (e) {
       _error = 'Error al eliminar período: $e';
@@ -273,38 +472,13 @@ class PeriodoAcademicoViewModel with ChangeNotifier {
     }
   }
 
-  Future<bool> cambiarEstadoPeriodo(String id, String nuevoEstado) async {
-    try {
-      await _databaseHelper.rawUpdate('''
-        UPDATE periodos_academicos SET estado = ?, fecha_actualizacion = ?
-        WHERE id = ?
-      ''', [nuevoEstado, DateTime.now().toIso8601String(), id]);
-
-      await cargarPeriodos();
-      return true;
-    } catch (e) {
-      _error = 'Error al cambiar estado: $e';
-      notifyListeners();
-      return false;
-    }
-  }
-
-  void cargarPeriodoParaEditar(PeriodoAcademico periodo) {
-    _nombreController.text = periodo.nombre;
-    _fechaInicioController.text = _formatDate(periodo.fechaInicio);
-    _fechaFinController.text = _formatDate(periodo.fechaFin);
-    _descripcionController.text = periodo.descripcion;
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-  }
-
   void _limpiarFormulario() {
+    _periodoEditandoId = '';
     _nombreController.clear();
     _fechaInicioController.clear();
     _fechaFinController.clear();
     _descripcionController.clear();
+    _estadoSeleccionado = 'Planificado';
   }
 
   void clearError() {
@@ -312,12 +486,12 @@ class PeriodoAcademicoViewModel with ChangeNotifier {
     notifyListeners();
   }
 
-  // Métodos de utilidad
+  // Métodos de utilidad para UI
   Color getColorPorNumero(int numero) {
     switch (numero) {
-      case 1: return Colors.blue;
+      case 1: return Colors.orange;
       case 2: return Colors.green;
-      case 3: return Colors.orange;
+      case 3: return Colors.blue;
       case 4: return Colors.purple;
       default: return Colors.grey;
     }
@@ -335,13 +509,15 @@ class PeriodoAcademicoViewModel with ChangeNotifier {
 
   String getEstadoDisplay(String estado) {
     switch (estado.toLowerCase()) {
-      case 'en curso': return 'En Curso';
-      case 'planificado': return 'Planificado';
-      case 'finalizado': return 'Finalizado';
-      case 'cancelado': return 'Cancelado';
+      case 'en curso': return '🟢 En Curso';
+      case 'planificado': return '🟡 Planificado';
+      case 'finalizado': return '🔵 Finalizado';
+      case 'cancelado': return '🔴 Cancelado';
       default: return estado;
     }
   }
+
+  List<String> get opcionesEstado => ['Planificado', 'En Curso', 'Finalizado', 'Cancelado'];
 
   @override
   void dispose() {

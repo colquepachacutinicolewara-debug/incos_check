@@ -1,4 +1,4 @@
-// viewmodels/auth_viewmodel.dart - VERSIÓN COMPLETA ACTUALIZADA
+// viewmodels/auth_viewmodel.dart
 import 'package:flutter/foundation.dart';
 import '../models/database_helper.dart';
 import '../models/usuario_model.dart';
@@ -18,6 +18,13 @@ class AuthViewModel with ChangeNotifier {
   String? get error => _error;
   bool get isLoggedIn => _currentUser != null;
   bool get sessionChecked => _sessionChecked;
+
+  // ✅ NUEVO MÉTODO AGREGADO - Para inicialización controlada
+  Future<void> initializeSession() async {
+    if (!_sessionChecked) {
+      await verificarSesionGuardada();
+    }
+  }
 
   // Login con manejo de errores
   Future<bool> login(String username, String password) async {
@@ -70,7 +77,7 @@ class AuthViewModel with ChangeNotifier {
     print('✅ Sesión cerrada exitosamente');
   }
 
-  // ✅ ACTUALIZADO: Método para cambiar contraseña
+  // Método para cambiar contraseña
   Future<bool> cambiarPassword(String currentPassword, String nuevaPassword) async {
     try {
       print('🔄 AuthViewModel.cambiarPassword iniciado');
@@ -134,7 +141,7 @@ class AuthViewModel with ChangeNotifier {
     }
   }
 
-  // ✅ NUEVO: Método para actualizar perfil
+  // Método para actualizar perfil
   Future<bool> actualizarPerfil(Usuario usuarioActualizado) async {
     try {
       _setLoading(true);
@@ -178,10 +185,13 @@ class AuthViewModel with ChangeNotifier {
     }
   }
 
-  // Verificar si hay sesión guardada
+  // ✅ CORREGIDO: Verificar si hay sesión guardada
   Future<bool> verificarSesionGuardada() async {
+    bool hadSession = false;
+    
     try {
-      _setLoading(true);
+      // Cambiar estado sin notificar inmediatamente
+      _isLoading = true;
       
       final db = await _databaseHelper.database;
       final result = await db.query(
@@ -203,38 +213,42 @@ class AuthViewModel with ChangeNotifier {
           
           if (userResult.isNotEmpty) {
             _currentUser = Usuario.fromLoginData(userResult.first);
-            _setError(null);
-            _sessionChecked = true;
-            notifyListeners();
-            return true;
+            _error = null;
+            hadSession = true;
+            print('✅ Sesión recuperada para usuario: ${_currentUser!.nombre}');
           }
         }
       }
       
-      _sessionChecked = true;
-      return false;
+      return hadSession;
     } catch (e) {
       if (kDebugMode) {
-        print('Error verificando sesión: $e');
+        print('❌ Error verificando sesión: $e');
       }
-      _sessionChecked = true;
-      _setError('Error al verificar sesión: $e');
+      _error = 'Error al verificar sesión: $e';
       return false;
     } finally {
-      _setLoading(false);
+      _sessionChecked = true;
+      _isLoading = false;
+      // ✅ Una sola notificación al final, fuera del build
+      notifyListeners();
     }
   }
 
-  // Métodos privados
+  // Métodos privados optimizados
   void _setLoading(bool loading) {
-    _isLoading = loading;
-    notifyListeners();
+    if (_isLoading != loading) {
+      _isLoading = loading;
+      notifyListeners();
+    }
   }
 
   void _setError(String? error) {
-    _error = error;
-    if (error != null) {
-      notifyListeners();
+    if (_error != error) {
+      _error = error;
+      if (error != null) {
+        notifyListeners();
+      }
     }
   }
 
@@ -251,9 +265,10 @@ class AuthViewModel with ChangeNotifier {
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
+      print('💾 Sesión guardada para usuario: ${_currentUser?.id}');
     } catch (e) {
       if (kDebugMode) {
-        print('Error guardando sesión: $e');
+        print('❌ Error guardando sesión: $e');
       }
     }
   }
@@ -267,9 +282,10 @@ class AuthViewModel with ChangeNotifier {
         where: 'id = ?',
         whereArgs: ['session_user'],
       );
+      print('🗑️ Sesión eliminada de configuraciones');
     } catch (e) {
       if (kDebugMode) {
-        print('Error limpiando sesión: $e');
+        print('❌ Error limpiando sesión: $e');
       }
     }
   }

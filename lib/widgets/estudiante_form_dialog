@@ -1,0 +1,318 @@
+// widgets/estudiante_form_dialog.dart
+import 'package:flutter/material.dart';
+import '../utils/constants.dart';
+import '../utils/validators.dart';
+
+class EstudianteFormDialog extends StatefulWidget {
+  final String title;
+  final String? nombresInicial;
+  final String? paternoInicial;
+  final String? maternoInicial;
+  final String? ciInicial;
+  final String? carreraIdInicial;
+  final String? turnoIdInicial;
+  final String? nivelIdInicial;
+  final String? paraleloIdInicial;
+  final Function(String nombres, String paterno, String materno, String ci,
+      String carreraId, String turnoId, String nivelId, String paraleloId) onSave;
+  final List<Map<String, dynamic>> carreras;
+  final List<Map<String, dynamic>> turnos;
+  final List<Map<String, dynamic>> niveles;
+  final List<Map<String, dynamic>> paralelos;
+
+  const EstudianteFormDialog({
+    super.key,
+    required this.title,
+    this.nombresInicial,
+    this.paternoInicial,
+    this.maternoInicial,
+    this.ciInicial,
+    this.carreraIdInicial,
+    this.turnoIdInicial,
+    this.nivelIdInicial,
+    this.paraleloIdInicial,
+    required this.onSave,
+    required this.carreras,
+    required this.turnos,
+    required this.niveles,
+    required this.paralelos,
+  });
+
+  @override
+  State<EstudianteFormDialog> createState() => _EstudianteFormDialogState();
+}
+
+class _EstudianteFormDialogState extends State<EstudianteFormDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _nombresController;
+  late TextEditingController _paternoController;
+  late TextEditingController _maternoController;
+  late TextEditingController _ciController;
+  
+  String? _selectedCarreraId;
+  String? _selectedTurnoId;
+  String? _selectedNivelId;
+  String? _selectedParaleloId;
+
+  @override
+  void initState() {
+    super.initState();
+    _nombresController = TextEditingController(
+      text: widget.nombresInicial ?? '',
+    );
+    _paternoController = TextEditingController(
+      text: widget.paternoInicial ?? '',
+    );
+    _maternoController = TextEditingController(
+      text: widget.maternoInicial ?? '',
+    );
+    _ciController = TextEditingController(text: widget.ciInicial ?? '');
+    
+    _selectedCarreraId = widget.carreraIdInicial;
+    _selectedTurnoId = widget.turnoIdInicial;
+    _selectedNivelId = widget.nivelIdInicial;
+    _selectedParaleloId = widget.paraleloIdInicial;
+  }
+
+  @override
+  void dispose() {
+    _nombresController.dispose();
+    _paternoController.dispose();
+    _maternoController.dispose();
+    _ciController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.all(AppSpacing.medium),
+      child: SingleChildScrollView(
+        padding: MediaQuery.of(context).viewInsets,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.95,
+            maxHeight: MediaQuery.of(context).size.height * 0.95,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.medium),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(widget.title, style: AppTextStyles.heading2),
+                const SizedBox(height: AppSpacing.medium),
+                Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Nombres
+                      TextFormField(
+                        controller: _nombresController,
+                        decoration: const InputDecoration(
+                          labelText: 'Nombres *',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) => Validators.validateName(value),
+                      ),
+                      const SizedBox(height: AppSpacing.small),
+                      
+                      // Apellido Paterno
+                      TextFormField(
+                        controller: _paternoController,
+                        decoration: const InputDecoration(
+                          labelText: 'Apellido Paterno *',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) => Validators.validateName(value),
+                      ),
+                      const SizedBox(height: AppSpacing.small),
+                      
+                      // Apellido Materno
+                      TextFormField(
+                        controller: _maternoController,
+                        decoration: const InputDecoration(
+                          labelText: 'Apellido Materno',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value != null && value.isNotEmpty) {
+                            return Validators.validateName(value);
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.small),
+                      
+                      // CI
+                      TextFormField(
+                        controller: _ciController,
+                        decoration: const InputDecoration(
+                          labelText: 'Cédula de Identidad *',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (value) => Validators.validateCI(value),
+                      ),
+                      const SizedBox(height: AppSpacing.small),
+                      
+                      // Carrera Dropdown
+                      DropdownButtonFormField<String>(
+                        value: _selectedCarreraId,
+                        decoration: const InputDecoration(
+                          labelText: 'Carrera *',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: widget.carreras.map((carrera) {
+                          return DropdownMenuItem<String>(
+                            value: carrera['id']?.toString(),
+                            child: Text(carrera['nombre']?.toString() ?? ''),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedCarreraId = value;
+                          });
+                        },
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Seleccione una carrera';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.small),
+                      
+                      // Turno Dropdown
+                      DropdownButtonFormField<String>(
+                        value: _selectedTurnoId,
+                        decoration: const InputDecoration(
+                          labelText: 'Turno *',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: widget.turnos.map((turno) {
+                          return DropdownMenuItem<String>(
+                            value: turno['id']?.toString(),
+                            child: Text(turno['nombre']?.toString() ?? ''),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedTurnoId = value;
+                          });
+                        },
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Seleccione un turno';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.small),
+                      
+                      // Nivel Dropdown
+                      DropdownButtonFormField<String>(
+                        value: _selectedNivelId,
+                        decoration: const InputDecoration(
+                          labelText: 'Nivel *',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: widget.niveles.map((nivel) {
+                          return DropdownMenuItem<String>(
+                            value: nivel['id']?.toString(),
+                            child: Text(nivel['nombre']?.toString() ?? ''),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedNivelId = value;
+                          });
+                        },
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Seleccione un nivel';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.small),
+                      
+                      // Paralelo Dropdown
+                      DropdownButtonFormField<String>(
+                        value: _selectedParaleloId,
+                        decoration: const InputDecoration(
+                          labelText: 'Paralelo *',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: widget.paralelos.map((paralelo) {
+                          return DropdownMenuItem<String>(
+                            value: paralelo['id']?.toString(),
+                            child: Text(paralelo['nombre']?.toString() ?? ''),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedParaleloId = value;
+                          });
+                        },
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Seleccione un paralelo';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.large),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancelar'),
+                    ),
+                    const SizedBox(width: AppSpacing.small),
+                    ElevatedButton(
+                      onPressed: _guardarEstudiante,
+                      child: const Text('Guardar'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _guardarEstudiante() {
+    if (_formKey.currentState!.validate()) {
+      if (_selectedCarreraId == null || 
+          _selectedTurnoId == null || 
+          _selectedNivelId == null || 
+          _selectedParaleloId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Por favor complete todos los campos requeridos'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      widget.onSave(
+        Validators.formatName(_nombresController.text),
+        Validators.formatName(_paternoController.text),
+        Validators.formatName(_maternoController.text),
+        _ciController.text.trim(),
+        _selectedCarreraId!,
+        _selectedTurnoId!,
+        _selectedNivelId!,
+        _selectedParaleloId!,
+      );
+    }
+  }
+}

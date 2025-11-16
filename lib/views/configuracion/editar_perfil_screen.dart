@@ -1,4 +1,5 @@
-// views/configuracion/editar_perfil_screen.dart
+// views/configuracion/editar_perfil_screen.dart - VERSIÓN CORREGIDA
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -35,7 +36,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
   void _cargarDatosUsuario() {
     _usernameController.text = widget.usuario.username;
     _nombreController.text = widget.usuario.nombre;
-    _emailController.text = widget.usuario.email;
+    _emailController.text = widget.usuario.email ?? '';
     _telefonoController.text = widget.usuario.telefono ?? '';
     _fotoUrl = widget.usuario.fotoUrl;
   }
@@ -54,11 +55,10 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
         _fotoUrl = imagen.path;
       });
       
-      // En una app real, aquí subirías la imagen a un servidor
       print('📸 Foto seleccionada: ${imagen.path}');
       Helpers.showSnackBar(
         context, 
-        '✅ Foto seleccionada (simulación)',
+        '✅ Foto seleccionada',
         type: 'success',
       );
     }
@@ -74,7 +74,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
     try {
       final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
       
-      // Crear usuario actualizado
+      // ✅ CORREGIDO: Usar copyWith (debes agregarlo al modelo Usuario)
       final usuarioActualizado = widget.usuario.copyWith(
         username: _usernameController.text.trim(),
         nombre: _nombreController.text.trim(),
@@ -83,17 +83,16 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
         fotoUrl: _fotoUrl,
       );
 
-      // Actualizar en AuthViewModel
       final resultado = await authViewModel.actualizarPerfil(usuarioActualizado);
 
-      if (resultado) {
+      if (resultado && context.mounted) {
         Navigator.pop(context, usuarioActualizado);
         Helpers.showSnackBar(
           context,
           '✅ Perfil actualizado exitosamente',
           type: 'success',
         );
-      } else {
+      } else if (context.mounted) {
         Helpers.showSnackBar(
           context,
           '❌ Error al actualizar perfil',
@@ -101,15 +100,19 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
         );
       }
     } catch (e) {
-      Helpers.showSnackBar(
-        context,
-        '❌ Error al actualizar perfil: $e',
-        type: 'error',
-      );
+      if (context.mounted) {
+        Helpers.showSnackBar(
+          context,
+          '❌ Error al actualizar perfil: $e',
+          type: 'error',
+        );
+      }
     } finally {
-      setState(() {
-        _guardando = false;
-      });
+      if (mounted) {
+        setState(() {
+          _guardando = false;
+        });
+      }
     }
   }
 
@@ -151,8 +154,11 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                     CircleAvatar(
                       radius: 60,
                       backgroundColor: AppColors.primary.withOpacity(0.1),
+                      // ✅ CORREGIDO: Manejar tanto Network como File images
                       backgroundImage: _fotoUrl != null 
-                          ? NetworkImage(_fotoUrl!) 
+                          ? _fotoUrl!.startsWith('http') 
+                              ? NetworkImage(_fotoUrl!) 
+                              : FileImage(File(_fotoUrl!)) as ImageProvider
                           : null,
                       child: _fotoUrl == null
                           ? Icon(
@@ -274,11 +280,12 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                         ),
                       ),
                       SizedBox(height: AppSpacing.medium),
+                      // ✅ CORREGIDO: Usar propiedades que SÍ existen
                       _buildInfoRow('Rol:', widget.usuario.rolDisplay, context),
-                      _buildInfoRow('Carnet:', widget.usuario.carnet, context),
-                      _buildInfoRow('Departamento:', widget.usuario.departamento, context),
                       _buildInfoRow('Estado:', widget.usuario.estaActivo ? 'Activo' : 'Inactivo', context),
                       _buildInfoRow('ID Usuario:', widget.usuario.id, context),
+                      // ❌ REMOVER: _buildInfoRow('Carnet:', widget.usuario.carnet, context),
+                      // ❌ REMOVER: _buildInfoRow('Departamento:', widget.usuario.departamento, context),
                     ],
                   ),
                 ),

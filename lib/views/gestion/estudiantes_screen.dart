@@ -1,4 +1,4 @@
-// estudiantes_screen.dart - FORMULARIO COMPLETO CORREGIDO
+// estudiantes_screen.dart - VERSIÓN COMPLETA CORREGIDA
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:printing/printing.dart';
@@ -344,16 +344,44 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
                   _handleMenuAction(context, value, estudiante, viewModel),
               itemBuilder: (BuildContext context) => [
                 const PopupMenuItem(
+                  value: 'view',
+                  child: Row(
+                    children: [
+                      Icon(Icons.info, color: Colors.blue),
+                      SizedBox(width: 8),
+                      Text('Ver Información'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
                   value: 'edit',
-                  child: Text('Modificar'),
+                  child: Row(
+                    children: [
+                      Icon(Icons.edit, color: Colors.orange),
+                      SizedBox(width: 8),
+                      Text('Modificar'),
+                    ],
+                  ),
                 ),
                 const PopupMenuItem(
                   value: 'huellas',
-                  child: Text('Gestionar Huellas'),
+                  child: Row(
+                    children: [
+                      Icon(Icons.fingerprint, color: Colors.green),
+                      SizedBox(width: 8),
+                      Text('Gestionar Huellas'),
+                    ],
+                  ),
                 ),
                 const PopupMenuItem(
                   value: 'delete',
-                  child: Text('Eliminar'),
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete, color: Colors.red),
+                      SizedBox(width: 8),
+                      Text('Eliminar'),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -405,6 +433,9 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
     EstudiantesViewModel viewModel,
   ) {
     switch (action) {
+      case 'view':
+        _showInformacionEstudiante(context, estudiante, viewModel);
+        break;
       case 'edit':
         _showEditarEstudianteDialog(context, estudiante, viewModel);
         break;
@@ -421,32 +452,50 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
     final viewModel = Provider.of<EstudiantesViewModel>(context, listen: false);
     switch (action) {
       case 'excel_simple':
-        _showExportPreviewDialog(
-          context,
-          viewModel,
-          isPdf: false,
-          simple: true,
-        );
+        _exportarLista(context, viewModel, isPdf: false, simple: true);
         break;
       case 'excel_completo':
-        _showExportPreviewDialog(
-          context,
-          viewModel,
-          isPdf: false,
-          simple: false,
-        );
+        _exportarLista(context, viewModel, isPdf: false, simple: false);
         break;
       case 'pdf_simple':
-        _showExportPreviewDialog(context, viewModel, isPdf: true, simple: true);
+        _exportarLista(context, viewModel, isPdf: true, simple: true);
         break;
       case 'pdf_completo':
-        _showExportPreviewDialog(
-          context,
-          viewModel,
-          isPdf: true,
-          simple: false,
-        );
+        _exportarLista(context, viewModel, isPdf: true, simple: false);
         break;
+    }
+  }
+
+  void _exportarLista(
+    BuildContext context,
+    EstudiantesViewModel viewModel, {
+    required bool isPdf,
+    required bool simple,
+  }) async {
+    final asignatura = 'BASE DE DATOS II';
+    
+    try {
+      if (isPdf) {
+        await viewModel.exportarPDF(simple: simple, asignatura: asignatura);
+      } else {
+        await viewModel.exportarExcel(simple: simple, asignatura: asignatura);
+      }
+      
+      if (context.mounted) {
+        Helpers.showSnackBar(
+          context,
+          'Exportación completada exitosamente',
+          type: 'success',
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Helpers.showSnackBar(
+          context,
+          'Error en exportación: ${e.toString()}',
+          type: 'error',
+        );
+      }
     }
   }
 
@@ -555,7 +604,7 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
       context,
       title: 'Eliminar Estudiante',
       content:
-          '¿Estás seguro de eliminar a ${estudiante.nombres} ${estudiante.apellidoPaterno}?',
+          '¿Estás seguro de eliminar a ${estudiante.nombres} ${estudiante.apellidoPaterno}? Esta acción no se puede deshacer.',
     ).then((confirmed) async {
       if (confirmed && context.mounted) {
         final success = await viewModel.eliminarEstudiante(estudiante.id);
@@ -574,6 +623,150 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
         }
       }
     });
+  }
+
+  void _showInformacionEstudiante(
+    BuildContext context,
+    Estudiante estudiante,
+    EstudiantesViewModel viewModel,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.person, color: AppColors.primary),
+            const SizedBox(width: 8),
+            Text('Información del Estudiante'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildInfoItem('Nombres:', estudiante.nombres),
+              _buildInfoItem('Apellido Paterno:', estudiante.apellidoPaterno),
+              _buildInfoItem('Apellido Materno:', estudiante.apellidoMaterno),
+              _buildInfoItem('CI:', estudiante.ci),
+              _buildInfoItem('Fecha Registro:', estudiante.fechaRegistro),
+              const SizedBox(height: 16),
+              _buildInfoItem('Carrera:', _obtenerNombreCarrera(viewModel, estudiante.carreraId)),
+              _buildInfoItem('Turno:', _obtenerNombreTurno(viewModel, estudiante.turnoId)),
+              _buildInfoItem('Nivel:', _obtenerNombreNivel(viewModel, estudiante.nivelId)),
+              _buildInfoItem('Paralelo:', _obtenerNombreParalelo(viewModel, estudiante.paraleloId)),
+              const SizedBox(height: 16),
+              _buildEstadoHuellas(estudiante),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoItem(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.body.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value.isNotEmpty ? value : 'No especificado',
+              style: AppTextStyles.body,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEstadoHuellas(Estudiante estudiante) {
+    Color color;
+    String estado;
+    
+    if (estudiante.tieneTodasLasHuellas) {
+      color = Colors.green;
+      estado = 'Completas (${estudiante.huellasRegistradas}/3)';
+    } else if (estudiante.tieneHuellasRegistradas) {
+      color = Colors.orange;
+      estado = 'Parciales (${estudiante.huellasRegistradas}/3)';
+    } else {
+      color = Colors.red;
+      estado = 'Sin registrar';
+    }
+    
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.fingerprint, color: color, size: 20),
+          const SizedBox(width: 8),
+          Text(
+            'Estado de Huellas: $estado',
+            style: AppTextStyles.body.copyWith(
+              color: color,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _obtenerNombreCarrera(EstudiantesViewModel viewModel, String? carreraId) {
+    if (carreraId == null) return 'No especificado';
+    final carrera = viewModel.carreras.firstWhere(
+      (c) => c['id'] == carreraId,
+      orElse: () => {'nombre': 'No encontrado'},
+    );
+    return carrera['nombre']?.toString() ?? 'No especificado';
+  }
+
+  String _obtenerNombreTurno(EstudiantesViewModel viewModel, String? turnoId) {
+    if (turnoId == null) return 'No especificado';
+    final turno = viewModel.turnos.firstWhere(
+      (t) => t['id'] == turnoId,
+      orElse: () => {'nombre': 'No encontrado'},
+    );
+    return turno['nombre']?.toString() ?? 'No especificado';
+  }
+
+  String _obtenerNombreNivel(EstudiantesViewModel viewModel, String? nivelId) {
+    if (nivelId == null) return 'No especificado';
+    final nivel = viewModel.niveles.firstWhere(
+      (n) => n['id'] == nivelId,
+      orElse: () => {'nombre': 'No encontrado'},
+    );
+    return nivel['nombre']?.toString() ?? 'No especificado';
+  }
+
+  String _obtenerNombreParalelo(EstudiantesViewModel viewModel, String? paraleloId) {
+    if (paraleloId == null) return 'No especificado';
+    final paralelo = viewModel.paralelos.firstWhere(
+      (p) => p['id'] == paraleloId,
+      orElse: () => {'nombre': 'No encontrado'},
+    );
+    return paralelo['nombre']?.toString() ?? 'No especificado';
   }
 
   void _registrarHuellas(
@@ -610,132 +803,9 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
       ),
     );
   }
-
-  void _showExportPreviewDialog(
-    BuildContext context,
-    EstudiantesViewModel viewModel, {
-    required bool isPdf,
-    required bool simple,
-  }) {
-    final TextEditingController asignaturaController = TextEditingController(
-      text: 'BASE DE DATOS II',
-    );
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Exportar - Opciones'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: asignaturaController,
-                decoration: const InputDecoration(labelText: 'Asignatura'),
-              ),
-              const SizedBox(height: AppSpacing.small),
-              Text(
-                '${viewModel.estudiantesFiltrados.length} estudiante${viewModel.estudiantesFiltrados.length != 1 ? 's' : ''}',
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                final asignatura = asignaturaController.text.trim().isEmpty
-                    ? 'BASE DE DATOS II'
-                    : asignaturaController.text.trim();
-                if (isPdf) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => Scaffold(
-                        appBar: AppBar(title: const Text('Vista previa PDF')),
-                        body: PdfPreview(
-                          build: (format) async => viewModel
-                              .buildPdfDocument(
-                                viewModel.estudiantesFiltrados,
-                                simple,
-                                asignatura,
-                              )
-                              .save(),
-                        ),
-                      ),
-                    ),
-                  );
-                } else {
-                  final csv = viewModel.buildCsvString(simple, asignatura);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => Scaffold(
-                        appBar: AppBar(title: const Text('Vista previa CSV')),
-                        body: Padding(
-                          padding: const EdgeInsets.all(AppSpacing.medium),
-                          child: SingleChildScrollView(
-                            child: SelectableText(
-                              csv,
-                              style: AppTextStyles.body,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }
-              },
-              child: const Text('Vista previa'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                final asignatura = asignaturaController.text.trim().isEmpty
-                    ? 'BASE DE DATOS II'
-                    : asignaturaController.text.trim();
-                try {
-                  if (isPdf) {
-                    await viewModel.exportarPDF(
-                      simple: simple,
-                      asignatura: asignatura,
-                    );
-                  } else {
-                    await viewModel.exportarExcel(
-                      simple: simple,
-                      asignatura: asignatura,
-                    );
-                  }
-                  if (context.mounted) {
-                    Helpers.showSnackBar(
-                      context,
-                      'Exportación completada',
-                      type: 'success',
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    Helpers.showSnackBar(
-                      context,
-                      'Error en exportación: ${e.toString()}',
-                      type: 'error',
-                    );
-                  }
-                }
-              },
-              child: const Text('Descargar'),
-            ),
-          ],
-        );
-      },
-    );
-  }
 }
 
-// Diálogo para agregar/modificar estudiantes - FORMULARIO COMPLETO
+// Diálogo para agregar/modificar estudiantes - FORMULARIO COMPLETO CORREGIDO
 class _EstudianteDialog extends StatefulWidget {
   final String title;
   final String? nombresInicial;
@@ -789,21 +859,16 @@ class _EstudianteDialogState extends State<_EstudianteDialog> {
   @override
   void initState() {
     super.initState();
-    _nombresController = TextEditingController(
-      text: widget.nombresInicial ?? '',
-    );
-    _paternoController = TextEditingController(
-      text: widget.paternoInicial ?? '',
-    );
-    _maternoController = TextEditingController(
-      text: widget.maternoInicial ?? '',
-    );
+    _nombresController = TextEditingController(text: widget.nombresInicial ?? '');
+    _paternoController = TextEditingController(text: widget.paternoInicial ?? '');
+    _maternoController = TextEditingController(text: widget.maternoInicial ?? '');
     _ciController = TextEditingController(text: widget.ciInicial ?? '');
     
-    _selectedCarreraId = widget.carreraIdInicial;
-    _selectedTurnoId = widget.turnoIdInicial;
-    _selectedNivelId = widget.nivelIdInicial;
-    _selectedParaleloId = widget.paraleloIdInicial;
+    // ✅ INICIALIZAR VALORES DE DROPDOWNS CORRECTAMENTE
+    _selectedCarreraId = widget.carreraIdInicial ?? (widget.carreras.isNotEmpty ? widget.carreras.first['id']?.toString() : null);
+    _selectedTurnoId = widget.turnoIdInicial ?? (widget.turnos.isNotEmpty ? widget.turnos.first['id']?.toString() : null);
+    _selectedNivelId = widget.nivelIdInicial ?? (widget.niveles.isNotEmpty ? widget.niveles.first['id']?.toString() : null);
+    _selectedParaleloId = widget.paraleloIdInicial ?? (widget.paralelos.isNotEmpty ? widget.paralelos.first['id']?.toString() : null);
   }
 
   @override

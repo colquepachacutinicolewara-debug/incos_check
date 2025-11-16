@@ -34,9 +34,10 @@ dependencies:
 
   flutter_animate: ^4.1.1
 
-  # extra para editar notificacion
+  # extra para editar notificacion Y VERIFICACION DE INTERNET
   image_picker: ^1.0.4
   flutter_local_notifications: ^19.5.0
+  connectivity_plus: ^6.0.1
 
   
   provider: ^6.0.5
