@@ -94,17 +94,49 @@ class GestionViewModel extends ChangeNotifier {
     ]);
   }
 
-  Future<void> actualizarCarreras(List<String> nuevasCarreras) async {
-    final carrerasUnicas = nuevasCarreras.toSet().toList();
-
-    _estado = _estado.copyWith(carreras: carrerasUnicas);
-
-    if (!carrerasUnicas.contains(_estado.carreraSeleccionada) &&
-        carrerasUnicas.isNotEmpty) {
-      await seleccionarCarrera(carrerasUnicas.first);
-    } else {
+  // ========== CARRERAS SYNC ==========
+  Future<void> sincronizarCarreras() async {
+    try {
+      _loading = true;
+      notifyListeners();
+      
+      await _loadCarreras();
+      if (_estado.carreras.isNotEmpty && 
+          !_estado.carreras.contains(_estado.carreraSeleccionada)) {
+        await seleccionarCarrera(_estado.carreras.first);
+      } else if (_estado.carreras.isNotEmpty) {
+        await _loadAllDataForCarrera(_estado.carreraSeleccionada);
+      }
+      
+      _loading = false;
+      notifyListeners();
+    } catch (e) {
+      _loading = false;
+      _error = 'Error al sincronizar carreras: ${e.toString()}';
       notifyListeners();
     }
+  }
+
+  Future<void> actualizarCarreras(List<String> nuevasCarreras) async {
+    final carrerasUnicas = nuevasCarreras.toSet().toList();
+    
+    _estado = _estado.copyWith(carreras: carrerasUnicas);
+    
+    // Si la carrera seleccionada ya no existe, seleccionar la primera disponible
+    if (!carrerasUnicas.contains(_estado.carreraSeleccionada) && carrerasUnicas.isNotEmpty) {
+      await seleccionarCarrera(carrerasUnicas.first);
+    } else if (carrerasUnicas.isNotEmpty) {
+      // Recargar datos de la carrera actual
+      await _loadAllDataForCarrera(_estado.carreraSeleccionada);
+    } else {
+      // Si no hay carreras, resetear a valores por defecto
+      _estado = GestionEstado(
+        carreraSeleccionada: 'Sistemas Informáticos',
+        carreras: ['Sistemas Informáticos'],
+      );
+    }
+    
+    notifyListeners();
   }
 
   // ========== COUNTS MANAGEMENT ==========

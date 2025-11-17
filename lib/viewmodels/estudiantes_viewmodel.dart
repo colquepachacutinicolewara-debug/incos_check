@@ -1,4 +1,4 @@
-// viewmodels/estudiantes_viewmodel.dart - VERSIÓN SIMPLIFICADA COMO MATERIAS
+// viewmodels/estudiantes_viewmodel.dart - VERSIÓN COMPLETA CON FILTROS
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
@@ -36,6 +36,12 @@ class EstudiantesViewModel with ChangeNotifier {
   String? _error;
   String? get error => _error;
 
+  // ✅ SISTEMA DE CACHÉ PARA VELOCIDAD
+  final Map<String, dynamic> _cache = {};
+  DateTime? _lastCacheUpdate;
+  static const Duration _cacheDuration = Duration(minutes: 5);
+  bool _datosCargados = false;
+
   // Getters para las listas
   List<Map<String, dynamic>> get carreras => _carreras;
   List<Map<String, dynamic>> get turnos => _turnos;
@@ -57,6 +63,7 @@ class EstudiantesViewModel with ChangeNotifier {
   }
 
   void _inicializarViewModel() {
+    _cargarOpcionesFiltros();
     _cargarDatosIniciales();
     searchController.addListener(_filtrarEstudiantes);
   }
@@ -65,618 +72,743 @@ class EstudiantesViewModel with ChangeNotifier {
   List<Estudiante> get estudiantes => _estudiantes;
   List<Estudiante> get estudiantesFiltrados => _estudiantesFiltrados;
 
-  // ✅ MÉTODO PÚBLICO PARA RECARGAR ESTUDIANTES (COMO EN MATERIAS)
+  // ✅ MÉTODO PÚBLICO PARA RECARGAR ESTUDIANTES
   Future<void> recargarEstudiantes() async {
-    print('🔄 Recargando estudiantes desde historial...');
+    print('🔄 Recargando estudiantes...');
     await _cargarDatosIniciales();
   }
 
-  // ✅ CARGA DIRECTA EN MEMORIA COMO MATERIAS
+  // ✅ CARGAR OPCIONES DE FILTROS
+  void _cargarOpcionesFiltros() {
+    _carreras = [
+      {'id': 'sistemas', 'nombre': 'Sistemas Informáticos', 'color': '#1565C0'},
+      {'id': 'contabilidad', 'nombre': 'Contabilidad', 'color': '#2E7D32'},
+      {'id': 'enfermeria', 'nombre': 'Enfermería', 'color': '#C2185B'},
+    ];
+
+    _turnos = [
+      {'id': 'mañana', 'nombre': 'Mañana'},
+      {'id': 'tarde', 'nombre': 'Tarde'},
+      {'id': 'noche', 'nombre': 'Noche'},
+    ];
+
+    _niveles = [
+      {'id': 'primero', 'nombre': 'Primero'},
+      {'id': 'segundo', 'nombre': 'Segundo'},
+      {'id': 'tercero', 'nombre': 'Tercero'},
+      {'id': 'cuarto', 'nombre': 'Cuarto'},
+      {'id': 'quinto', 'nombre': 'Quinto'},
+      {'id': 'sexto', 'nombre': 'Sexto'},
+    ];
+
+    _paralelos = [
+      {'id': 'a', 'nombre': 'A'},
+      {'id': 'b', 'nombre': 'B'},
+      {'id': 'c', 'nombre': 'C'},
+      {'id': 'd', 'nombre': 'D'},
+    ];
+  }
+
+  // ✅ ACTUALIZAR FILTROS
+  void actualizarFiltros({
+    Map<String, dynamic>? nuevaCarrera,
+    Map<String, dynamic>? nuevoTurno,
+    Map<String, dynamic>? nuevoNivel,
+    Map<String, dynamic>? nuevoParalelo,
+  }) {
+    bool cambios = false;
+
+    if (nuevaCarrera != null && nuevaCarrera['id'] != carrera['id']) {
+      carrera = nuevaCarrera;
+      cambios = true;
+      print('🎯 Carrera cambiada a: ${carrera['nombre']}');
+    }
+
+    if (nuevoTurno != null && nuevoTurno['id'] != turno['id']) {
+      turno = nuevoTurno;
+      cambios = true;
+      print('🎯 Turno cambiado a: ${turno['nombre']}');
+    }
+
+    if (nuevoNivel != null && nuevoNivel['id'] != nivel['id']) {
+      nivel = nuevoNivel;
+      cambios = true;
+      print('🎯 Nivel cambiado a: ${nivel['nombre']}');
+    }
+
+    if (nuevoParalelo != null && nuevoParalelo['id'] != paralelo['id']) {
+      paralelo = nuevoParalelo;
+      cambios = true;
+      print('🎯 Paralelo cambiado a: ${paralelo['nombre']}');
+    }
+
+    if (cambios) {
+      // Limpiar caché cuando cambian los filtros
+      _cache.clear();
+      _filtrarEstudiantes();
+      notifyListeners();
+    }
+  }
+
+  // ✅ MÉTODO PARA ACTUALIZAR CACHÉ
+  void _updateCache(String key, dynamic data) {
+    _cache[key] = {
+      'data': data,
+      'timestamp': DateTime.now(),
+    };
+    _lastCacheUpdate = DateTime.now();
+    print('💾 Cache actualizado para: $key');
+  }
+
+  // ✅ MÉTODO PARA OBTENER DEL CACHÉ
+  dynamic _getFromCache(String key) {
+    final cached = _cache[key];
+    if (cached != null) {
+      final timestamp = cached['timestamp'] as DateTime;
+      if (DateTime.now().difference(timestamp) < _cacheDuration) {
+        print('📦 Datos obtenidos del caché: $key');
+        return cached['data'];
+      } else {
+        print('🗑️ Cache expirado para: $key');
+        _cache.remove(key);
+      }
+    }
+    return null;
+  }
+
+  // ✅ CARGA PERMANENTE EN MEMORIA
   Future<void> _cargarDatosIniciales() async {
     try {
+      // ✅ SI YA CARGAMOS LOS DATOS PERMANENTES, SOLO USAMOS CACHÉ PARA RAPIDEZ
+      if (_datosCargados) {
+        print('🎯 Datos ya cargados permanentemente en memoria');
+        
+        // Verificar caché para respuesta ultra-rápida
+        final cachedEstudiantes = _getFromCache('estudiantes_lista');
+        if (cachedEstudiantes != null) {
+          _estudiantesFiltrados = List<Estudiante>.from(cachedEstudiantes);
+          _isLoading = false;
+          notifyListeners();
+          return;
+        }
+        
+        // Si no hay caché, pero los datos permanentes están cargados
+        _filtrarEstudiantes();
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+
       _isLoading = true;
       _error = null;
       notifyListeners();
 
-      print('🔄 Cargando estudiantes en memoria...');
+      print('🔄 Cargando estudiantes PERMANENTEMENTE en memoria...');
       
-      // Cargar estudiantes directamente en memoria
+      // ✅ CARGAR ESTUDIANTES DIRECTAMENTE EN MEMORIA (PERMANENTE)
       _cargarTodosLosEstudiantesCompletos();
+
+      // ✅ MARCAR COMO CARGADO PERMANENTEMENTE
+      _datosCargados = true;
+
+      // ✅ GUARDAR EN CACHÉ PARA VELOCIDAD EXTRA
+      _updateCache('estudiantes_lista', _estudiantes);
 
       _isLoading = false;
       notifyListeners();
 
-      print('✅ ${_estudiantes.length} estudiantes cargados en memoria');
+      print('✅ ${_estudiantes.length} estudiantes cargados PERMANENTEMENTE en memoria');
       
     } catch (e) {
       _onEstudiantesError(e);
     }
   }
 
-  // ✅ CARGA TODOS LOS ESTUDIANTES DIRECTAMENTE EN MEMORIA
+  // ✅ CARGA TODOS LOS ESTUDIANTES DIRECTAMENTE EN MEMORIA (PERMANENTE)
   void _cargarTodosLosEstudiantesCompletos() {
-    _estudiantes.clear();
-    
-    // ESTUDIANTES DE TERCERO "B" - NOCHE - SISTEMAS INFORMÁTICOS
-    _estudiantes.addAll([
-      // NRO 1-8 con CIs 15590001-15590008
-      Estudiante(
-        id: 'est_001',
-        nombres: 'Jhoshanes Israel',
-        apellidoPaterno: 'Anllon',
-        apellidoMaterno: 'Martínez',
-        ci: '15590001',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_002',
-        nombres: 'Jade Silvia',
-        apellidoPaterno: 'Anti',
-        apellidoMaterno: 'Quispe',
-        ci: '15590002',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_003',
-        nombres: 'Vladimir',
-        apellidoPaterno: 'Apaza',
-        apellidoMaterno: 'Choque',
-        ci: '15590003',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_004',
-        nombres: 'Mario Edwin',
-        apellidoPaterno: 'Apaza',
-        apellidoMaterno: 'Mamani',
-        ci: '15590004',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_005',
-        nombres: 'Jhonathan Rafael',
-        apellidoPaterno: 'Aquise',
-        apellidoMaterno: 'Mamani',
-        ci: '15590005',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_006',
-        nombres: 'Miguel Alejandro',
-        apellidoPaterno: 'Calle',
-        apellidoMaterno: 'Chipana',
-        ci: '15590006',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_007',
-        nombres: 'Esteban',
-        apellidoPaterno: 'Callizaya',
-        apellidoMaterno: 'Quispe',
-        ci: '15590007',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_008',
-        nombres: 'Brayan Rey',
-        apellidoPaterno: 'Choque',
-        apellidoMaterno: 'Huanaca',
-        ci: '15590008',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
+    // ✅ SOLO AGREGAMOS SI NO EXISTEN
+    if (_estudiantes.isEmpty) {
+      _estudiantes.addAll([
+        // NRO 1-8 con CIs 15590001-15590008
+        Estudiante(
+          id: 'est_001',
+          nombres: 'Jhoshanes Israel',
+          apellidoPaterno: 'Anllon',
+          apellidoMaterno: 'Martínez',
+          ci: '15590001',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_002',
+          nombres: 'Jade Silvia',
+          apellidoPaterno: 'Anti',
+          apellidoMaterno: 'Quispe',
+          ci: '15590002',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_003',
+          nombres: 'Vladimir',
+          apellidoPaterno: 'Apaza',
+          apellidoMaterno: 'Choque',
+          ci: '15590003',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_004',
+          nombres: 'Mario Edwin',
+          apellidoPaterno: 'Apaza',
+          apellidoMaterno: 'Mamani',
+          ci: '15590004',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_005',
+          nombres: 'Jhonathan Rafael',
+          apellidoPaterno: 'Aquise',
+          apellidoMaterno: 'Mamani',
+          ci: '15590005',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_006',
+          nombres: 'Miguel Alejandro',
+          apellidoPaterno: 'Calle',
+          apellidoMaterno: 'Chipana',
+          ci: '15590006',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_007',
+          nombres: 'Esteban',
+          apellidoPaterno: 'Callizaya',
+          apellidoMaterno: 'Quispe',
+          ci: '15590007',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_008',
+          nombres: 'Brayan Rey',
+          apellidoPaterno: 'Choque',
+          apellidoMaterno: 'Huanaca',
+          ci: '15590008',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
 
-      // NRO 9-38 con CIs 15600433-15600462
-      Estudiante(
-        id: 'est_009',
-        nombres: 'Nicole Wara',
-        apellidoPaterno: 'Colque',
-        apellidoMaterno: 'Pachacoti',
-        ci: '15600433',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_010',
-        nombres: 'Kevin Bernardo',
-        apellidoPaterno: 'Espinoza',
-        apellidoMaterno: 'Ramos',
-        ci: '15600434',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      // ... Continúa con los demás estudiantes exactamente igual
-      Estudiante(
-        id: 'est_011',
-        nombres: 'Edwin',
-        apellidoPaterno: 'Flores',
-        apellidoMaterno: 'Mita',
-        ci: '15600435',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_012',
-        nombres: 'Miguel Angel',
-        apellidoPaterno: 'Flores',
-        apellidoMaterno: 'Nina',
-        ci: '15600436',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_013',
-        nombres: 'Anahi Katherin',
-        apellidoPaterno: 'Guarachi',
-        apellidoMaterno: 'Anahi',
-        ci: '15600437',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_014',
-        nombres: 'Bladimir Denilson',
-        apellidoPaterno: 'Huacho',
-        apellidoMaterno: 'Ejido',
-        ci: '15600438',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_015',
-        nombres: 'Niko Dennis',
-        apellidoPaterno: 'Huanca',
-        apellidoMaterno: 'Gutierrez',
-        ci: '15600439',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_016',
-        nombres: 'Santos',
-        apellidoPaterno: 'Huanca',
-        apellidoMaterno: 'Limachi',
-        ci: '15600440',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_017',
-        nombres: 'Luz Fabiola',
-        apellidoPaterno: 'Lima',
-        apellidoMaterno: 'Espinoza',
-        ci: '15600441',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_018',
-        nombres: 'Edison Gonzalo',
-        apellidoPaterno: 'Mamani',
-        apellidoMaterno: 'Chuquvi',
-        ci: '15600442',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_019',
-        nombres: 'Yura Helen Yesica',
-        apellidoPaterno: 'Mayta',
-        apellidoMaterno: 'Mamani',
-        ci: '15600443',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_020',
-        nombres: 'Jhamil Raymer',
-        apellidoPaterno: 'Mamani',
-        apellidoMaterno: 'Mamani',
-        ci: '15600444',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_021',
-        nombres: 'Alvi Monzerrat',
-        apellidoPaterno: 'Mela',
-        apellidoMaterno: 'Mostajo',
-        ci: '15600445',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_022',
-        nombres: 'Reynaldo Brayan',
-        apellidoPaterno: 'Mendoza',
-        apellidoMaterno: 'Herrera',
-        ci: '15600446',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_023',
-        nombres: 'Luque Limber Rodrigo',
-        apellidoPaterno: 'Nina',
-        apellidoMaterno: 'Flores',
-        ci: '15600447',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_024',
-        nombres: 'Belinda Araceli',
-        apellidoPaterno: 'Nina',
-        apellidoMaterno: 'Flores',
-        ci: '15600448',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_025',
-        nombres: 'Patricia Jael',
-        apellidoPaterno: 'Paco',
-        apellidoMaterno: 'Huertas',
-        ci: '15600449',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_026',
-        nombres: 'Adriel Alejandro',
-        apellidoPaterno: 'Paco',
-        apellidoMaterno: 'Huertas',
-        ci: '15600450',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_027',
-        nombres: 'Ticona Natanael',
-        apellidoPaterno: 'Paco',
-        apellidoMaterno: 'Mamani',
-        ci: '15600451',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_028',
-        nombres: 'Alvin Kevin',
-        apellidoPaterno: 'Patzi',
-        apellidoMaterno: 'Mujica',
-        ci: '15600452',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_029',
-        nombres: 'Ilan Kevin',
-        apellidoPaterno: 'Poma',
-        apellidoMaterno: 'Condori',
-        ci: '15600453',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_030',
-        nombres: 'Jose Franz',
-        apellidoPaterno: 'Pinto',
-        apellidoMaterno: 'Callisaya',
-        ci: '15600454',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_031',
-        nombres: 'Juan Salvador',
-        apellidoPaterno: 'Quispe',
-        apellidoMaterno: 'Aluviri',
-        ci: '15600455',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_032',
-        nombres: 'Misael',
-        apellidoPaterno: 'Quispe',
-        apellidoMaterno: 'Condori',
-        ci: '15600456',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_033',
-        nombres: 'Cinthia',
-        apellidoPaterno: 'Quispe',
-        apellidoMaterno: 'Quispe',
-        ci: '15600457',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_034',
-        nombres: 'Juan Pablo',
-        apellidoPaterno: 'Ramírez',
-        apellidoMaterno: 'Aguilar',
-        ci: '15600458',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_035',
-        nombres: 'Briner Jordy',
-        apellidoPaterno: 'Ronquillo',
-        apellidoMaterno: 'Condori',
-        ci: '15600459',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_036',
-        nombres: 'Grover',
-        apellidoPaterno: 'Tambo',
-        apellidoMaterno: 'Mamani',
-        ci: '15600460',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_037',
-        nombres: 'Alan Yahir',
-        apellidoPaterno: 'Tito',
-        apellidoMaterno: 'Gutiérrez',
-        ci: '15600461',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-      Estudiante(
-        id: 'est_038',
-        nombres: 'Alejandro Gabriel',
-        apellidoPaterno: 'Villa',
-        apellidoMaterno: 'Salinas',
-        ci: '15600462',
-        fechaRegistro: '2024-01-15',
-        huellasRegistradas: 0,
-        carreraId: 'sistemas',
-        turnoId: 'noche',
-        nivelId: 'tercero',
-        paraleloId: 'b',
-        fechaCreacion: DateTime.now().toIso8601String(),
-        fechaActualizacion: DateTime.now().toIso8601String(),
-      ),
-    ]);
+        // NRO 9-38 con CIs 15600433-15600462
+        Estudiante(
+          id: 'est_009',
+          nombres: 'Nicole Wara',
+          apellidoPaterno: 'Colque',
+          apellidoMaterno: 'Pachacoti',
+          ci: '15600433',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_010',
+          nombres: 'Kevin Bernardo',
+          apellidoPaterno: 'Espinoza',
+          apellidoMaterno: 'Ramos',
+          ci: '15600434',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_011',
+          nombres: 'Edwin',
+          apellidoPaterno: 'Flores',
+          apellidoMaterno: 'Mita',
+          ci: '15600435',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_012',
+          nombres: 'Miguel Angel',
+          apellidoPaterno: 'Flores',
+          apellidoMaterno: 'Nina',
+          ci: '15600436',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_013',
+          nombres: 'Anahi Katherin',
+          apellidoPaterno: 'Guarachi',
+          apellidoMaterno: 'Anahi',
+          ci: '15600437',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_014',
+          nombres: 'Bladimir Denilson',
+          apellidoPaterno: 'Huacho',
+          apellidoMaterno: 'Ejido',
+          ci: '15600438',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_015',
+          nombres: 'Niko Dennis',
+          apellidoPaterno: 'Huanca',
+          apellidoMaterno: 'Gutierrez',
+          ci: '15600439',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_016',
+          nombres: 'Santos',
+          apellidoPaterno: 'Huanca',
+          apellidoMaterno: 'Limachi',
+          ci: '15600440',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_017',
+          nombres: 'Luz Fabiola',
+          apellidoPaterno: 'Lima',
+          apellidoMaterno: 'Espinoza',
+          ci: '15600441',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_018',
+          nombres: 'Edison Gonzalo',
+          apellidoPaterno: 'Mamani',
+          apellidoMaterno: 'Chuquvi',
+          ci: '15600442',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_019',
+          nombres: 'Yura Helen Yesica',
+          apellidoPaterno: 'Mayta',
+          apellidoMaterno: 'Mamani',
+          ci: '15600443',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_020',
+          nombres: 'Jhamil Raymer',
+          apellidoPaterno: 'Mamani',
+          apellidoMaterno: 'Mamani',
+          ci: '15600444',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_021',
+          nombres: 'Alvi Monzerrat',
+          apellidoPaterno: 'Mela',
+          apellidoMaterno: 'Mostajo',
+          ci: '15600445',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_022',
+          nombres: 'Reynaldo Brayan',
+          apellidoPaterno: 'Mendoza',
+          apellidoMaterno: 'Herrera',
+          ci: '15600446',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_023',
+          nombres: 'Luque Limber Rodrigo',
+          apellidoPaterno: 'Nina',
+          apellidoMaterno: 'Flores',
+          ci: '15600447',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_024',
+          nombres: 'Belinda Araceli',
+          apellidoPaterno: 'Nina',
+          apellidoMaterno: 'Flores',
+          ci: '15600448',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_025',
+          nombres: 'Patricia Jael',
+          apellidoPaterno: 'Paco',
+          apellidoMaterno: 'Huertas',
+          ci: '15600449',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_026',
+          nombres: 'Adriel Alejandro',
+          apellidoPaterno: 'Paco',
+          apellidoMaterno: 'Huertas',
+          ci: '15600450',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_027',
+          nombres: 'Ticona Natanael',
+          apellidoPaterno: 'Paco',
+          apellidoMaterno: 'Mamani',
+          ci: '15600451',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_028',
+          nombres: 'Alvin Kevin',
+          apellidoPaterno: 'Patzi',
+          apellidoMaterno: 'Mujica',
+          ci: '15600452',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_029',
+          nombres: 'Ilan Kevin',
+          apellidoPaterno: 'Poma',
+          apellidoMaterno: 'Condori',
+          ci: '15600453',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_030',
+          nombres: 'Jose Franz',
+          apellidoPaterno: 'Pinto',
+          apellidoMaterno: 'Callisaya',
+          ci: '15600454',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_031',
+          nombres: 'Juan Salvador',
+          apellidoPaterno: 'Quispe',
+          apellidoMaterno: 'Aluviri',
+          ci: '15600455',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_032',
+          nombres: 'Misael',
+          apellidoPaterno: 'Quispe',
+          apellidoMaterno: 'Condori',
+          ci: '15600456',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_033',
+          nombres: 'Cinthia',
+          apellidoPaterno: 'Quispe',
+          apellidoMaterno: 'Quispe',
+          ci: '15600457',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_034',
+          nombres: 'Juan Pablo',
+          apellidoPaterno: 'Ramírez',
+          apellidoMaterno: 'Aguilar',
+          ci: '15600458',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_035',
+          nombres: 'Briner Jordy',
+          apellidoPaterno: 'Ronquillo',
+          apellidoMaterno: 'Condori',
+          ci: '15600459',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_036',
+          nombres: 'Grover',
+          apellidoPaterno: 'Tambo',
+          apellidoMaterno: 'Mamani',
+          ci: '15600460',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_037',
+          nombres: 'Alan Yahir',
+          apellidoPaterno: 'Tito',
+          apellidoMaterno: 'Gutiérrez',
+          ci: '15600461',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+        Estudiante(
+          id: 'est_038',
+          nombres: 'Alejandro Gabriel',
+          apellidoPaterno: 'Villa',
+          apellidoMaterno: 'Salinas',
+          ci: '15600462',
+          fechaRegistro: '2024-01-15',
+          huellasRegistradas: 0,
+          carreraId: 'sistemas',
+          turnoId: 'noche',
+          nivelId: 'tercero',
+          paraleloId: 'b',
+          fechaCreacion: DateTime.now().toIso8601String(),
+          fechaActualizacion: DateTime.now().toIso8601String(),
+        ),
+      ]);
 
-    _ordenarEstudiantes();
-    print('🎯 ${_estudiantes.length} estudiantes cargados en memoria - Tercero B Noche');
+      _ordenarEstudiantes();
+      print('🎯 ${_estudiantes.length} estudiantes cargados PERMANENTEMENTE - Tercero B Noche');
+    } else {
+      print('📊 Estudiantes ya existen en memoria: ${_estudiantes.length}');
+    }
   }
 
   void _onEstudiantesError(dynamic error) {
@@ -715,7 +847,7 @@ class EstudiantesViewModel with ChangeNotifier {
     });
   }
 
-  // ✅ MÉTODO MEJORADO PARA OPERACIONES CRUD (EN MEMORIA)
+  // ✅ MÉTODO MEJORADO PARA OPERACIONES CRUD (EN MEMORIA PERMANENTE)
   Future<bool> _executeDatabaseOperation(
     String operation, 
     Future<void> Function() operationFn
@@ -736,7 +868,7 @@ class EstudiantesViewModel with ChangeNotifier {
     }
   }
 
-  // ✅ AGREGAR ESTUDIANTE - EN MEMORIA
+  // ✅ AGREGAR ESTUDIANTE - EN MEMORIA PERMANENTE
   Future<bool> agregarEstudiante({
     required String nombres,
     required String paterno,
@@ -768,22 +900,27 @@ class EstudiantesViewModel with ChangeNotifier {
         ci: ci.trim(),
         fechaRegistro: fechaRegistro,
         huellasRegistradas: 0,
-        carreraId: carreraId ?? 'sistemas',
-        turnoId: turnoId ?? 'noche',
-        nivelId: nivelId ?? 'tercero',
-        paraleloId: paraleloId ?? 'b',
+        carreraId: carreraId ?? carrera['id'],
+        turnoId: turnoId ?? turno['id'],
+        nivelId: nivelId ?? nivel['id'],
+        paraleloId: paraleloId ?? paralelo['id'],
         fechaCreacion: now,
         fechaActualizacion: now,
       );
 
+      // ✅ AGREGAR A LA LISTA PERMANENTE
       _estudiantes.add(nuevoEstudiante);
+      
+      // ✅ ACTUALIZAR CACHÉ PARA MANTENERLO RÁPIDO
+      _updateCache('estudiantes_lista', _estudiantes);
+      
       _ordenarEstudiantes();
 
-      print('✅ Estudiante agregado en memoria: $nombres $paterno');
+      print('✅ Estudiante agregado PERMANENTEMENTE en memoria: $nombres $paterno');
     });
   }
 
-  // ✅ EDITAR ESTUDIANTE - EN MEMORIA
+  // ✅ EDITAR ESTUDIANTE - EN MEMORIA PERMANENTE
   Future<bool> editarEstudiante({
     required String id,
     required String nombres,
@@ -808,33 +945,42 @@ class EstudiantesViewModel with ChangeNotifier {
         throw Exception('Estudiante no encontrado');
       }
 
+      // ✅ ACTUALIZAR EN LA LISTA PERMANENTE
       _estudiantes[index] = _estudiantes[index].copyWith(
         nombres: nombres.trim(),
         apellidoPaterno: paterno.trim(),
         apellidoMaterno: materno.trim(),
         ci: ci.trim(),
-        carreraId: carreraId ?? 'sistemas',
-        turnoId: turnoId ?? 'noche',
-        nivelId: nivelId ?? 'tercero',
-        paraleloId: paraleloId ?? 'b',
+        carreraId: carreraId ?? carrera['id'],
+        turnoId: turnoId ?? turno['id'],
+        nivelId: nivelId ?? nivel['id'],
+        paraleloId: paraleloId ?? paralelo['id'],
         fechaActualizacion: DateTime.now().toIso8601String(),
       );
 
+      // ✅ ACTUALIZAR CACHÉ PARA MANTENERLO RÁPIDO
+      _updateCache('estudiantes_lista', _estudiantes);
+
       _ordenarEstudiantes();
-      print('✅ Estudiante editado en memoria: $id');
+      print('✅ Estudiante editado PERMANENTEMENTE en memoria: $id');
     });
   }
 
-  // ✅ ELIMINAR ESTUDIANTE - EN MEMORIA
+  // ✅ ELIMINAR ESTUDIANTE - DE LA MEMORIA PERMANENTE
   Future<bool> eliminarEstudiante(String id) async {
     return _executeDatabaseOperation('eliminar estudiante', () async {
+      // ✅ ELIMINAR DE LA LISTA PERMANENTE
       _estudiantes.removeWhere((est) => est.id == id);
+      
+      // ✅ ACTUALIZAR CACHÉ PARA MANTENERLO RÁPIDO
+      _updateCache('estudiantes_lista', _estudiantes);
+      
       _filtrarEstudiantes();
-      print('✅ Estudiante eliminado de memoria: $id');
+      print('✅ Estudiante eliminado PERMANENTEMENTE de memoria: $id');
     });
   }
 
-  // ✅ ACTUALIZAR HUELLAS - EN MEMORIA
+  // ✅ ACTUALIZAR HUELLAS - EN MEMORIA PERMANENTE
   Future<bool> actualizarHuellasEstudiante(
     String id,
     int huellasRegistradas,
@@ -845,13 +991,17 @@ class EstudiantesViewModel with ChangeNotifier {
         throw Exception('Estudiante no encontrado');
       }
 
+      // ✅ ACTUALIZAR EN LA LISTA PERMANENTE
       _estudiantes[index] = _estudiantes[index].copyWith(
         huellasRegistradas: huellasRegistradas,
         fechaActualizacion: DateTime.now().toIso8601String(),
       );
 
+      // ✅ ACTUALIZAR CACHÉ PARA MANTENERLO RÁPIDO
+      _updateCache('estudiantes_lista', _estudiantes);
+
       notifyListeners();
-      print('✅ Huellas actualizadas en memoria: $id a $huellasRegistradas');
+      print('✅ Huellas actualizadas PERMANENTEMENTE en memoria: $id a $huellasRegistradas');
       return true;
     } catch (e) {
       print('❌ Error actualizando huellas: $e');

@@ -74,8 +74,8 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
     try {
       final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
       
-      // ✅ CORREGIDO: Usar copyWith (debes agregarlo al modelo Usuario)
-      final usuarioActualizado = widget.usuario.copyWith(
+      // ✅ CORREGIDO: Usar el nuevo método que acepta parámetros individuales
+      final resultado = await authViewModel.actualizarPerfil(
         username: _usernameController.text.trim(),
         nombre: _nombreController.text.trim(),
         email: _emailController.text.trim(),
@@ -83,10 +83,8 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
         fotoUrl: _fotoUrl,
       );
 
-      final resultado = await authViewModel.actualizarPerfil(usuarioActualizado);
-
       if (resultado && context.mounted) {
-        Navigator.pop(context, usuarioActualizado);
+        Navigator.pop(context, true);
         Helpers.showSnackBar(
           context,
           '✅ Perfil actualizado exitosamente',
@@ -95,7 +93,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
       } else if (context.mounted) {
         Helpers.showSnackBar(
           context,
-          '❌ Error al actualizar perfil',
+          '❌ Error al actualizar perfil: ${authViewModel.error}',
           type: 'error',
         );
       }
@@ -154,7 +152,6 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                     CircleAvatar(
                       radius: 60,
                       backgroundColor: AppColors.primary.withOpacity(0.1),
-                      // ✅ CORREGIDO: Manejar tanto Network como File images
                       backgroundImage: _fotoUrl != null 
                           ? _fotoUrl!.startsWith('http') 
                               ? NetworkImage(_fotoUrl!) 
@@ -280,12 +277,13 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                         ),
                       ),
                       SizedBox(height: AppSpacing.medium),
-                      // ✅ CORREGIDO: Usar propiedades que SÍ existen
                       _buildInfoRow('Rol:', widget.usuario.rolDisplay, context),
                       _buildInfoRow('Estado:', widget.usuario.estaActivo ? 'Activo' : 'Inactivo', context),
                       _buildInfoRow('ID Usuario:', widget.usuario.id, context),
-                      // ❌ REMOVER: _buildInfoRow('Carnet:', widget.usuario.carnet, context),
-                      // ❌ REMOVER: _buildInfoRow('Departamento:', widget.usuario.departamento, context),
+                      if (widget.usuario.carnet != null && widget.usuario.carnet!.isNotEmpty)
+                        _buildInfoRow('Carnet:', widget.usuario.carnet!, context),
+                      if (widget.usuario.departamento != null && widget.usuario.departamento!.isNotEmpty)
+                        _buildInfoRow('Departamento:', widget.usuario.departamento!, context),
                     ],
                   ),
                 ),

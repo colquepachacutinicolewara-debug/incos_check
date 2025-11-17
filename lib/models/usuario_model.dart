@@ -1,4 +1,6 @@
+// models/usuario_model.dart - VERSIÓN COMPLETA Y CORREGIDA
 import 'package:flutter/material.dart';
+import '../utils/permissions.dart';
 
 class Usuario {
   final String id;
@@ -175,19 +177,102 @@ class Usuario {
     );
   }
 
-  // Métodos de utilidad
-  bool get puedeGestionarUsuarios => role.toLowerCase() == 'administrador';
+  // 🌟 MÉTODOS DE PERMISOS MEJORADOS
+  bool tienePermiso(String permission) {
+    return AppPermissions.hasPermission(role, permission);
+  }
+
+  bool tieneAlgunPermiso(List<String> permissions) {
+    return AppPermissions.hasAnyPermission(role, permissions);
+  }
+
+  bool tieneTodosPermisos(List<String> permissions) {
+    return AppPermissions.hasAllPermissions(role, permissions);
+  }
+
+  List<String> get permisos => AppPermissions.getPermissionsForRole(role);
+
+  // 🌟 PERMISOS ESPECÍFICOS POR MÓDULO
+  bool get puedeAccederDashboard => tienePermiso(AppPermissions.ACCESS_DASHBOARD);
+  bool get puedeAccederGestion => tienePermiso(AppPermissions.ACCESS_GESTION);
+  bool get puedeAccederAsistencia => tienePermiso(AppPermissions.ACCESS_ASISTENCIA);
+  bool get puedeAccederReportes => tienePermiso(AppPermissions.ACCESS_REPORTES);
+  bool get puedeAccederConfiguracion => tienePermiso(AppPermissions.ACCESS_CONFIGURACION);
+
+  // Gestión académica
+  bool get puedeGestionarEstudiantes => tienePermiso(AppPermissions.MANAGE_ESTUDIANTES);
+  bool get puedeGestionarDocentes => tienePermiso(AppPermissions.MANAGE_DOCENTES);
+  bool get puedeGestionarCarreras => tienePermiso(AppPermissions.MANAGE_CARRERAS);
+  bool get puedeGestionarMaterias => tienePermiso(AppPermissions.MANAGE_MATERIAS);
+  bool get puedeGestionarParalelos => tienePermiso(AppPermissions.MANAGE_PARALELOS);
+  bool get puedeGestionarTurnos => tienePermiso(AppPermissions.MANAGE_TURNOS);
+  bool get puedeGestionarNiveles => tienePermiso(AppPermissions.MANAGE_NIVELES);
+  bool get puedeGestionarPeriodos => tienePermiso(AppPermissions.MANAGE_PERIODOS);
+
+  // Asistencia
+  bool get puedeRegistrarAsistencia => tienePermiso(AppPermissions.REGISTER_ASISTENCIA);
+  bool get puedeVerHistorialAsistencia => tienePermiso(AppPermissions.VIEW_HISTORIAL_ASISTENCIA);
+  bool get puedeGestionarBiometrico => tienePermiso(AppPermissions.MANAGE_BIOMETRICO);
+
+  // Reportes
+  bool get puedeGenerarReportes => tienePermiso(AppPermissions.GENERATE_REPORTES);
+  bool get puedeExportarDatos => tienePermiso(AppPermissions.EXPORT_DATA);
+  bool get puedeVerEstadisticas => tienePermiso(AppPermissions.VIEW_STATISTICS);
+
+  // Configuración
+  bool get puedeGestionarUsuarios => tienePermiso(AppPermissions.MANAGE_USUARIOS);
+  bool get puedeGestionarConfiguracion => tienePermiso(AppPermissions.MANAGE_CONFIGURACION);
+  bool get puedeGestionarRespaldos => tienePermiso(AppPermissions.MANAGE_BACKUPS);
+  bool get puedeVerLogs => tienePermiso(AppPermissions.VIEW_LOGS);
+
+  // 🌟 MÉTODO PARA OBTENER MÓDULOS DISPONIBLES
+  Map<String, bool> get modulosDisponibles {
+    return {
+      'Gestión Académica': puedeAccederGestion,
+      'Registro de Asistencia': puedeAccederAsistencia,
+      'Reportes e Informes': puedeAccederReportes,
+      'Configuración': puedeAccederConfiguracion,
+    };
+  }
+
+  // 🌟 MÉTODO PARA VERIFICAR ACCESO A SECCIÓN ESPECÍFICA
+  bool puedeAccederA(String seccion) {
+    switch (seccion.toLowerCase()) {
+      case 'estudiantes':
+        return puedeGestionarEstudiantes;
+      case 'docentes':
+        return puedeGestionarDocentes;
+      case 'carreras':
+        return puedeGestionarCarreras;
+      case 'materias':
+        return puedeGestionarMaterias;
+      case 'asistencia':
+        return puedeRegistrarAsistencia;
+      case 'historial':
+        return puedeVerHistorialAsistencia;
+      case 'reportes':
+        return puedeGenerarReportes;
+      case 'configuracion':
+        return puedeGestionarConfiguracion;
+      case 'usuarios':
+        return puedeGestionarUsuarios;
+      default:
+        return false;
+    }
+  }
+
+  // 🌟 MÉTODOS DE UTILIDAD (COMPATIBILIDAD CON CÓDIGO EXISTENTE)
   bool get puedeGestionarAsistencias => 
       role.toLowerCase() == 'administrador' || role.toLowerCase() == 'docente';
+  
   bool get puedeVerReportes => 
       role.toLowerCase() == 'administrador' || 
       role.toLowerCase() == 'director académico' ||
       role.toLowerCase() == 'jefe de carrera';
   
   bool get puedeGestionarCursos => role.toLowerCase() == 'administrador';
-  bool get puedeRegistrarAsistencia => 
-      role.toLowerCase() == 'administrador' || role.toLowerCase() == 'docente';
-  bool get puedeGestionarEstudiantes => 
+  
+  bool get puedeGestionarEstudiantesLegacy => 
       role.toLowerCase() == 'administrador' || role.toLowerCase() == 'docente';
 
   String get rolDisplay {
@@ -204,6 +289,42 @@ class Usuario {
         return 'Estudiante';
       default:
         return role;
+    }
+  }
+
+  // 🌟 MÉTODO PARA OBTENER DESCRIPCIÓN DEL ROL
+  String get descripcionRol {
+    switch (role.toLowerCase()) {
+      case 'administrador':
+        return 'Acceso completo a todos los módulos y funciones del sistema';
+      case 'director académico':
+        return 'Puede gestionar datos académicos y ver reportes completos';
+      case 'jefe de carrera':
+        return 'Puede gestionar estudiantes, docentes y materias de su carrera';
+      case 'docente':
+        return 'Puede registrar asistencia y ver reportes de sus materias';
+      case 'estudiante':
+        return 'Puede ver su propio historial de asistencia';
+      default:
+        return 'Usuario con permisos básicos';
+    }
+  }
+
+  // 🌟 MÉTODO PARA OBTENER NIVEL DE ACCESO (1-5)
+  int get nivelAcceso {
+    switch (role.toLowerCase()) {
+      case 'administrador':
+        return 5;
+      case 'director académico':
+        return 4;
+      case 'jefe de carrera':
+        return 3;
+      case 'docente':
+        return 2;
+      case 'estudiante':
+        return 1;
+      default:
+        return 0;
     }
   }
 

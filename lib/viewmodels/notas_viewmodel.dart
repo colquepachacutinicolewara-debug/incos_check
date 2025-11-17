@@ -1,6 +1,4 @@
-// PROBLEMA: Modelo no coincide con tu estructura de BD
-// SOLUCIÓN: Reemplazar con este código corregido
-
+// viewmodels/notas_viewmodel.dart - VERSIÓN CORREGIDA
 import 'package:flutter/material.dart';
 import '../models/nota_asistencia_model.dart';
 import '../models/config_notas_model.dart';
@@ -11,6 +9,7 @@ class NotasViewModel with ChangeNotifier {
   
   List<NotaAsistencia> _notas = [];
   List<NotaAsistencia> _notasFiltradas = [];
+  ConfigNotasAsistencia? _configuracion;
   
   bool _isLoading = false;
   String? _error;
@@ -19,13 +18,26 @@ class NotasViewModel with ChangeNotifier {
 
   List<NotaAsistencia> get notas => _notas;
   List<NotaAsistencia> get notasFiltradas => _notasFiltradas;
+  ConfigNotasAsistencia? get configuracion => _configuracion;
   bool get isLoading => _isLoading;
   String? get error => _error;
   String get filtroBimestre => _filtroBimestre;
   String get filtroEstado => _filtroEstado;
 
   NotasViewModel() {
+    _cargarConfiguracion();
     cargarNotas();
+  }
+
+  Future<void> _cargarConfiguracion() async {
+    try {
+      final result = await _databaseHelper.obtenerConfiguracionNotasAsistenciaActiva();
+      if (result != null) {
+        _configuracion = ConfigNotasAsistencia.fromMap(result);
+      }
+    } catch (e) {
+      print('⚠️ Error cargando configuración: $e');
+    }
   }
 
   Future<void> cargarNotas() async {
@@ -34,8 +46,11 @@ class NotasViewModel with ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      // Usar el método de tu DatabaseHelper
-      final result = await _databaseHelper.obtenerNotasAsistenciaPorEstudiante('estudiante_ejemplo', 'periodo_2024');
+      // Cargar todas las notas (ajustar según tu lógica)
+      final result = await _databaseHelper.rawQuery('''
+        SELECT * FROM notas_asistencia 
+        ORDER BY estudiante_id, materia_id, bimestre_id
+      ''');
 
       _notas = result.map((row) => 
         NotaAsistencia.fromMap(Map<String, dynamic>.from(row))
@@ -54,7 +69,7 @@ class NotasViewModel with ChangeNotifier {
     }
   }
 
-  // 🆕 MÉTODO MEJORADO PARA CALCULAR NOTAS
+  // 🆕 CALCULAR NOTAS PARA UN BIMESTRE
   Future<void> calcularNotasBimestre(String bimestreId) async {
     try {
       _isLoading = true;
@@ -70,15 +85,19 @@ class NotasViewModel with ChangeNotifier {
       for (final estudiante in estudiantes) {
         final estudianteId = estudiante['id']?.toString() ?? '';
         
-        // Calcular nota usando el método de DatabaseHelper
-        final resultado = await _databaseHelper.calcularNotaAsistenciaCompleta(
-          estudianteId, 
-          'materia_general', 
-          'periodo_2024', 
-          bimestreId
-        );
-
-        print('✅ Nota calculada para $estudianteId: ${resultado['nota_calculada']}');
+        try {
+          // Calcular nota usando el método de DatabaseHelper
+          await _databaseHelper.calcularNotaAsistencia(
+            estudianteId, 
+            'materia_general', // Ajustar según necesidad
+            'periodo_2024',    // Ajustar según necesidad  
+            bimestreId
+          );
+          
+          print('✅ Nota calculada para: $estudianteId');
+        } catch (e) {
+          print('⚠️ Error calculando nota para $estudianteId: $e');
+        }
       }
 
       await cargarNotas(); // Recargar lista actualizada
@@ -90,6 +109,26 @@ class NotasViewModel with ChangeNotifier {
       print('❌ Error calculando notas: $e');
     } finally {
       _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // 🆕 CALCULAR NOTA INDIVIDUAL
+  Future<void> calcularNotaIndividual({
+    required String estudianteId,
+    required String materiaId,
+    required String bimestreId,
+  }) async {
+    try {
+      await _databaseHelper.calcularNotaAsistencia(
+        estudianteId, materiaId, 'periodo_2024', bimestreId
+      );
+      
+      await cargarNotas(); // Recargar lista
+      print('✅ Nota individual calculada: $estudianteId');
+
+    } catch (e) {
+      _error = 'Error calculando nota individual: $e';
       notifyListeners();
     }
   }
@@ -115,19 +154,34 @@ class NotasViewModel with ChangeNotifier {
     }).toList();
   }
 
+  // 🆕 OBTENER NOTAS POR ESTUDIANTE
+  List<NotaAsistencia> obtenerNotasPorEstudiante(String estudianteId) {
+    return _notas.where((nota) => nota.estudianteId == estudianteId).toList();
+  }
+
+  // 🆕 OBTENER NOTAS POR MATERIA
+  List<NotaAsistencia> obtenerNotasPorMateria(String materiaId) {
+    return _notas.where((nota) => nota.materiaId == materiaId).toList();
+  }
+
   // 🆕 ESTADÍSTICAS MEJORADAS
   Map<String, dynamic> obtenerEstadisticas() {
     final total = _notas.length;
     final aprobados = _notas.where((n) => n.estaAprobado).length;
-    final reprobados = total - aprobados;
-    final promedio = total > 0 
-        ? _notas.map((n) => n.notaCalculada).reduce((a, b) => a + b) / total 
+    final reprobados = _notas.where((n) => n.estaCalculado && !n.estaAprobado).length;
+    final pendientes = _notas.where((n) => !n.estaCalculado).length;
+    
+    final promedio = _notas.isNotEmpty && _notas.any((n) => n.estaCalculado)
+        ? _notas.where((n) => n.estaCalculado)
+            .map((n) => n.notaCalculada)
+            .reduce((a, b) => a + b) / _notas.where((n) => n.estaCalculado).length
         : 0.0;
 
     return {
       'total': total,
       'aprobados': aprobados,
       'reprobados': reprobados,
+      'pendientes': pendientes,
       'promedio': promedio.roundToDouble(),
       'porcentaje_aprobacion': total > 0 ? (aprobados / total * 100).roundToDouble() : 0.0,
     };

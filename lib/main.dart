@@ -119,8 +119,8 @@ class MyApp extends StatelessWidget {
           create: (context) => MateriaViewModel(), 
         ),
         
-        ChangeNotifierProvider<ReporteViewModel>(
-          create: (context) => ReporteViewModel(), 
+        ChangeNotifierProvider<ReportesViewModel>(
+          create: (context) => ReportesViewModel(), 
         ),
         
         ChangeNotifierProvider<SoporteViewModel>(
@@ -195,6 +195,10 @@ class MyApp extends StatelessWidget {
                 themeMode: themeService.themeMode,
                 home: const AuthWrapper(),
                 // 🌟 RUTAS PARA NAVEGACIÓN (OPCIONAL)
+                //routes: {
+                //'/login': (context) => const LoginScreen(),
+                //'/dashboard': (context) => const DashboardScreen(),
+                //},
                 routes: {
                   '/dashboard': (context) => const DashboardScreen(),
                   '/login': (context) => const LoginScreen(),

@@ -1,9 +1,12 @@
+// dashboard_screen.dart - VERSIÓN COMPLETA CORREGIDA
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/dashboard_viewmodel.dart';
+import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/carreras_viewmodel.dart';
 import '../../utils/constants.dart';
+import '../../utils/permissions.dart';
 import '../gestion/gestion_screen.dart';
 import '../asistencia/asistencia_screen.dart';
 import '../inicio/inicio_screen.dart';
@@ -68,12 +71,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildUserAvatar() {
-    return Consumer<DashboardViewModel>(
-      builder: (context, dashboardVM, child) {
-        final user = dashboardVM.currentUser;
+    return Consumer<AuthViewModel>(
+      builder: (context, authVM, child) {
+        final user = authVM.currentUser;
         if (user == null) return const SizedBox();
 
-        final userName = user['nombre']?.toString() ?? 'Usuario';
+        final userName = user.nombre;
         final firstLetter = userName.isNotEmpty ? userName[0].toUpperCase() : 'U';
 
         return Padding(
@@ -160,8 +163,113 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildContent(DashboardViewModel dashboardVM) {
-    // Usar IndexedStack para mantener el estado de las páginas
-    return IndexedStack(index: dashboardVM.selectedIndex, children: _pages);
+    final authVM = Provider.of<AuthViewModel>(context, listen: true);
+    
+    return IndexedStack(
+      index: dashboardVM.selectedIndex,
+      children: [
+        // 🌟 PANTALLA 0: GESTIÓN ACADÉMICA (CON PERMISOS)
+        _buildProtectedScreen(
+          screen: GestionScreen(userData: widget.userData),
+          requiredPermission: AppPermissions.ACCESS_GESTION,
+          moduleName: 'Gestión Académica',
+          authVM: authVM,
+        ),
+        
+        // 🌟 PANTALLA 1: ASISTENCIA (CON PERMISOS)
+        _buildProtectedScreen(
+          screen: AsistenciaScreen(userData: widget.userData),
+          requiredPermission: AppPermissions.ACCESS_ASISTENCIA,
+          moduleName: 'Registro de Asistencia',
+          authVM: authVM,
+        ),
+        
+        // 🌟 PANTALLA 2: INICIO (SIEMPRE ACCESIBLE)
+        InicioScreen(userData: widget.userData),
+        
+        // 🌟 PANTALLA 3: REPORTES (CON PERMISOS)
+        _buildProtectedScreen(
+          screen: ReportesScreen(userData: widget.userData),
+          requiredPermission: AppPermissions.ACCESS_REPORTES,
+          moduleName: 'Reportes e Informes',
+          authVM: authVM,
+        ),
+        
+        // 🌟 PANTALLA 4: CONFIGURACIÓN (CON PERMISOS)
+        _buildProtectedScreen(
+          screen: ConfiguracionScreen(userData: widget.userData),
+          requiredPermission: AppPermissions.ACCESS_CONFIGURACION,
+          moduleName: 'Configuración',
+          authVM: authVM,
+        ),
+      ],
+    );
+  }
+
+  // 🌟 WIDGET PARA PROTEGER PANTALLAS CON PERMISOS
+  Widget _buildProtectedScreen({
+    required Widget screen,
+    required String requiredPermission,
+    required String moduleName,
+    required AuthViewModel authVM,
+  }) {
+    if (!authVM.isLoggedIn) {
+      return _buildAccessDeniedScreen(moduleName);
+    }
+    
+    if (authVM.tienePermiso(requiredPermission)) {
+      return screen;
+    } else {
+      return _buildAccessDeniedScreen(moduleName);
+    }
+  }
+
+  // 🌟 PANTALLA DE ACCESO DENEGADO
+  Widget _buildAccessDeniedScreen(String moduleName) {
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.block, size: 80, color: Colors.red),
+              SizedBox(height: 20),
+              Text(
+                'Acceso Restringido',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                ),
+              ),
+              SizedBox(height: 16),
+              Text(
+                'No tienes permisos para acceder al módulo:\n$moduleName',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                ),
+              ),
+              SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () {
+                  final dashboardVM = context.read<DashboardViewModel>();
+                  dashboardVM.changeIndex(2); // Volver al inicio
+                },
+                icon: Icon(Icons.home),
+                label: Text('Volver al Inicio'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Drawer _buildDrawer(BuildContext context) {
@@ -181,15 +289,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildDrawerContent(BuildContext context) {
-    final dashboardVM = Provider.of<DashboardViewModel>(
-      context,
-      listen: false,
-    );
-    final user = dashboardVM.currentUser;
+    final dashboardVM = Provider.of<DashboardViewModel>(context, listen: false);
+    final authVM = Provider.of<AuthViewModel>(context, listen: true);
 
-    final userName = user?['nombre']?.toString() ?? 'Usuario';
-    final userEmail = user?['email']?.toString() ?? 'usuario@incos.edu.bo';
-    final userRole = user?['role']?.toString() ?? 'Usuario';
+    final user = authVM.currentUser;
+
+    final userName = user?.nombre ?? 'Usuario';
+    final userEmail = user?.email ?? 'usuario@incos.edu.bo';
+    final userRole = user?.role ?? 'Usuario';
     final firstLetter = userName.isNotEmpty ? userName[0].toUpperCase() : 'U';
 
     return Column(
@@ -231,81 +338,101 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
 
+        // 🌟 INICIO (SIEMPRE VISIBLE)
         _buildDrawerItem(context, Icons.home, "Inicio", 2, dashboardVM),
 
-        _buildExpansionDrawerItem(
-          context,
-          Icons.school,
-          "Gestión Académica",
-          children: [
-            _buildSubDrawerItem(
-              context,
-              Icons.people,
-              "Estudiantes",
-              () => _navigateToSection(context, 0, 'Estudiantes'),
-            ),
-            _buildSubDrawerItem(
-              context,
-              Icons.book,
-              "Cursos",
-              () => _navigateToSection(context, 0, 'Cursos'),
-            ),
-            _buildSubDrawerItem(
-              context,
-              Icons.school,
-              "Carreras",
-              () => _navigateToSection(context, 0, 'Carreras'),
-            ),
-            _buildSubDrawerItem(
-              context,
-              Icons.person,
-              "Docentes",
-              () => _navigateToSection(context, 0, 'Docentes'),
-            ),
-          ],
-        ),
+        // 🌟 GESTIÓN ACADÉMICA (SOLO CON PERMISOS)
+        if (authVM.puedeAccederGestion) ...[
+          _buildExpansionDrawerItem(
+            context,
+            Icons.school,
+            "Gestión Académica",
+            children: [
+              // ✅ CORREGIDO: Usar los getters correctos
+              if (authVM.puedeGestionarEstudiantes || authVM.esDocente)
+                _buildSubDrawerItem(
+                  context,
+                  Icons.people,
+                  // 🌟 NOMBRE ESPECIAL PARA DOCENTES
+                  authVM.esDocente ? "Mis Estudiantes" : "Estudiantes",
+                  () => _navigateToSection(context, 0, 'Estudiantes'),
+                ),
+              if (authVM.puedeGestionarDocentes)
+                _buildSubDrawerItem(
+                  context,
+                  Icons.person,
+                  "Docentes",
+                  () => _navigateToSection(context, 0, 'Docentes'),
+                ),
+              if (authVM.puedeGestionarCarreras)
+                _buildSubDrawerItem(
+                  context,
+                  Icons.school,
+                  "Carreras",
+                  () => _navigateToSection(context, 0, 'Carreras'),
+                ),
+              if (authVM.puedeGestionarMaterias)
+                _buildSubDrawerItem(
+                  context,
+                  Icons.book,
+                  "Materias",
+                  () => _navigateToSection(context, 0, 'Materias'),
+                ),
+            ],
+          ),
+        ],
 
-        _buildExpansionDrawerItem(
-          context,
-          Icons.event_note,
-          "Registro de Asistencia",
-          children: [
-            _buildSubDrawerItem(
-              context,
-              Icons.fingerprint,
-              "Registrar Asistencia",
-              () => _navigateToSection(context, 1, 'Registrar'),
-            ),
-            _buildSubDrawerItem(
-              context,
-              Icons.history,
-              "Historial de Asistencia",
-              () => _navigateToSection(context, 1, 'Historial'),
-            ),
-          ],
-        ),
+        // 🌟 REGISTRO DE ASISTENCIA (SOLO CON PERMISOS)
+        if (authVM.puedeAccederAsistencia) ...[
+          _buildExpansionDrawerItem(
+            context,
+            Icons.event_note,
+            "Registro de Asistencia",
+            children: [
+              if (authVM.puedeRegistrarAsistencia)
+                _buildSubDrawerItem(
+                  context,
+                  Icons.fingerprint,
+                  "Registrar Asistencia",
+                  () => _navigateToSection(context, 1, 'Registrar'),
+                ),
+              if (authVM.puedeVerHistorialAsistencia)
+                _buildSubDrawerItem(
+                  context,
+                  Icons.history,
+                  "Historial de Asistencia",
+                  () => _navigateToSection(context, 1, 'Historial'),
+                ),
+            ],
+          ),
+        ],
 
-        _buildDrawerItem(
-          context,
-          Icons.assignment,
-          "Reporte General",
-          3,
-          dashboardVM,
-        ),
-        _buildDrawerItem(
-          context,
-          Icons.settings,
-          "Configuración y Soporte",
-          4,
-          dashboardVM,
-        ),
+        // 🌟 REPORTES (SOLO CON PERMISOS)
+        if (authVM.puedeAccederReportes)
+          _buildDrawerItem(
+            context,
+            Icons.assignment,
+            "Reporte General",
+            3,
+            dashboardVM,
+          ),
 
-        _buildSystemInfo(context),
+        // 🌟 CONFIGURACIÓN (SOLO CON PERMISOS)
+        if (authVM.puedeAccederConfiguracion)
+          _buildDrawerItem(
+            context,
+            Icons.settings,
+            "Configuración y Soporte",
+            4,
+            dashboardVM,
+          ),
+
+        _buildSystemInfo(context, authVM),
       ],
     );
   }
 
-  Widget _buildSystemInfo(BuildContext context) {
+  Widget _buildSystemInfo(BuildContext context, AuthViewModel authVM) {
     return Consumer<DashboardViewModel>(
       builder: (context, dashboardVM, child) {
         final stats = dashboardVM.dashboardData['stats'] ?? {};
@@ -333,6 +460,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
               _buildStatItem('Docentes', stats['docentes'] ?? 0),
               _buildStatItem('Carreras', stats['carreras'] ?? 0),
               _buildStatItem('Asistencias Hoy', stats['asistencias_hoy'] ?? 0),
+              const SizedBox(height: AppSpacing.small),
+              Divider(height: 1),
+              const SizedBox(height: AppSpacing.small),
+              // 🌟 INFO DE PERMISOS DEL USUARIO
+              Text(
+                'Tus Permisos:',
+                style: AppTextStyles.body.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '• ${authVM.currentUser?.rolDisplay ?? 'Usuario'}',
+                style: AppTextStyles.body.copyWith(
+                  fontSize: 11,
+                  color: AppColors.primary,
+                ),
+              ),
+              Text(
+                '• ${authVM.currentUserPermissions.length} permisos activos',
+                style: AppTextStyles.body.copyWith(
+                  fontSize: 11,
+                  color: Colors.green,
+                ),
+              ),
             ],
           ),
         );
@@ -413,13 +566,56 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // 🌟 CORREGIR LA VERIFICACIÓN DE ACCESO
   void _navigateToSection(BuildContext context, int index, String section) {
     final dashboardVM = context.read<DashboardViewModel>();
+    final authVM = context.read<AuthViewModel>();
+    
+    // 🌟 VERIFICAR PERMISOS ANTES DE NAVEGAR - CORREGIDO
+    bool tieneAcceso = false;
+    
+    switch (section.toLowerCase()) {
+      case 'estudiantes':
+        tieneAcceso = authVM.puedeGestionarEstudiantes || authVM.esDocente;
+        break;
+      case 'docentes':
+        tieneAcceso = authVM.puedeGestionarDocentes;
+        break;
+      case 'carreras':
+        tieneAcceso = authVM.puedeGestionarCarreras;
+        break;
+      case 'materias':
+        tieneAcceso = authVM.puedeGestionarMaterias;
+        break;
+      case 'registrar':
+        tieneAcceso = authVM.puedeRegistrarAsistencia;
+        break;
+      case 'historial':
+        tieneAcceso = authVM.puedeVerHistorialAsistencia;
+        break;
+      case 'reportes':
+        tieneAcceso = authVM.puedeAccederReportes;
+        break;
+      case 'configuracion':
+        tieneAcceso = authVM.puedeAccederConfiguracion;
+        break;
+      default:
+        tieneAcceso = true; // Inicio siempre accesible
+    }
+    
+    if (!tieneAcceso) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No tienes permisos para acceder a $section'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
     dashboardVM.changeIndex(index);
-
     Navigator.pop(context); // Cerrar drawer
 
-    // Mostrar snackbar solo en debug
     if (kDebugMode) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -487,19 +683,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildResponsiveBottomNavigationBar(BuildContext context) {
     final dashboardVM = Provider.of<DashboardViewModel>(context);
+    final authVM = Provider.of<AuthViewModel>(context, listen: true);
     final screenWidth = MediaQuery.of(context).size.width;
 
     if (screenWidth < 600) {
-      return _buildMobileBottomNavigationBar(dashboardVM, context);
+      return _buildMobileBottomNavigationBar(dashboardVM, authVM, context);
     } else if (screenWidth < 1200) {
-      return _buildTabletBottomNavigationBar(dashboardVM, context);
+      return _buildTabletBottomNavigationBar(dashboardVM, authVM, context);
     } else {
-      return _buildDesktopBottomNavigationBar(dashboardVM, context);
+      return _buildDesktopBottomNavigationBar(dashboardVM, authVM, context);
     }
   }
 
   Widget _buildMobileBottomNavigationBar(
     DashboardViewModel dashboardVM,
+    AuthViewModel authVM,
     BuildContext context,
   ) {
     return Container(
@@ -522,43 +720,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildNavItem(
-                context,
-                Icons.person_add,
-                "ESTUDIANTES",
-                0,
-                dashboardVM,
-                deviceType: DeviceType.mobile,
-              ),
-              _buildNavItem(
-                context,
-                Icons.event_note,
-                "ASISTENCIAS",
-                1,
-                dashboardVM,
-                deviceType: DeviceType.mobile,
-              ),
+              // 🌟 SOLO MOSTRAR SI TIENE PERMISOS
+              if (authVM.puedeAccederGestion)
+                _buildNavItem(
+                  context,
+                  Icons.person_add,
+                  "ESTUDIANTES",
+                  0,
+                  dashboardVM,
+                  deviceType: DeviceType.mobile,
+                ),
+              if (authVM.puedeAccederAsistencia)
+                _buildNavItem(
+                  context,
+                  Icons.event_note,
+                  "ASISTENCIAS",
+                  1,
+                  dashboardVM,
+                  deviceType: DeviceType.mobile,
+                ),
+              
               _buildNavItemInicio(
                 context,
                 dashboardVM,
                 deviceType: DeviceType.mobile,
               ),
-              _buildNavItem(
-                context,
-                Icons.assignment,
-                "REPORTES",
-                3,
-                dashboardVM,
-                deviceType: DeviceType.mobile,
-              ),
-              _buildNavItem(
-                context,
-                Icons.settings,
-                "AJUSTES",
-                4,
-                dashboardVM,
-                deviceType: DeviceType.mobile,
-              ),
+              
+              if (authVM.puedeAccederReportes)
+                _buildNavItem(
+                  context,
+                  Icons.assignment,
+                  "REPORTES",
+                  3,
+                  dashboardVM,
+                  deviceType: DeviceType.mobile,
+                ),
+              if (authVM.puedeAccederConfiguracion)
+                _buildNavItem(
+                  context,
+                  Icons.settings,
+                  "AJUSTES",
+                  4,
+                  dashboardVM,
+                  deviceType: DeviceType.mobile,
+                ),
             ],
           ),
         ),
@@ -568,6 +773,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildTabletBottomNavigationBar(
     DashboardViewModel dashboardVM,
+    AuthViewModel authVM,
     BuildContext context,
   ) {
     return Container(
@@ -595,22 +801,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildNavItem(
-                      context,
-                      Icons.person_add,
-                      "Registro de\nEstudiantes",
-                      0,
-                      dashboardVM,
-                      deviceType: DeviceType.tablet,
-                    ),
-                    _buildNavItem(
-                      context,
-                      Icons.event_note,
-                      "Registro de\nAsistencia",
-                      1,
-                      dashboardVM,
-                      deviceType: DeviceType.tablet,
-                    ),
+                    if (authVM.puedeAccederGestion)
+                      _buildNavItem(
+                        context,
+                        Icons.person_add,
+                        "Registro de\nEstudiantes",
+                        0,
+                        dashboardVM,
+                        deviceType: DeviceType.tablet,
+                      ),
+                    if (authVM.puedeAccederAsistencia)
+                      _buildNavItem(
+                        context,
+                        Icons.event_note,
+                        "Registro de\nAsistencia",
+                        1,
+                        dashboardVM,
+                        deviceType: DeviceType.tablet,
+                      ),
                   ],
                 ),
               ),
@@ -623,22 +831,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildNavItem(
-                      context,
-                      Icons.assignment,
-                      "Reportes",
-                      3,
-                      dashboardVM,
-                      deviceType: DeviceType.tablet,
-                    ),
-                    _buildNavItem(
-                      context,
-                      Icons.settings,
-                      "Configuración",
-                      4,
-                      dashboardVM,
-                      deviceType: DeviceType.tablet,
-                    ),
+                    if (authVM.puedeAccederReportes)
+                      _buildNavItem(
+                        context,
+                        Icons.assignment,
+                        "Reportes",
+                        3,
+                        dashboardVM,
+                        deviceType: DeviceType.tablet,
+                      ),
+                    if (authVM.puedeAccederConfiguracion)
+                      _buildNavItem(
+                        context,
+                        Icons.settings,
+                        "Configuración",
+                        4,
+                        dashboardVM,
+                        deviceType: DeviceType.tablet,
+                      ),
                   ],
                 ),
               ),
@@ -651,6 +861,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildDesktopBottomNavigationBar(
     DashboardViewModel dashboardVM,
+    AuthViewModel authVM,
     BuildContext context,
   ) {
     return Container(
@@ -678,22 +889,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _buildNavItem(
-                      context,
-                      Icons.person_add,
-                      "Estudiantes",
-                      0,
-                      dashboardVM,
-                      deviceType: DeviceType.desktop,
-                    ),
-                    _buildNavItem(
-                      context,
-                      Icons.event_note,
-                      "Asistencia",
-                      1,
-                      dashboardVM,
-                      deviceType: DeviceType.desktop,
-                    ),
+                    if (authVM.puedeAccederGestion)
+                      _buildNavItem(
+                        context,
+                        Icons.person_add,
+                        "Estudiantes",
+                        0,
+                        dashboardVM,
+                        deviceType: DeviceType.desktop,
+                      ),
+                    if (authVM.puedeAccederAsistencia)
+                      _buildNavItem(
+                        context,
+                        Icons.event_note,
+                        "Asistencia",
+                        1,
+                        dashboardVM,
+                        deviceType: DeviceType.desktop,
+                      ),
                   ],
                 ),
               ),
@@ -706,22 +919,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _buildNavItem(
-                      context,
-                      Icons.assignment,
-                      "Reportes",
-                      3,
-                      dashboardVM,
-                      deviceType: DeviceType.desktop,
-                    ),
-                    _buildNavItem(
-                      context,
-                      Icons.settings,
-                      "Configuración",
-                      4,
-                      dashboardVM,
-                      deviceType: DeviceType.desktop,
-                    ),
+                    if (authVM.puedeAccederReportes)
+                      _buildNavItem(
+                        context,
+                        Icons.assignment,
+                        "Reportes",
+                        3,
+                        dashboardVM,
+                        deviceType: DeviceType.desktop,
+                      ),
+                    if (authVM.puedeAccederConfiguracion)
+                      _buildNavItem(
+                        context,
+                        Icons.settings,
+                        "Configuración",
+                        4,
+                        dashboardVM,
+                        deviceType: DeviceType.desktop,
+                      ),
                   ],
                 ),
               ),
@@ -945,7 +1160,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _performLogout(BuildContext context) async {
     try {
-      final dashboardVM = context.read<DashboardViewModel>();
+      final authVM = context.read<AuthViewModel>();
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -968,7 +1183,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       );
 
-      await dashboardVM.logout();
+      await authVM.logout();
       
       // Navegar de vuelta al login después del logout
       Navigator.pushNamedAndRemoveUntil(
@@ -984,48 +1199,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       );
     }
-  }
-
-  // CORRECCIÓN PARA EL ERROR DEL DROPDOWN
-  Widget _buildFixedDropdown(
-    List<String> items,
-    String? selectedValue,
-    Function(String?) onChanged,
-  ) {
-    // Asegurar que los valores sean únicos
-    final uniqueItems = _ensureUniqueDropdownItems(items);
-
-    return DropdownButton<String>(
-      value: selectedValue,
-      onChanged: onChanged,
-      items: uniqueItems.map<DropdownMenuItem<String>>((String value) {
-        return DropdownMenuItem<String>(value: value, child: Text(value));
-      }).toList(),
-      isExpanded: true,
-    );
-  }
-
-  List<String> _ensureUniqueDropdownItems(List<String> originalItems) {
-    final uniqueItems = <String>[];
-    final seenItems = <String>{};
-
-    for (final item in originalItems) {
-      if (!seenItems.contains(item)) {
-        uniqueItems.add(item);
-        seenItems.add(item);
-      } else {
-        // Manejar duplicados añadiendo un identificador
-        int counter = 1;
-        String newItem = item;
-        while (seenItems.contains(newItem)) {
-          newItem = '$item (${counter++})';
-        }
-        uniqueItems.add(newItem);
-        seenItems.add(newItem);
-      }
-    }
-
-    return uniqueItems;
   }
 }
 

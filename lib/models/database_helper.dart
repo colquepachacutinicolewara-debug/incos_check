@@ -650,7 +650,25 @@ class DatabaseHelper {
         observaciones TEXT,
         checksum TEXT
       );
+      
+      
     ''');
+    
+await db.execute('''
+  CREATE TABLE IF NOT EXISTS logs_seguridad(
+    id TEXT PRIMARY KEY,
+    usuario_id TEXT NOT NULL,
+    modulo TEXT NOT NULL,
+    accion TEXT NOT NULL,
+    fecha TEXT NOT NULL,
+    tipo TEXT NOT NULL,
+    ip TEXT,
+    dispositivo TEXT,
+    detalles TEXT,
+    FOREIGN KEY(usuario_id) REFERENCES usuarios(id) ON UPDATE CASCADE ON DELETE CASCADE
+  );
+''');
+    
 
     // ✅ AGREGAR ÍNDICES DE OPTIMIZACIÓN AL FINAL
     await _createIndexes(db);

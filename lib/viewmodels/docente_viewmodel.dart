@@ -5,7 +5,7 @@ import '../models/database_helper.dart';
 import '../utils/constants.dart';
 
 class DocentesViewModel extends ChangeNotifier {
-  final DatabaseHelper _databaseHelper = DatabaseHelper.instance; // ✅ Cambio aquí
+  final DatabaseHelper _databaseHelper = DatabaseHelper.instance;
 
   // Lista de turnos disponibles
   final List<String> _turnos = ['MAÑANA', 'NOCHE', 'AMBOS'];
@@ -52,8 +52,188 @@ class DocentesViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  DocentesViewModel() { // ✅ Constructor sin parámetros
+  DocentesViewModel() {
     _searchController.addListener(_filtrarEstudiantes);
+    _agregarDocentesIniciales();
+  }
+
+  // ✅ MÉTODO PARA AGREGAR DOCENTES INICIALES
+  void _agregarDocentesIniciales() async {
+    try {
+      // Verificar si ya existen docentes en la base de datos
+      final result = await _databaseHelper.rawQuery('''
+        SELECT COUNT(*) as count FROM docentes
+      ''');
+      
+      final count = (result.first['count'] as int?) ?? 0;
+      
+      // Si no hay docentes, agregar la lista inicial
+      if (count == 0) {
+        await _insertarDocentesIniciales();
+      }
+    } catch (e) {
+      print('Error al verificar docentes existentes: $e');
+    }
+  }
+
+  // ✅ MÉTODO PARA INSERTAR DOCENTES INICIALES
+  Future<void> _insertarDocentesIniciales() async {
+    final List<Map<String, dynamic>> docentesIniciales = [
+      {
+        'apellido_paterno': 'Condori',
+        'apellido_materno': '',
+        'nombres': 'Omar',
+        'ci': '1234567',
+        'carrera': 'Informática',
+        'turno': 'AMBOS',
+        'email': 'omar.condori@email.com',
+        'telefono': '78945612',
+        'estado': 'ACTIVO'
+      },
+      {
+        'apellido_paterno': 'Saavedra',
+        'apellido_materno': '',
+        'nombres': 'Carlos',
+        'ci': '2345678',
+        'carrera': 'Sistemas',
+        'turno': 'MAÑANA',
+        'email': 'carlos.saavedra@email.com',
+        'telefono': '78945613',
+        'estado': 'ACTIVO'
+      },
+      {
+        'apellido_paterno': 'Alvarado',
+        'apellido_materno': '',
+        'nombres': 'Mamerito',
+        'ci': '3456789',
+        'carrera': 'Informática',
+        'turno': 'NOCHE',
+        'email': 'mamerito.alvarado@email.com',
+        'telefono': '78945614',
+        'estado': 'ACTIVO'
+      },
+      {
+        'apellido_paterno': 'Machaca',
+        'apellido_materno': '',
+        'nombres': 'Miguel',
+        'ci': '4567890',
+        'carrera': 'Sistemas',
+        'turno': 'AMBOS',
+        'email': 'miguel.machaca@email.com',
+        'telefono': '78945615',
+        'estado': 'ACTIVO'
+      },
+      {
+        'apellido_paterno': 'Ramos',
+        'apellido_materno': '',
+        'nombres': 'Víctor',
+        'ci': '5678901',
+        'carrera': 'Informática',
+        'turno': 'MAÑANA',
+        'email': 'victor.ramos@email.com',
+        'telefono': '78945616',
+        'estado': 'ACTIVO'
+      },
+      {
+        'apellido_paterno': 'Gutiérrez',
+        'apellido_materno': '',
+        'nombres': 'Edith',
+        'ci': '6789012',
+        'carrera': 'Sistemas',
+        'turno': 'NOCHE',
+        'email': 'edith.gutierrez@email.com',
+        'telefono': '78945617',
+        'estado': 'ACTIVO'
+      },
+      {
+        'apellido_paterno': 'Quispe',
+        'apellido_materno': '',
+        'nombres': 'Rubén',
+        'ci': '7890123',
+        'carrera': 'Informática',
+        'turno': 'AMBOS',
+        'email': 'ruben.quispe@email.com',
+        'telefono': '78945618',
+        'estado': 'ACTIVO'
+      },
+      {
+        'apellido_paterno': 'Méndez',
+        'apellido_materno': '',
+        'nombres': 'Marisol',
+        'ci': '8901234',
+        'carrera': 'Sistemas',
+        'turno': 'MAÑANA',
+        'email': 'marisol.mendez@email.com',
+        'telefono': '78945619',
+        'estado': 'ACTIVO'
+      },
+      {
+        'apellido_paterno': 'Rodríguez',
+        'apellido_materno': '',
+        'nombres': 'Remmy',
+        'ci': '9012345',
+        'carrera': 'Informática',
+        'turno': 'NOCHE',
+        'email': 'remmy.rodriguez@email.com',
+        'telefono': '78945620',
+        'estado': 'ACTIVO'
+      },
+      {
+        'apellido_paterno': 'Huiza',
+        'apellido_materno': '',
+        'nombres': 'Fredy',
+        'ci': '0123456',
+        'carrera': 'Sistemas',
+        'turno': 'AMBOS',
+        'email': 'fredy.huiza@email.com',
+        'telefono': '78945621',
+        'estado': 'ACTIVO'
+      },
+      {
+        'apellido_paterno': 'Condori',
+        'apellido_materno': '',
+        'nombres': 'Inés',
+        'ci': '1122334',
+        'carrera': 'Informática',
+        'turno': 'MAÑANA',
+        'email': 'ines.condori@email.com',
+        'telefono': '78945622',
+        'estado': 'ACTIVO'
+      },
+    ];
+
+    try {
+      for (final docenteData in docentesIniciales) {
+        final docenteId = 'docente_${DateTime.now().millisecondsSinceEpoch}_${docenteData['ci']}';
+        final now = DateTime.now().toIso8601String();
+
+        await _databaseHelper.rawInsert('''
+          INSERT INTO docentes (id, apellido_paterno, apellido_materno, nombres, ci, 
+          carrera, turno, email, telefono, estado, fecha_creacion, fecha_actualizacion)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', [
+          docenteId,
+          docenteData['apellido_paterno'],
+          docenteData['apellido_materno'],
+          docenteData['nombres'],
+          docenteData['ci'],
+          docenteData['carrera'],
+          docenteData['turno'],
+          docenteData['email'],
+          docenteData['telefono'],
+          docenteData['estado'],
+          now,
+          now
+        ]);
+
+        // Pequeña pausa para evitar conflictos con los IDs
+        await Future.delayed(const Duration(milliseconds: 10));
+      }
+      
+      print('✅ Docentes iniciales agregados exitosamente');
+    } catch (e) {
+      print('❌ Error al agregar docentes iniciales: $e');
+    }
   }
 
   // ✅ MÉTODO DE INICIALIZACIÓN MEJORADO
@@ -192,10 +372,10 @@ class DocentesViewModel extends ChangeNotifier {
       ''', [
         docenteId,
         docente.apellidoPaterno,
-        docente.apellidoMaterno,
+        docente.apellidoMaterno ?? '', // ✅ Apellido materno opcional
         docente.nombres,
         docente.ci,
-        docente.carrera,
+        docente.carrera.isNotEmpty ? docente.carrera : 'Informática', // ✅ Carrera por defecto
         docente.turno,
         docente.email,
         docente.telefono,
@@ -238,10 +418,10 @@ class DocentesViewModel extends ChangeNotifier {
         WHERE id = ?
       ''', [
         docente.apellidoPaterno,
-        docente.apellidoMaterno,
+        docente.apellidoMaterno ?? '', // ✅ Apellido materno opcional
         docente.nombres,
         docente.ci,
-        docente.carrera,
+        docente.carrera.isNotEmpty ? docente.carrera : 'Informática', // ✅ Carrera por defecto
         docente.turno,
         docente.email,
         docente.telefono,

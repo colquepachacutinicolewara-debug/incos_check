@@ -297,27 +297,59 @@ class _GestionScreenState extends State<GestionScreen> {
   Widget _buildDropdownCarreras(GestionViewModel viewModel) {
     final carrerasUnicas = viewModel.carreras.toSet().toList();
 
-    return DropdownButton<String>(
-      value: viewModel.carreraSeleccionada,
-      isExpanded: true,
-      underline: const SizedBox(),
-      dropdownColor: _getDropdownBackgroundColor(),
-      style: TextStyle(color: _getTextColor()),
-      items: carrerasUnicas.map((String carrera) {
-        return DropdownMenuItem<String>(
-          value: carrera,
-          child: Text(
-            carrera,
-            style: TextStyle(color: _getTextColor()),
+    return Container(
+      decoration: BoxDecoration(
+        color: _getDropdownBackgroundColor(),
+        borderRadius: BorderRadius.circular(AppRadius.medium),
+        border: Border.all(color: _getBorderColor()),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: DropdownButton<String>(
+              value: viewModel.carreraSeleccionada,
+              isExpanded: true,
+              underline: const SizedBox(),
+              dropdownColor: _getDropdownBackgroundColor(),
+              style: TextStyle(color: _getTextColor(), fontSize: 16),
+              items: carrerasUnicas.map((String carrera) {
+                return DropdownMenuItem<String>(
+                  value: carrera,
+                  child: Text(
+                    carrera,
+                    style: TextStyle(color: _getTextColor()),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                );
+              }).toList(),
+              onChanged: (String? newValue) {
+                if (newValue != null && newValue != viewModel.carreraSeleccionada) {
+                  viewModel.seleccionarCarrera(newValue);
+                  
+                  // Feedback visual
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Cambiando a: $newValue'),
+                      duration: Duration(seconds: 1),
+                      backgroundColor: AppColors.primary,
+                    ),
+                  );
+                }
+              },
+              icon: Icon(Icons.arrow_drop_down, color: _getTextColor()),
+            ),
           ),
-        );
-      }).toList(),
-      onChanged: (String? newValue) {
-        if (newValue != null && newValue != viewModel.carreraSeleccionada) {
-          viewModel.seleccionarCarrera(newValue);
-        }
-      },
-      icon: Icon(Icons.arrow_drop_down, color: _getTextColor()),
+          if (viewModel.loading)
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -451,10 +483,29 @@ class _GestionScreenState extends State<GestionScreen> {
         builder: (context) => CarrerasScreen(
           tipo: 'Gestión',
           carreraSeleccionada: viewModel.carreraSeleccionada,
-          onCarrerasActualizadas: viewModel.actualizarCarreras,
+          onCarrerasActualizadas: (nuevasCarreras) async {
+            // Actualizar el ViewModel con las nuevas carreras
+            await viewModel.actualizarCarreras(nuevasCarreras);
+            
+            // Mostrar feedback al usuario
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Carreras actualizadas correctamente'),
+                  backgroundColor: AppColors.success,
+                ),
+              );
+            }
+          },
         ),
       ),
-    );
+    ).then((_) {
+      // Cuando regresa de la pantalla de carreras, sincronizar
+      if (mounted) {
+        final viewModel = context.read<GestionViewModel>();
+        viewModel.sincronizarCarreras();
+      }
+    });
   }
 
   void _navigateToTurnos(BuildContext context, GestionViewModel viewModel) {

@@ -32,14 +32,15 @@ class _ConfigNotasScreenContent extends StatelessWidget {
         backgroundColor: Colors.teal,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.save),
-            onPressed: viewModel.isLoading ? null : () => _guardarConfiguracion(context, viewModel),
-            tooltip: 'Guardar Cambios',
-          ),
+          if (viewModel.configuracionModificada)
+            IconButton(
+              icon: const Icon(Icons.save),
+              onPressed: viewModel.isLoading ? null : () => _guardarConfiguracion(context, viewModel),
+              tooltip: 'Guardar Cambios',
+            ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: viewModel.isLoading ? null : viewModel.cargarConfiguracion,
+            onPressed: viewModel.isLoading ? null : () => _recargarConfiguracion(context, viewModel),
             tooltip: 'Recargar',
           ),
         ],
@@ -59,6 +60,9 @@ class _ConfigNotasScreenContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Indicador de cambios no guardados
+          if (viewModel.configuracionModificada) _buildCambiosNoGuardados(),
+          
           // Información general
           _buildInfoConfiguracion(context, viewModel),
           
@@ -76,6 +80,34 @@ class _ConfigNotasScreenContent extends StatelessWidget {
           
           // Mostrar error si existe
           if (viewModel.error != null) _buildErrorWidget(viewModel),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCambiosNoGuardados() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        border: Border.all(color: Colors.orange.shade200),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber, color: Colors.orange.shade600, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Tienes cambios sin guardar',
+              style: TextStyle(
+                color: Colors.orange.shade700,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -109,7 +141,7 @@ class _ConfigNotasScreenContent extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    config.descripcion ?? 'Sin descripción',
+                    config.descripcion ?? 'Sin descripción', // CORRECCIÓN: Manejo de null
                     style: TextStyle(
                       color: Colors.grey.shade600,
                     ),
@@ -160,24 +192,20 @@ class _ConfigNotasScreenContent extends StatelessWidget {
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.title),
               ),
-              onChanged: (value) {
-                _actualizarConfiguracion(viewModel, config.copyWith(nombre: value));
-              },
+              onChanged: (value) => viewModel.actualizarNombre(value),
             ),
             const SizedBox(height: 16),
             
-            // Descripción
+            // Descripción - CORREGIDO: Manejo de valor null
             TextFormField(
-              initialValue: config.descripcion,
+              initialValue: config.descripcion ?? '', // CORRECCIÓN: Valor por defecto
               decoration: const InputDecoration(
                 labelText: 'Descripción',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.description),
               ),
               maxLines: 2,
-              onChanged: (value) {
-                _actualizarConfiguracion(viewModel, config.copyWith(descripcion: value));
-              },
+              onChanged: (value) => viewModel.actualizarDescripcion(value),
             ),
             const SizedBox(height: 16),
             
@@ -192,7 +220,7 @@ class _ConfigNotasScreenContent extends StatelessWidget {
               }).toList(),
               onChanged: (value) {
                 if (value != null) {
-                  _actualizarConfiguracion(viewModel, config.copyWith(puntajeMaximo: value));
+                  viewModel.actualizarPuntajeMaximo(value);
                 }
               },
               decoration: const InputDecoration(
@@ -214,7 +242,8 @@ class _ConfigNotasScreenContent extends StatelessWidget {
               }).toList(),
               onChanged: (value) {
                 if (value != null) {
-                  _actualizarConfiguracion(viewModel, config.copyWith(formulaTipo: value));
+                  // Actualizar el tipo de fórmula usando parámetros
+                  viewModel.actualizarParametro('formula_tipo', value);
                 }
               },
               decoration: const InputDecoration(
@@ -230,7 +259,8 @@ class _ConfigNotasScreenContent extends StatelessWidget {
   }
 
   Widget _buildParametrosAsistencia(BuildContext context, ConfigViewModel viewModel, Map<String, dynamic> parametros) {
-    final config = viewModel.configuracion;
+    final asistenciaMinima = parametros['asistencia_minima'] ?? 80.0;
+    final toleranciaMinutos = parametros['tolerancia_minutos'] ?? 15;
 
     return Card(
       elevation: 2,
@@ -248,7 +278,7 @@ class _ConfigNotasScreenContent extends StatelessWidget {
             
             // Asistencia mínima requerida
             TextFormField(
-              initialValue: config.asistenciaMinima.toString(),
+              initialValue: asistenciaMinima.toString(),
               decoration: const InputDecoration(
                 labelText: 'Asistencia mínima requerida (%)',
                 border: OutlineInputBorder(),
@@ -265,7 +295,7 @@ class _ConfigNotasScreenContent extends StatelessWidget {
             
             // Tolerancia en minutos
             TextFormField(
-              initialValue: config.toleranciaMinutos.toString(),
+              initialValue: toleranciaMinutos.toString(),
               decoration: const InputDecoration(
                 labelText: 'Tolerancia en minutos',
                 border: OutlineInputBorder(),
@@ -278,23 +308,6 @@ class _ConfigNotasScreenContent extends StatelessWidget {
                 viewModel.actualizarParametro('tolerancia_minutos', minutos);
               },
             ),
-            const SizedBox(height: 16),
-            
-            // Penalización por retraso
-            TextFormField(
-              initialValue: config.penalizacionRetraso.toString(),
-              decoration: const InputDecoration(
-                labelText: 'Penalización por retraso (horas)',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.watch_later),
-                helperText: 'Horas descontadas por cada retraso',
-              ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              onChanged: (value) {
-                final penalizacion = double.tryParse(value) ?? 0.5;
-                viewModel.actualizarParametro('penalizacion_retraso', penalizacion);
-              },
-            ),
           ],
         ),
       ),
@@ -302,7 +315,7 @@ class _ConfigNotasScreenContent extends StatelessWidget {
   }
 
   Widget _buildConfiguracionCalculo(BuildContext context, ConfigViewModel viewModel, Map<String, dynamic> parametros) {
-    final config = viewModel.configuracion;
+    final consideraPuntualidad = parametros['considera_puntualidad'] ?? true;
 
     return Card(
       elevation: 2,
@@ -318,28 +331,11 @@ class _ConfigNotasScreenContent extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             
-            // Mínimo aprobatorio
-            TextFormField(
-              initialValue: config.minimoAprobatorio.toString(),
-              decoration: const InputDecoration(
-                labelText: 'Mínimo aprobatorio (puntos)',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.school),
-                helperText: 'Puntaje mínimo necesario para aprobar',
-              ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              onChanged: (value) {
-                final minimo = double.tryParse(value) ?? 7.0;
-                viewModel.actualizarParametro('minimo_aprobatorio', minimo);
-              },
-            ),
-            const SizedBox(height: 16),
-            
             // Considera puntualidad
             SwitchListTile(
               title: const Text('Considerar puntualidad'),
               subtitle: const Text('Incluir la puntualidad en el cálculo de la nota'),
-              value: config.consideraPuntualidad,
+              value: consideraPuntualidad,
               onChanged: (value) {
                 viewModel.actualizarParametro('considera_puntualidad', value);
               },
@@ -349,9 +345,10 @@ class _ConfigNotasScreenContent extends StatelessWidget {
             SwitchListTile(
               title: const Text('Configuración activa'),
               subtitle: const Text('Esta configuración está actualmente en uso'),
-              value: config.activo,
+              value: viewModel.configuracion.activo,
               onChanged: (value) {
-                _actualizarConfiguracion(viewModel, config.copyWith(activo: value));
+                // Para cambiar el estado activo necesitarías agregar un método en el ViewModel
+                _mostrarDialogoEstadoActivo(context, value, viewModel);
               },
             ),
           ],
@@ -369,7 +366,7 @@ class _ConfigNotasScreenContent extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: viewModel.isLoading 
                   ? null 
-                  : () => Navigator.pop(context),
+                  : () => _manejarVolver(context, viewModel),
               icon: const Icon(Icons.arrow_back),
               label: const Text('Volver'),
               style: OutlinedButton.styleFrom(
@@ -382,7 +379,7 @@ class _ConfigNotasScreenContent extends StatelessWidget {
           const SizedBox(width: 16),
           Expanded(
             child: ElevatedButton.icon(
-              onPressed: viewModel.isLoading
+              onPressed: viewModel.isLoading || !viewModel.configuracionModificada
                   ? null
                   : () => _guardarConfiguracion(context, viewModel),
               icon: viewModel.isLoading 
@@ -437,20 +434,8 @@ class _ConfigNotasScreenContent extends StatelessWidget {
     );
   }
 
-  // Método auxiliar para actualizar la configuración
-  void _actualizarConfiguracion(ConfigViewModel viewModel, ConfigNotasAsistencia nuevaConfig) {
-    // Necesitas agregar un método en tu ViewModel para actualizar la configuración
-    // Por ahora, usaremos una solución temporal
-    _guardarConfiguracionDirectamente(viewModel, nuevaConfig);
-  }
-
-  Future<void> _guardarConfiguracionDirectamente(ConfigViewModel viewModel, ConfigNotasAsistencia config) async {
-    // Llamar al método guardarConfiguracion del ViewModel
-    await viewModel.guardarConfiguracion(config);
-  }
-
   Future<void> _guardarConfiguracion(BuildContext context, ConfigViewModel viewModel) async {
-    final resultado = await viewModel.guardarConfiguracion(viewModel.configuracion);
+    final resultado = await viewModel.guardarConfiguracion();
     
     if (resultado && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -469,6 +454,113 @@ class _ConfigNotasScreenContent extends StatelessWidget {
         ),
       );
     }
+  }
+
+  Future<void> _recargarConfiguracion(BuildContext context, ConfigViewModel viewModel) async {
+    if (viewModel.configuracionModificada) {
+      final confirmar = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Cambios sin guardar'),
+          content: const Text('Tienes cambios sin guardar. ¿Estás seguro de que quieres recargar y perder los cambios?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Recargar'),
+            ),
+          ],
+        ),
+      );
+      
+      if (confirmar != true) return;
+    }
+    
+    await viewModel.cargarConfiguracion();
+    
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Configuración recargada'),
+          backgroundColor: Colors.blue,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _manejarVolver(BuildContext context, ConfigViewModel viewModel) {
+    if (viewModel.configuracionModificada) {
+      _mostrarDialogoSalirSinGuardar(context, viewModel);
+    } else {
+      Navigator.pop(context);
+    }
+  }
+
+  void _mostrarDialogoSalirSinGuardar(BuildContext context, ConfigViewModel viewModel) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cambios sin guardar'),
+        content: const Text('Tienes cambios sin guardar. ¿Estás seguro de que quieres salir?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pop();
+            },
+            child: const Text('Salir sin guardar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              final resultado = await viewModel.guardarConfiguracion();
+              if (resultado && context.mounted) {
+                Navigator.of(context).pop();
+              }
+            },
+            child: const Text('Guardar y salir'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _mostrarDialogoEstadoActivo(BuildContext context, bool nuevoEstado, ConfigViewModel viewModel) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cambiar estado activo'),
+        content: Text('¿Estás seguro de que quieres ${nuevoEstado ? 'activar' : 'desactivar'} esta configuración?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Necesitarías agregar un método en el ViewModel para cambiar el estado activo
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Para cambiar el estado activo, contacta al administrador del sistema'),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            },
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
   }
 
   String _formatearFecha(DateTime fecha) {

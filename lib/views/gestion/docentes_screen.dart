@@ -14,7 +14,7 @@ class DocentesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) => DocentesViewModel()..initialize(carrera), // ✅ Sin parámetros
+      create: (context) => DocentesViewModel()..initialize(carrera),
       child: const _DocentesScreenContent(),
     );
   }
@@ -384,7 +384,6 @@ class _DocentesScreenContent extends StatelessWidget {
           filled: true,
           fillColor: _getInputFillColor(context),
         ),
-        // ✅ ELIMINADO: onChanged: viewModel.filterDocentes,
       ),
     );
   }

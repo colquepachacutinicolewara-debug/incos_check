@@ -8,7 +8,6 @@ import '../../views/gestion/programas/programas_screen.dart';
 import '../../viewmodels/carreras_viewmodel.dart';
 import '../../models/carrera_model.dart';
 
-
 class CarrerasScreen extends StatefulWidget {
   final String tipo;
   final String carreraSeleccionada;
@@ -32,16 +31,26 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _notificarCambiosCarreras();
+      _cargarYNotificar();
     });
+  }
+
+  void _cargarYNotificar() {
+    final viewModel = context.read<CarrerasViewModel>();
+    
+    // Esperar a que se carguen las carreras y luego notificar
+    if (!viewModel.isLoading) {
+      _notificarCambiosCarreras();
+    }
   }
 
   void _notificarCambiosCarreras() {
     if (widget.onCarrerasActualizadas != null) {
       final viewModel = context.read<CarrerasViewModel>();
-      if (!viewModel.isLoading) {
-        widget.onCarrerasActualizadas!(viewModel.nombresCarrerasActivas);
-      }
+      final carrerasActivas = viewModel.nombresCarrerasActivas;
+      
+      print('Notificando cambios en carreras: $carrerasActivas');
+      widget.onCarrerasActualizadas!(carrerasActivas);
     }
   }
 
@@ -435,6 +444,11 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
   ) {
     viewModel.toggleActivarCarrera(carrera.id);
 
+    // Notificar cambios después de modificar
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _notificarCambiosCarreras();
+    });
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -457,21 +471,31 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
       builder: (context) => _CarreraDialog(
         title: 'Agregar Carrera',
         onSave: (nombre, color, icono) {
-          viewModel.agregarCarrera(nombre, color, icono);
-
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Carrera "$nombre" agregada correctamente',
-                style: AppTextStyles.bodyDark(
-                  context,
-                ).copyWith(color: Colors.white),
-              ),
-              backgroundColor: AppColors.success,
-            ),
-          );
+          _agregarCarreraYNotificar(nombre, color, icono, viewModel, context);
         },
+      ),
+    );
+  }
+
+  void _agregarCarreraYNotificar(
+    String nombre,
+    String color,
+    IconData icono,
+    CarrerasViewModel viewModel,
+    BuildContext context,
+  ) {
+    viewModel.agregarCarrera(nombre, color, icono);
+    
+    // Notificar cambios después de agregar
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _notificarCambiosCarreras();
+    });
+
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Carrera "$nombre" agregada correctamente'),
+        backgroundColor: AppColors.success,
       ),
     );
   }
@@ -489,21 +513,32 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
         colorInicial: carrera.color,
         iconoInicial: carrera.icon,
         onSave: (nombre, color, icono) {
-          viewModel.editarCarrera(carrera.id, nombre, color, icono);
-
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Carrera "$nombre" modificada correctamente',
-                style: AppTextStyles.bodyDark(
-                  context,
-                ).copyWith(color: Colors.white),
-              ),
-              backgroundColor: AppColors.success,
-            ),
-          );
+          _editarCarreraYNotificar(carrera.id, nombre, color, icono, viewModel, context);
         },
+      ),
+    );
+  }
+
+  void _editarCarreraYNotificar(
+    String id,
+    String nombre,
+    String color,
+    IconData icono,
+    CarrerasViewModel viewModel,
+    BuildContext context,
+  ) {
+    viewModel.editarCarrera(id, nombre, color, icono);
+    
+    // Notificar cambios después de editar
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _notificarCambiosCarreras();
+    });
+
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Carrera "$nombre" modificada correctamente'),
+        backgroundColor: AppColors.success,
       ),
     );
   }
@@ -541,21 +576,7 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
           ),
           TextButton(
             onPressed: () {
-              final nombreCarrera = carrera.nombre;
-              viewModel.eliminarCarrera(carrera.id);
-
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Carrera "$nombreCarrera" eliminada',
-                    style: AppTextStyles.bodyDark(
-                      context,
-                    ).copyWith(color: Colors.white),
-                  ),
-                  backgroundColor: AppColors.error,
-                ),
-              );
+              _eliminarCarreraYNotificar(carrera, viewModel, context);
             },
             child: Text(
               'Eliminar',
@@ -565,6 +586,33 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _eliminarCarreraYNotificar(
+    CarreraModel carrera,
+    CarrerasViewModel viewModel,
+    BuildContext context,
+  ) {
+    final nombreCarrera = carrera.nombre;
+    viewModel.eliminarCarrera(carrera.id);
+    
+    // Notificar cambios después de eliminar
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _notificarCambiosCarreras();
+    });
+
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Carrera "$nombreCarrera" eliminada',
+          style: AppTextStyles.bodyDark(
+            context,
+          ).copyWith(color: Colors.white),
+        ),
+        backgroundColor: AppColors.error,
       ),
     );
   }
@@ -582,7 +630,7 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
   }
 }
 
-// Diálogo para agregar/modificar carreras
+// Diálogo para agregar/modificar carreras (MANTENIDO IGUAL)
 class _CarreraDialog extends StatefulWidget {
   final String title;
   final String? nombreInicial;

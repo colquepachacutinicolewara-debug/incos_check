@@ -164,6 +164,16 @@ class HuellasDigitalesViewModel with ChangeNotifier {
     }
   }
 
+  // 🆕 VERIFICAR SI UN DEDO YA ESTÁ REGISTRADO
+  Future<bool> verificarDedoRegistrado(String estudianteId, int numeroDedo) async {
+    try {
+      final huella = await _databaseHelper.obtenerHuellaPorDedo(estudianteId, numeroDedo);
+      return huella != null && huella['registrada'] == 1;
+    } catch (e) {
+      return false;
+    }
+  }
+
   // 🆕 ESTADÍSTICAS DE HUELLAS
   Map<String, dynamic> obtenerEstadisticasHuellas() {
     final totalEstudiantes = _estudiantes.length;
@@ -171,11 +181,16 @@ class HuellasDigitalesViewModel with ChangeNotifier {
     final estudiantesSinHuellas = totalEstudiantes - estudiantesConHuellas;
     final estudiantesCompletos = _estudiantes.where((e) => e.tieneTodasLasHuellas).length;
 
+    // Contar huellas registradas en total
+    final totalHuellasRegistradas = _huellasPorEstudiante.values
+        .fold(0, (sum, huellas) => sum + huellas.where((h) => h.registrada).length);
+
     return {
       'total_estudiantes': totalEstudiantes,
       'con_huellas': estudiantesConHuellas,
       'sin_huellas': estudiantesSinHuellas,
       'completos': estudiantesCompletos,
+      'total_huellas_registradas': totalHuellasRegistradas,
       'porcentaje_con_huellas': totalEstudiantes > 0 ? 
           (estudiantesConHuellas / totalEstudiantes * 100).roundToDouble() : 0.0,
     };

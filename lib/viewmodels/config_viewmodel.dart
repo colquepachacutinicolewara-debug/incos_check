@@ -1,6 +1,4 @@
-// PROBLEMA: Modelo no coincide con tu BD
-// SOLUCIÓN: Reemplazar con este código corregido
-
+// viewmodels/config_viewmodel.dart - VERSIÓN CORREGIDA
 import 'package:flutter/material.dart';
 import '../models/config_notas_model.dart';
 import '../models/database_helper.dart';
@@ -14,7 +12,7 @@ class ConfigViewModel with ChangeNotifier {
     descripcion: 'Configuración inicial del sistema',
     puntajeMaximo: 10.0,
     formulaTipo: 'BIMESTRAL',
-    parametros: '{}',
+    parametros: '{"asistencia_minima": 80, "tolerancia_minutos": 15, "considera_puntualidad": true}',
     activo: true,
     fechaCreacion: DateTime.now(),
     fechaActualizacion: DateTime.now(),
@@ -22,10 +20,12 @@ class ConfigViewModel with ChangeNotifier {
   
   bool _isLoading = false;
   String? _error;
+  bool _configuracionModificada = false;
 
   ConfigNotasAsistencia get configuracion => _configuracion;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  bool get configuracionModificada => _configuracionModificada;
 
   ConfigViewModel() {
     cargarConfiguracion();
@@ -45,6 +45,8 @@ class ConfigViewModel with ChangeNotifier {
       } else {
         await _crearConfiguracionPorDefecto();
       }
+
+      _configuracionModificada = false;
 
     } catch (e) {
       _error = 'Error al cargar configuración: $e';
@@ -94,7 +96,7 @@ class ConfigViewModel with ChangeNotifier {
     }
   }
 
-  Future<bool> guardarConfiguracion(ConfigNotasAsistencia nuevaConfig) async {
+  Future<bool> guardarConfiguracion() async {
     try {
       _isLoading = true;
       notifyListeners();
@@ -106,16 +108,16 @@ class ConfigViewModel with ChangeNotifier {
             parametros = ?, fecha_actualizacion = ?
         WHERE id = ?
       ''', [
-        nuevaConfig.nombre,
-        nuevaConfig.descripcion,
-        nuevaConfig.puntajeMaximo,
-        nuevaConfig.formulaTipo,
-        nuevaConfig.parametros,
+        _configuracion.nombre,
+        _configuracion.descripcion,
+        _configuracion.puntajeMaximo,
+        _configuracion.formulaTipo,
+        _configuracion.parametros,
         DateTime.now().toIso8601String(),
-        nuevaConfig.id,
+        _configuracion.id,
       ]);
 
-      _configuracion = nuevaConfig;
+      _configuracionModificada = false;
       _error = null;
       
       print('✅ Configuración guardada: ${_configuracion.nombre}');
@@ -131,20 +133,54 @@ class ConfigViewModel with ChangeNotifier {
     }
   }
 
+  void actualizarNombre(String nombre) {
+    _configuracion = _configuracion.copyWith(nombre: nombre);
+    _configuracionModificada = true;
+    notifyListeners();
+  }
+
+  void actualizarDescripcion(String descripcion) {
+    _configuracion = _configuracion.copyWith(descripcion: descripcion);
+    _configuracionModificada = true;
+    notifyListeners();
+  }
+
+  void actualizarPuntajeMaximo(double puntajeMaximo) {
+    _configuracion = _configuracion.copyWith(puntajeMaximo: puntajeMaximo);
+    _configuracionModificada = true;
+    notifyListeners();
+  }
+
   void actualizarParametro(String clave, dynamic valor) {
-    final parametros = _configuracion.parametrosMap;
-    parametros[clave] = valor;
-    
-    _configuracion = _configuracion.copyWith(
-      parametros: _configuracion.parametros, // Se actualiza en copyWith
+    final nuevosParametros = _configuracion.withParametros({clave: valor});
+    _configuracion = nuevosParametros;
+    _configuracionModificada = true;
+    notifyListeners();
+  }
+
+  void resetearConfiguracion() {
+    _configuracion = ConfigNotasAsistencia(
+      id: 'config_reset',
+      nombre: 'Configuración Reset',
+      descripcion: 'Configuración restablecida',
+      puntajeMaximo: 10.0,
+      formulaTipo: 'BIMESTRAL',
+      parametros: '{"asistencia_minima": 80, "tolerancia_minutos": 15, "considera_puntualidad": true}',
+      activo: true,
+      fechaCreacion: DateTime.now(),
       fechaActualizacion: DateTime.now(),
     );
-    
+    _configuracionModificada = true;
     notifyListeners();
   }
 
   void clearError() {
     _error = null;
+    notifyListeners();
+  }
+
+  void marcarComoNoModificada() {
+    _configuracionModificada = false;
     notifyListeners();
   }
 }

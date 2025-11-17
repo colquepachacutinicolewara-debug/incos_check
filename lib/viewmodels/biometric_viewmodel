@@ -1,0 +1,59 @@
+// viewmodels/biometric_viewmodel.dart
+import 'package:flutter/material.dart';
+import '../services/esp32_service.dart';
+import '../models/estudiante_model.dart';
+
+class BiometricViewModel with ChangeNotifier {
+  final ESP32Service _esp32Service = ESP32Service();
+  
+  bool _isConnected = false;
+  bool _isScanning = false;
+  Estudiante? _lastScannedStudent;
+  String _statusMessage = '';
+  
+  // Getters
+  bool get isConnected => _isConnected;
+  bool get isScanning => _isScanning;
+  Estudiante? get lastScannedStudent => _lastScannedStudent;
+  String get statusMessage => _statusMessage;
+  
+  Future<void> initializeBiometric() async {
+    try {
+      _isConnected = await _esp32Service.verificarConexion();
+      _statusMessage = _isConnected ? 'Sensor conectado' : 'Sensor no disponible';
+      notifyListeners();
+    } catch (e) {
+      _statusMessage = 'Error inicializando sensor: $e';
+      notifyListeners();
+    }
+  }
+  
+  Future<Estudiante?> scanFingerprint() async {
+    if (!_isConnected || _isScanning) return null;
+    
+    _isScanning = true;
+    _statusMessage = 'Escaneando huella...';
+    notifyListeners();
+    
+    try {
+      final result = await _esp32Service.buscarHuella();
+      
+      if (result['encontrada'] == true) {
+        final fingerprintId = result['fingerprintId'];
+        // Aquí buscarías el estudiante por fingerprintId en tu base de datos
+        _statusMessage = 'Huella reconocida - ID: $fingerprintId';
+      } else {
+        _statusMessage = 'Huella no reconocida';
+      }
+      
+      _isScanning = false;
+      notifyListeners();
+      return _lastScannedStudent;
+    } catch (e) {
+      _isScanning = false;
+      _statusMessage = 'Error en escaneo: $e';
+      notifyListeners();
+      return null;
+    }
+  }
+}
