@@ -6,7 +6,7 @@ import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
 import '../models/primer_bimestre_model.dart';
-import '../models/bimestre_model.dart';
+import '../models/periodo_academico_model.dart';
 import '../models/database_helper.dart';
 
 class PrimerBimestreViewModel with ChangeNotifier {

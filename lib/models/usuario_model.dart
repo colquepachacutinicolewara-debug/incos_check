@@ -1,4 +1,3 @@
-// models/usuario_model.dart
 import 'package:flutter/material.dart';
 
 class Usuario {
@@ -12,6 +11,7 @@ class Usuario {
   final String departamento;
   final bool estaActivo;
   final DateTime fechaRegistro;
+  final DateTime updatedAt;
   final String? telefono;
   final String? fotoUrl;
 
@@ -26,6 +26,7 @@ class Usuario {
     required this.departamento,
     required this.estaActivo,
     required this.fechaRegistro,
+    required this.updatedAt,
     this.telefono,
     this.fotoUrl,
   });
@@ -43,7 +44,8 @@ class Usuario {
   })  : id = username,
         password = 'default123',
         estaActivo = true,
-        fechaRegistro = DateTime.now();
+        fechaRegistro = DateTime.now(),
+        updatedAt = DateTime.now();
 
   // Método para obtener color según rol
   Color get colorRol {
@@ -94,6 +96,7 @@ class Usuario {
       'departamento': departamento,
       'esta_activo': estaActivo ? 1 : 0,
       'fecha_registro': fechaRegistro.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
       'telefono': telefono,
       'foto_url': fotoUrl,
     };
@@ -112,6 +115,9 @@ class Usuario {
       estaActivo: (map['esta_activo'] ?? 1) == 1,
       fechaRegistro: map['fecha_registro'] != null
           ? DateTime.parse(map['fecha_registro'])
+          : DateTime.now(),
+      updatedAt: map['updated_at'] != null 
+          ? DateTime.parse(map['updated_at'])
           : DateTime.now(),
       telefono: map['telefono']?.toString(),
       fotoUrl: map['foto_url']?.toString(),
@@ -135,6 +141,9 @@ class Usuario {
       fechaRegistro: data['fecha_registro'] != null
           ? DateTime.parse(data['fecha_registro'].toString())
           : DateTime.now(),
+      updatedAt: data['updated_at'] != null
+          ? DateTime.parse(data['updated_at'].toString())
+          : DateTime.now(),
       telefono: data['telefono']?.toString(),
       fotoUrl: data['foto_url']?.toString(),
     );
@@ -147,18 +156,20 @@ class Usuario {
     String? email,
     String? telefono,
     String? fotoUrl,
+    String? password,
   }) {
     return Usuario(
       id: id,
       username: username ?? this.username,
       email: email ?? this.email,
       nombre: nombre ?? this.nombre,
-      password: password,
+      password: password ?? this.password,
       role: role,
       carnet: carnet,
       departamento: departamento,
       estaActivo: estaActivo,
       fechaRegistro: fechaRegistro,
+      updatedAt: DateTime.now(),
       telefono: telefono ?? this.telefono,
       fotoUrl: fotoUrl ?? this.fotoUrl,
     );

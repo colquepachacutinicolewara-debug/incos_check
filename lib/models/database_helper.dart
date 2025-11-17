@@ -1,11 +1,11 @@
-// models/database_helper.dart - VERSIÓN COMPLETA CON SOLO CAMBIOS DPS → NOTAS_ASISTENCIA
+// models/database_helper.dart - VERSIÓN 100% COMPLETA
 import 'dart:async';
-import 'dart:io';
+//import 'dart:io';
 import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_live/sqflite_live.dart';
 import 'package:path/path.dart';
-import 'package:path_provider/path_provider.dart';
+//import 'package:path_provider/path_provider.dart';
 
 // 🌟 IMPORTAR LA FUNCIÓN databaseExists EXPLÍCITAMENTE
 import 'package:sqflite/sqflite.dart' as sqflite;
@@ -37,7 +37,7 @@ class DatabaseHelper {
         print('📁 Base de datos existente encontrada, preservando datos...');
         _db = await openDatabase(
           path,
-          version: 4, // ✅ INCREMENTADO A VERSIÓN 4 PARA NUEVAS TABLAS
+          version: 5, // ✅ INCREMENTADO A VERSIÓN 5 PARA NUEVAS FUNCIONALIDADES
           onConfigure: (db) async {
             await db.execute('PRAGMA foreign_keys = ON');
           },
@@ -90,7 +90,7 @@ class DatabaseHelper {
 
     final db = await openDatabase(
       path,
-      version: 4, // ✅ INCREMENTADO A VERSIÓN 4
+      version: 5, // ✅ INCREMENTADO A VERSIÓN 5
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
       },
@@ -159,13 +159,23 @@ class DatabaseHelper {
         print('⚠️ Error en upgrade a versión 4: $e');
       }
     }
+
+    // 🆕 NUEVA MIGRACIÓN PARA VERSIÓN 5 - TABLAS DE REPORTES Y RESPALDOS
+    if (oldVersion < 5) {
+      try {
+        await _crearTablasReportesYRespaldos(db);
+        print('✅ Migración a versión 5 completada - Tablas REPORTES Y RESPALDOS creadas');
+      } catch (e) {
+        print('⚠️ Error en upgrade a versión 5: $e');
+      }
+    }
   }
 
   // PRIMERA CREACIÓN
   Future<void> _createDB(Database db, int version) async {
     print('🏗️ Creando base de datos por primera vez...');
     await _runDDL(db);
-    await _migrarTablaUsuarios(db); // ✅ Agregar migración
+    await _migrarTablaUsuarios(db);
   }
 
   // REFORZAR EN CADA APERTURA (solo si es primera vez)
@@ -183,7 +193,7 @@ class DatabaseHelper {
     }
   }
 
-  // ====== DDL CENTRAL ACTUALIZADO CON NUEVAS TABLAS ======
+  // ====== DDL CENTRAL ACTUALIZADO CON TODAS LAS TABLAS ======
   Future<void> _runDDL(Database db) async {
     // Tabla carreras
     await db.execute('''
@@ -255,6 +265,7 @@ class DatabaseHelper {
         paralelo_id TEXT,
         fecha_creacion TEXT NOT NULL,
         fecha_actualizacion TEXT NOT NULL,
+        activo INTEGER DEFAULT 1,
         FOREIGN KEY(carrera_id) REFERENCES carreras(id) ON UPDATE CASCADE ON DELETE SET NULL,
         FOREIGN KEY(turno_id) REFERENCES turnos(id) ON UPDATE CASCADE ON DELETE SET NULL,
         FOREIGN KEY(nivel_id) REFERENCES niveles(id) ON UPDATE CASCADE ON DELETE SET NULL,
@@ -362,7 +373,7 @@ class DatabaseHelper {
       );
     ''');
 
-    // 🆕 ALTA PRIORIDAD: TABLA DOCENTE_MATERIA
+    // 🆕 TABLA DOCENTE_MATERIA
     await db.execute('''
       CREATE TABLE IF NOT EXISTS docente_materia(
         id TEXT PRIMARY KEY,
@@ -384,7 +395,7 @@ class DatabaseHelper {
       );
     ''');
 
-    // 🆕 CORREGIDO: TABLA CONFIG_NOTAS_ASISTENCIA (NO DPS)
+    // 🆕 TABLA CONFIG_NOTAS_ASISTENCIA
     await db.execute('''
       CREATE TABLE IF NOT EXISTS config_notas_asistencia(
         id TEXT PRIMARY KEY,
@@ -399,7 +410,7 @@ class DatabaseHelper {
       );
     ''');
 
-    // 🆕 CORREGIDO: TABLA NOTAS_ASISTENCIA (SIN DPS)
+    // 🆕 TABLA NOTAS_ASISTENCIA
     await db.execute('''
       CREATE TABLE IF NOT EXISTS notas_asistencia(
         id TEXT PRIMARY KEY,
@@ -452,7 +463,7 @@ class DatabaseHelper {
       );
     ''');
 
-    // ✅ TABLA HUELLAS_BIOMETRICAS CORREGIDA (template_data como TEXT)
+    // ✅ TABLA HUELLAS_BIOMETRICAS CORREGIDA
     await db.execute('''
       CREATE TABLE IF NOT EXISTS huellas_biometricas(
         id TEXT PRIMARY KEY,
@@ -529,7 +540,7 @@ class DatabaseHelper {
       );
     ''');
 
-    // ✅ TABLA USUARIOS CORREGIDA (coma agregada)
+    // ✅ TABLA USUARIOS
     await db.execute('''
       CREATE TABLE IF NOT EXISTS usuarios(
         id TEXT PRIMARY KEY,
@@ -557,32 +568,140 @@ class DatabaseHelper {
         selected_language TEXT DEFAULT 'Español',
         selected_theme TEXT DEFAULT 'Sistema',
         cache_size TEXT DEFAULT '15.2 MB',
-        last_updated TEXT NOT NULL
+        last_updated TEXT NOT NULL,
+        value TEXT
+      );
+    ''');
+
+    // 🆕 TABLA PARA ASISTENCIA DIARIA
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS asistencia_diaria(
+        id TEXT PRIMARY KEY,
+        estudiante_id TEXT NOT NULL,
+        materia_id TEXT NOT NULL,
+        horario_clase_id TEXT,
+        fecha TEXT NOT NULL,
+        periodo_numero INTEGER NOT NULL,
+        estado TEXT DEFAULT 'A',
+        minutos_retraso INTEGER DEFAULT 0,
+        observaciones TEXT,
+        fecha_creacion TEXT NOT NULL,
+        usuario_registro TEXT NOT NULL,
+        UNIQUE(estudiante_id, materia_id, fecha, periodo_numero),
+        FOREIGN KEY(estudiante_id) REFERENCES estudiantes(id) ON UPDATE CASCADE ON DELETE CASCADE,
+        FOREIGN KEY(materia_id) REFERENCES materias(id) ON UPDATE CASCADE ON DELETE CASCADE,
+        FOREIGN KEY(horario_clase_id) REFERENCES horarios_clases(id) ON UPDATE CASCADE ON DELETE SET NULL
+      );
+    ''');
+
+    // 🆕 TABLA PARA HORARIOS DE CLASES
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS horarios_clases(
+        id TEXT PRIMARY KEY,
+        materia_id TEXT NOT NULL,
+        paralelo_id TEXT NOT NULL,
+        docente_id TEXT NOT NULL,
+        dia_semana TEXT NOT NULL,
+        periodo_numero INTEGER NOT NULL,
+        hora_inicio TEXT NOT NULL,
+        hora_fin TEXT NOT NULL,
+        activo INTEGER DEFAULT 1,
+        fecha_creacion TEXT NOT NULL,
+        UNIQUE(materia_id, paralelo_id, dia_semana, periodo_numero),
+        FOREIGN KEY(materia_id) REFERENCES materias(id),
+        FOREIGN KEY(paralelo_id) REFERENCES paralelos(id),
+        FOREIGN KEY(docente_id) REFERENCES docentes(id)
+      );
+    ''');
+
+    // 🆕 TABLA PARA REPORTES E INFORMES
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS reportes_generados(
+        id TEXT PRIMARY KEY,
+        tipo_reporte TEXT NOT NULL,
+        titulo TEXT NOT NULL,
+        periodo_id TEXT NOT NULL,
+        materia_id TEXT,
+        bimestre_id TEXT,
+        formato TEXT DEFAULT 'PDF',
+        parametros TEXT,
+        ruta_archivo TEXT,
+        fecha_generacion TEXT NOT NULL,
+        usuario_generador TEXT NOT NULL,
+        estado TEXT DEFAULT 'COMPLETADO',
+        tamano_bytes INTEGER,
+        FOREIGN KEY(periodo_id) REFERENCES periodos_academicos(id),
+        FOREIGN KEY(materia_id) REFERENCES materias(id),
+        FOREIGN KEY(bimestre_id) REFERENCES bimestres(id)
+      );
+    ''');
+
+    // 🆕 TABLA PARA RESPALDOS
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS respaldos(
+        id TEXT PRIMARY KEY,
+        tipo_respaldo TEXT NOT NULL,
+        descripcion TEXT,
+        ruta_archivo TEXT NOT NULL,
+        fecha_respaldo TEXT NOT NULL,
+        tamano_bytes INTEGER,
+        usuario_respaldo TEXT NOT NULL,
+        estado TEXT DEFAULT 'COMPLETADO',
+        observaciones TEXT,
+        checksum TEXT
       );
     ''');
 
     // ✅ AGREGAR ÍNDICES DE OPTIMIZACIÓN AL FINAL
     await _createIndexes(db);
-
-    // 🆕 MÉTODO PARA AGREGAR COLUMNA VALUE A CONFIGURACIONES
-Future<void> _migrarTablaConfiguraciones(Database db) async {
-  try {
-    final tableInfo = await db.rawQuery('PRAGMA table_info(configuraciones)');
-    final columnas = tableInfo.map((col) => col['name'] as String).toList();
-    
-    if (!columnas.contains('value')) {
-      print('🔄 Agregando columna value a tabla configuraciones...');
-      await db.execute('''
-        ALTER TABLE configuraciones ADD COLUMN value TEXT
-      ''');
-      print('✅ Columna value agregada a configuraciones');
-    } else {
-      print('✅ Columna value ya existe en configuraciones');
-    }
-  } catch (e) {
-    print('⚠️ Error migrando tabla configuraciones: $e');
   }
-}
+
+  // 🆕 MÉTODO PARA CREAR TABLAS DE REPORTES Y RESPALDOS
+  Future<void> _crearTablasReportesYRespaldos(Database db) async {
+    try {
+      print('🔄 Creando tablas de reportes y respaldos...');
+      
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS reportes_generados(
+          id TEXT PRIMARY KEY,
+          tipo_reporte TEXT NOT NULL,
+          titulo TEXT NOT NULL,
+          periodo_id TEXT NOT NULL,
+          materia_id TEXT,
+          bimestre_id TEXT,
+          formato TEXT DEFAULT 'PDF',
+          parametros TEXT,
+          ruta_archivo TEXT,
+          fecha_generacion TEXT NOT NULL,
+          usuario_generador TEXT NOT NULL,
+          estado TEXT DEFAULT 'COMPLETADO',
+          tamano_bytes INTEGER,
+          FOREIGN KEY(periodo_id) REFERENCES periodos_academicos(id),
+          FOREIGN KEY(materia_id) REFERENCES materias(id),
+          FOREIGN KEY(bimestre_id) REFERENCES bimestres(id)
+        );
+      ''');
+
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS respaldos(
+          id TEXT PRIMARY KEY,
+          tipo_respaldo TEXT NOT NULL,
+          descripcion TEXT,
+          ruta_archivo TEXT NOT NULL,
+          fecha_respaldo TEXT NOT NULL,
+          tamano_bytes INTEGER,
+          usuario_respaldo TEXT NOT NULL,
+          estado TEXT DEFAULT 'COMPLETADO',
+          observaciones TEXT,
+          checksum TEXT
+        );
+      ''');
+
+      print('✅ Tablas de reportes y respaldos creadas exitosamente');
+    } catch (e) {
+      print('❌ Error creando tablas de reportes y respaldos: $e');
+      rethrow;
+    }
   }
 
   // ====== ÍNDICES PARA OPTIMIZACIÓN ======
@@ -696,10 +815,36 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
       ON detalle_asistencias(hora_registro);
     ''');
 
+    // 🆕 ÍNDICES PARA NUEVAS TABLAS DE REPORTES Y RESPALDOS
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_reportes_fecha 
+      ON reportes_generados(fecha_generacion);
+    ''');
+    
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_reportes_tipo 
+      ON reportes_generados(tipo_reporte);
+    ''');
+
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_respaldos_fecha 
+      ON respaldos(fecha_respaldo);
+    ''');
+
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_asistencia_diaria_fecha 
+      ON asistencia_diaria(fecha);
+    ''');
+
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_horarios_dia 
+      ON horarios_clases(dia_semana);
+    ''');
+
     print('✅ Índices de optimización creados exitosamente');
   }
 
-  // 🌱 SEED ACTUALIZADO CON DATOS NOTAS_ASISTENCIA
+  // 🌱 SEED ACTUALIZADO CON DATOS COMPLETOS
   Future<void> _seed(Database db) async {
     print('🌱 Insertando datos iniciales...');
     
@@ -724,24 +869,6 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
         'fecha_creacion': DateTime.now().toIso8601String(),
         'fecha_actualizacion': DateTime.now().toIso8601String()
       });
-      await db.insert('carreras', {
-        'id': 'electronica',
-        'nombre': 'Electrónica',
-        'color': '#6A1B9A',
-        'icon_code_point': 57693,
-        'activa': 1,
-        'fecha_creacion': DateTime.now().toIso8601String(),
-        'fecha_actualizacion': DateTime.now().toIso8601String()
-      });
-      await db.insert('carreras', {
-        'id': 'mecanica',
-        'nombre': 'Mecánica Automotriz',
-        'color': '#C62828',
-        'icon_code_point': 58125,
-        'activa': 1,
-        'fecha_creacion': DateTime.now().toIso8601String(),
-        'fecha_actualizacion': DateTime.now().toIso8601String()
-      });
       print('✅ Carreras insertadas');
     }
 
@@ -761,32 +888,6 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
         'fecha_creacion': DateTime.now().toIso8601String(),
         'fecha_actualizacion': DateTime.now().toIso8601String()
       });
-      await db.insert('turnos', {
-        'id': 'turno_tarde',
-        'nombre': 'Tarde',
-        'icon_code_point': 59658,
-        'horario': '12:30 - 18:30',
-        'rango_asistencia': '12:00-18:00',
-        'dias': 'Lunes a Viernes',
-        'color': '#1976D2',
-        'activo': 1,
-        'niveles': '["Todos"]',
-        'fecha_creacion': DateTime.now().toIso8601String(),
-        'fecha_actualizacion': DateTime.now().toIso8601String()
-      });
-      await db.insert('turnos', {
-        'id': 'turno_noche',
-        'nombre': 'Noche',
-        'icon_code_point': 57539,
-        'horario': '18:30 - 22:30',
-        'rango_asistencia': '18:00-22:00',
-        'dias': 'Lunes a Viernes',
-        'color': '#7B1FA2',
-        'activo': 1,
-        'niveles': '["Todos"]',
-        'fecha_creacion': DateTime.now().toIso8601String(),
-        'fecha_actualizacion': DateTime.now().toIso8601String()
-      });
       print('✅ Turnos insertados');
     }
 
@@ -801,22 +902,6 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
         'paralelos': '["A", "B", "C"]',
         'fecha_creacion': DateTime.now().toIso8601String()
       });
-      await db.insert('niveles', {
-        'id': 'nivel_inicial',
-        'nombre': 'Inicial',
-        'activo': 1,
-        'orden': 2,
-        'paralelos': '["A", "B"]',
-        'fecha_creacion': DateTime.now().toIso8601String()
-      });
-      await db.insert('niveles', {
-        'id': 'nivel_primaria',
-        'nombre': 'Primaria',
-        'activo': 1,
-        'orden': 3,
-        'paralelos': '["A", "B", "C", "D"]',
-        'fecha_creacion': DateTime.now().toIso8601String()
-      });
       print('✅ Niveles insertados');
     }
 
@@ -824,32 +909,8 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
     final paralelosCount = await db.rawQuery('SELECT COUNT(*) AS c FROM paralelos');
     if ((paralelosCount.first['c'] as int?) == 0) {
       await db.insert('paralelos', {
-        'id': 'paralelo_a',
-        'nombre': 'A',
-        'activo': 1,
-        'estudiantes': '[]',
-        'fecha_creacion': DateTime.now().toIso8601String(),
-        'fecha_actualizacion': DateTime.now().toIso8601String()
-      });
-      await db.insert('paralelos', {
         'id': 'paralelo_b',
         'nombre': 'B',
-        'activo': 1,
-        'estudiantes': '[]',
-        'fecha_creacion': DateTime.now().toIso8601String(),
-        'fecha_actualizacion': DateTime.now().toIso8601String()
-      });
-      await db.insert('paralelos', {
-        'id': 'paralelo_c',
-        'nombre': 'C',
-        'activo': 1,
-        'estudiantes': '[]',
-        'fecha_creacion': DateTime.now().toIso8601String(),
-        'fecha_actualizacion': DateTime.now().toIso8601String()
-      });
-      await db.insert('paralelos', {
-        'id': 'paralelo_d',
-        'nombre': 'D',
         'activo': 1,
         'estudiantes': '[]',
         'fecha_creacion': DateTime.now().toIso8601String(),
@@ -867,7 +928,7 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
         'codigo': 'PROG101',
         'nombre': 'Programación I',
         'carrera': 'info',
-        'anio': 1,
+        'anio': 3,
         'color': '#1565C0',
         'activo': 1,
         'paralelo': 'B',
@@ -875,23 +936,10 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
         'created_at': now,
         'updated_at': now
       });
-      await db.insert('materias', {
-        'id': 'mat_basedatos',
-        'codigo': 'BD201',
-        'nombre': 'Base de Datos',
-        'carrera': 'info',
-        'anio': 2,
-        'color': '#2E7D32',
-        'activo': 1,
-        'paralelo': 'A',
-        'turno': 'Tarde',
-        'created_at': now,
-        'updated_at': now
-      });
       print('✅ Materias de ejemplo insertadas');
     }
 
-    // ✅ Insertar usuario admin CORREGIDO con updated_at
+    // ✅ Insertar usuario admin
     final usuariosCount = await db.rawQuery('SELECT COUNT(*) AS c FROM usuarios');
     if ((usuariosCount.first['c'] as int?) == 0) {
       final now = DateTime.now().toIso8601String();
@@ -907,7 +955,7 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
         'departamento': 'Dirección',
         'esta_activo': 1,
         'fecha_registro': now,
-        'updated_at': now  // ✅ AGREGADO
+        'updated_at': now
       });
       
       await db.insert('usuarios', {
@@ -921,9 +969,9 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
         'departamento': 'Académico',
         'esta_activo': 1,
         'fecha_registro': now,
-        'updated_at': now  // ✅ AGREGADO
+        'updated_at': now
       });
-      print('✅ Usuarios insertados con updated_at');
+      print('✅ Usuarios insertados');
     }
 
     // Insertar docente de ejemplo
@@ -947,7 +995,7 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
       print('✅ Docente de ejemplo insertado');
     }
 
-    // 🆕 CORREGIDO: Insertar CONFIGURACIÓN DE NOTAS DE ASISTENCIA por defecto
+    // 🆕 Insertar CONFIGURACIÓN DE NOTAS DE ASISTENCIA por defecto
     final configNotasCount = await db.rawQuery('SELECT COUNT(*) AS c FROM config_notas_asistencia');
     if ((configNotasCount.first['c'] as int?) == 0) {
       final now = DateTime.now().toIso8601String();
@@ -965,7 +1013,7 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
       print('✅ Configuración notas asistencia insertada');
     }
 
-    // 🆕 ALTA PRIORIDAD: Insertar relación docente-materia de ejemplo
+    // 🆕 Insertar relación docente-materia de ejemplo
     final docenteMateriaCount = await db.rawQuery('SELECT COUNT(*) AS c FROM docente_materia');
     if ((docenteMateriaCount.first['c'] as int?) == 0) {
       final now = DateTime.now().toIso8601String();
@@ -997,9 +1045,31 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
         'selected_language': 'Español',
         'selected_theme': 'Sistema',
         'cache_size': '15.2 MB',
-        'last_updated': DateTime.now().toIso8601String()
+        'last_updated': DateTime.now().toIso8601String(),
+        'value': '{}'
       });
       print('✅ Configuración insertada');
+    }
+
+    // 🆕 Insertar periodo académico de ejemplo
+    final periodosCount = await db.rawQuery('SELECT COUNT(*) AS c FROM periodos_academicos');
+    if ((periodosCount.first['c'] as int?) == 0) {
+      final now = DateTime.now().toIso8601String();
+      await db.insert('periodos_academicos', {
+        'id': 'periodo_2024',
+        'nombre': 'Gestión 2024',
+        'tipo': 'ANUAL',
+        'numero': 2024,
+        'fecha_inicio': '2024-01-01',
+        'fecha_fin': '2024-12-31',
+        'estado': 'ACTIVO',
+        'fechas_clases': '[]',
+        'descripcion': 'Periodo académico 2024',
+        'fecha_creacion': now,
+        'total_clases': 180,
+        'duracion_dias': 365
+      });
+      print('✅ Periodo académico insertado');
     }
     
     print('🎉 Seed completado exitosamente');
@@ -1010,7 +1080,6 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
     try {
       print('🔄 Creando tablas notas asistencia y docente_materia...');
       
-      // Tabla docente_materia
       await db.execute('''
         CREATE TABLE IF NOT EXISTS docente_materia(
           id TEXT PRIMARY KEY,
@@ -1032,7 +1101,6 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
         );
       ''');
 
-      // 🆕 CORREGIDO: Tabla config_notas_asistencia (NO DPS)
       await db.execute('''
         CREATE TABLE IF NOT EXISTS config_notas_asistencia(
           id TEXT PRIMARY KEY,
@@ -1047,7 +1115,6 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
         );
       ''');
 
-      // 🆕 CORREGIDO: Tabla notas_asistencia (SIN DPS)
       await db.execute('''
         CREATE TABLE IF NOT EXISTS notas_asistencia(
           id TEXT PRIMARY KEY,
@@ -1085,7 +1152,6 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
     try {
       print('🔄 Agregando campos de puntualidad a detalle_asistencias...');
       
-      // Verificar si los campos ya existen
       final tableInfo = await db.rawQuery('PRAGMA table_info(detalle_asistencias)');
       final columnas = tableInfo.map((col) => col['name'] as String).toList();
       
@@ -1163,7 +1229,6 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
   // ✅ MÉTODO MIGRACIÓN PARA AGREGAR updated_at SI NO EXISTE
   Future<void> _migrarTablaUsuarios(Database db) async {
     try {
-      // Verificar si existe la columna updated_at
       final tableInfo = await db.rawQuery('PRAGMA table_info(usuarios)');
       final tieneUpdatedAt = tableInfo.any((col) => col['name'] == 'updated_at');
       
@@ -1173,7 +1238,6 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
           ALTER TABLE usuarios ADD COLUMN updated_at TEXT
         ''');
         
-        // Actualizar registros existentes con fecha actual
         final now = DateTime.now().toIso8601String();
         await db.update(
           'usuarios',
@@ -1193,19 +1257,16 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
   // ✅ MÉTODO MIGRACIÓN PARA TABLA HUELLAS BIOMÉTRICAS
   Future<void> _migrarTablaHuellasBiometricas(Database db) async {
     try {
-      // Verificar si existe la tabla huellas_biometricas
       final tables = await db.rawQuery(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='huellas_biometricas'"
       );
       
       if (tables.isNotEmpty) {
-        // Verificar estructura de la tabla
         final tableInfo = await db.rawQuery('PRAGMA table_info(huellas_biometricas)');
         final columnas = tableInfo.map((col) => col['name'] as String).toList();
         
         print('📋 Estructura actual de huellas_biometricas: $columnas');
         
-        // Si template_data es BLOB, migrar a TEXT
         if (columnas.contains('template_data')) {
           final columnaTemplate = tableInfo.firstWhere(
             (col) => col['name'] == 'template_data',
@@ -1215,7 +1276,6 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
           if (columnaTemplate.isNotEmpty && columnaTemplate['type'] == 'BLOB') {
             print('🔄 Migrando template_data de BLOB a TEXT...');
             
-            // Crear tabla temporal
             await db.execute('''
               CREATE TABLE IF NOT EXISTS huellas_biometricas_temp(
                 id TEXT PRIMARY KEY,
@@ -1231,16 +1291,12 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
               );
             ''');
             
-            // Copiar datos
             await db.execute('''
               INSERT INTO huellas_biometricas_temp 
               SELECT * FROM huellas_biometricas
             ''');
             
-            // Eliminar tabla original
             await db.execute('DROP TABLE huellas_biometricas');
-            
-            // Renombrar tabla temporal
             await db.execute('ALTER TABLE huellas_biometricas_temp RENAME TO huellas_biometricas');
             
             print('✅ Migración de huellas_biometricas completada');
@@ -1255,31 +1311,437 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
     }
   }
 
+  // =================================================================
+  // 🆕 MÉTODOS COMPLETOS PARA REPORTES E INFORMES
+  // =================================================================
+
+  // 🆕 GENERAR REPORTE DE ASISTENCIA BIMESTRAL
+  Future<List<Map<String, Object?>>> generarReporteAsistenciaBimestral(
+    String bimestreId, String materiaId, String formato) async {
+    final db = await database;
+    
+    return await db.rawQuery('''
+      SELECT 
+        e.id, 
+        e.nombres || ' ' || e.apellido_paterno || ' ' || e.apellido_materno as nombre_completo,
+        e.ci,
+        na.total_clases, 
+        na.clases_asistidas, 
+        na.clases_faltadas,
+        na.porcentaje_asistencia, 
+        na.nota_calculada,
+        (SELECT COUNT(*) FROM detalle_asistencias da 
+         JOIN asistencias a ON da.asistencia_id = a.id 
+         WHERE a.estudiante_id = e.id AND a.materia_id = ? 
+         AND da.estado_puntualidad = 'TARDANZA') as total_tardanzas,
+        (SELECT COUNT(*) FROM detalle_asistencias da 
+         JOIN asistencias a ON da.asistencia_id = a.id 
+         WHERE a.estudiante_id = e.id AND a.materia_id = ? 
+         AND da.estado_puntualidad = 'PUNTUAL') as total_puntual
+      FROM estudiantes e
+      LEFT JOIN notas_asistencia na ON e.id = na.estudiante_id 
+        AND na.materia_id = ? AND na.bimestre_id = ?
+      WHERE e.activo = 1
+      ORDER BY e.apellido_paterno, e.apellido_materno, e.nombres
+    ''', [materiaId, materiaId, materiaId, bimestreId]);
+  }
+
+  // 🆕 GENERAR REPORTE ESTADÍSTICO DE ASISTENCIA
+  Future<Map<String, dynamic>> generarReporteEstadistico(
+    String periodoId, String materiaId) async {
+    final db = await database;
+    
+    final estadisticas = await db.rawQuery('''
+      SELECT 
+        COUNT(DISTINCT e.id) as total_estudiantes,
+        AVG(na.porcentaje_asistencia) as promedio_asistencia,
+        MIN(na.porcentaje_asistencia) as minima_asistencia,
+        MAX(na.porcentaje_asistencia) as maxima_asistencia,
+        SUM(CASE WHEN na.porcentaje_asistencia >= 80 THEN 1 ELSE 0 END) as estudiantes_aprobados,
+        SUM(CASE WHEN na.porcentaje_asistencia < 80 THEN 1 ELSE 0 END) as estudiantes_reprobados
+      FROM estudiantes e
+      LEFT JOIN notas_asistencia na ON e.id = na.estudiante_id 
+        AND na.materia_id = ? AND na.periodo_id = ?
+      WHERE e.activo = 1
+    ''', [materiaId, periodoId]);
+
+    final distribucion = await db.rawQuery('''
+      SELECT 
+        CASE 
+          WHEN porcentaje_asistencia >= 90 THEN '90-100%'
+          WHEN porcentaje_asistencia >= 80 THEN '80-89%'
+          WHEN porcentaje_asistencia >= 70 THEN '70-79%'
+          WHEN porcentaje_asistencia >= 60 THEN '60-69%'
+          ELSE 'Menos del 60%'
+        END as rango,
+        COUNT(*) as cantidad
+      FROM notas_asistencia
+      WHERE materia_id = ? AND periodo_id = ?
+      GROUP BY rango
+      ORDER BY rango
+    ''', [materiaId, periodoId]);
+
+    return {
+      'estadisticas': estadisticas.first,
+      'distribucion': distribucion,
+      'fecha_generacion': DateTime.now().toIso8601String(),
+      'periodo_id': periodoId,
+      'materia_id': materiaId
+    };
+  }
+
+  // 🆕 GUARDAR REPORTE GENERADO
+  Future<int> guardarReporteGenerado(Map<String, dynamic> reporte) async {
+    final db = await database;
+    return await db.insert('reportes_generados', {
+      'id': 'reporte_${DateTime.now().millisecondsSinceEpoch}',
+      'tipo_reporte': reporte['tipo_reporte'],
+      'titulo': reporte['titulo'],
+      'periodo_id': reporte['periodo_id'],
+      'materia_id': reporte['materia_id'],
+      'bimestre_id': reporte['bimestre_id'],
+      'formato': reporte['formato'],
+      'parametros': reporte['parametros'],
+      'ruta_archivo': reporte['ruta_archivo'],
+      'fecha_generacion': DateTime.now().toIso8601String(),
+      'usuario_generador': reporte['usuario_generador'],
+      'estado': 'COMPLETADO',
+      'tamano_bytes': reporte['tamano_bytes']
+    });
+  }
+
+  // 🆕 OBTENER HISTORIAL DE REPORTES
+  Future<List<Map<String, Object?>>> obtenerHistorialReportes() async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT rg.*, m.nombre as materia_nombre, p.nombre as periodo_nombre
+      FROM reportes_generados rg
+      LEFT JOIN materias m ON rg.materia_id = m.id
+      LEFT JOIN periodos_academicos p ON rg.periodo_id = p.id
+      ORDER BY rg.fecha_generacion DESC
+    ''');
+  }
+
+  // =================================================================
+  // 🆕 MÉTODOS COMPLETOS PARA RESPALDOS Y RECUPERACIÓN
+  // =================================================================
+
+  // 🆕 GENERAR RESPALDO COMPLETO
+  Future<Map<String, dynamic>> generarRespaldoCompleto() async {
+    final db = await database;
+    final timestamp = DateTime.now().toIso8601String();
+    final respaldoId = 'respaldo_${DateTime.now().millisecondsSinceEpoch}';
+    
+    final tables = [
+      'estudiantes', 'docentes', 'materias', 'asistencias', 
+      'detalle_asistencias', 'notas_asistencia', 'huellas_biometricas',
+      'usuarios', 'periodos_academicos', 'bimestres', 'docente_materia'
+    ];
+    
+    Map<String, dynamic> respaldoData = {
+      'fecha_generacion': timestamp,
+      'version_bd': 5,
+      'total_tablas': tables.length,
+      'tablas': {}
+    };
+    
+    for (String table in tables) {
+      try {
+        final datos = await db.rawQuery('SELECT * FROM $table');
+        respaldoData['tablas'][table] = {
+          'total_registros': datos.length,
+          'datos': datos
+        };
+      } catch (e) {
+        print('⚠️ Error respaldando tabla $table: $e');
+      }
+    }
+    
+    await db.insert('respaldos', {
+      'id': respaldoId,
+      'tipo_respaldo': 'COMPLETO',
+      'descripcion': 'Respaldo completo del sistema',
+      'ruta_archivo': 'local/$respaldoId.json',
+      'fecha_respaldo': timestamp,
+      'tamano_bytes': respaldoData.toString().length,
+      'usuario_respaldo': 'sistema',
+      'estado': 'COMPLETADO',
+      'checksum': _generarChecksum(respaldoData.toString())
+    });
+    
+    return respaldoData;
+  }
+
+  // 🆕 GENERAR RESPALDO INCREMENTAL
+  Future<Map<String, dynamic>> generarRespaldoIncremental() async {
+    final db = await database;
+    final timestamp = DateTime.now().toIso8601String();
+    final respaldoId = 'respaldo_inc_${DateTime.now().millisecondsSinceEpoch}';
+    
+    final ultimoRespaldo = await db.rawQuery('''
+      SELECT fecha_respaldo FROM respaldos 
+      WHERE tipo_respaldo = 'COMPLETO' 
+      ORDER BY fecha_respaldo DESC LIMIT 1
+    ''');
+    
+    DateTime? fechaUltimoRespaldo;
+    if (ultimoRespaldo.isNotEmpty) {
+      fechaUltimoRespaldo = DateTime.parse(ultimoRespaldo.first['fecha_respaldo'] as String);
+    }
+    
+    Map<String, dynamic> respaldoData = {
+      'fecha_generacion': timestamp,
+      'tipo': 'INCREMENTAL',
+      'desde_ultimo_respaldo': fechaUltimoRespaldo?.toIso8601String(),
+      'tablas': {}
+    };
+    
+    final tablasIncremental = ['asistencias', 'detalle_asistencias', 'notas_asistencia'];
+    
+    for (String table in tablasIncremental) {
+      String whereClause = '';
+      List<Object?> whereArgs = [];
+      
+      if (fechaUltimoRespaldo != null) {
+        if (table == 'asistencias') {
+          whereClause = 'WHERE ultima_actualizacion > ?';
+          whereArgs = [fechaUltimoRespaldo.toIso8601String()];
+        } else if (table == 'detalle_asistencias') {
+          whereClause = 'WHERE fecha > ?';
+          whereArgs = [fechaUltimoRespaldo.toIso8601String()];
+        } else if (table == 'notas_asistencia') {
+          whereClause = 'WHERE fecha_calculo > ?';
+          whereArgs = [fechaUltimoRespaldo.toIso8601String()];
+        }
+      }
+      
+      final datos = await db.rawQuery('SELECT * FROM $table $whereClause', whereArgs);
+      respaldoData['tablas'][table] = {
+        'total_registros': datos.length,
+        'datos': datos
+      };
+    }
+    
+    await db.insert('respaldos', {
+      'id': respaldoId,
+      'tipo_respaldo': 'INCREMENTAL',
+      'descripcion': 'Respaldo incremental del sistema',
+      'ruta_archivo': 'local/$respaldoId.json',
+      'fecha_respaldo': timestamp,
+      'tamano_bytes': respaldoData.toString().length,
+      'usuario_respaldo': 'sistema',
+      'estado': 'COMPLETADO',
+      'checksum': _generarChecksum(respaldoData.toString())
+    });
+    
+    return respaldoData;
+  }
+
+  // 🆕 RESTAURAR DESDE RESPALDO
+  Future<bool> restaurarDesdeRespaldo(Map<String, dynamic> respaldoData) async {
+    final db = await database;
+    
+    try {
+      await db.transaction((txn) async {
+        for (var tableEntry in respaldoData['tablas'].entries) {
+          final String tableName = tableEntry.key;
+          final dynamic tableData = tableEntry.value;
+          
+          if (tableData is Map && tableData['datos'] is List) {
+            final List<dynamic> datos = tableData['datos'];
+            
+            if (respaldoData['tipo'] == 'COMPLETO') {
+              await txn.delete(tableName);
+            }
+            
+            for (var row in datos) {
+              if (row is Map<String, dynamic>) {
+                await txn.insert(tableName, row, conflictAlgorithm: ConflictAlgorithm.replace);
+              }
+            }
+          }
+        }
+      });
+      
+      print('✅ Restauración completada exitosamente');
+      return true;
+    } catch (e) {
+      print('❌ Error en restauración: $e');
+      return false;
+    }
+  }
+
+  // 🆕 OBTENER HISTORIAL DE RESPALDOS
+  Future<List<Map<String, Object?>>> obtenerHistorialRespaldos() async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT * FROM respaldos 
+      ORDER BY fecha_respaldo DESC
+    ''');
+  }
+
+  // 🆕 ELIMINAR RESPALDO
+  Future<int> eliminarRespaldo(String respaldoId) async {
+    final db = await database;
+    return await db.delete(
+      'respaldos',
+      where: 'id = ?',
+      whereArgs: [respaldoId]
+    );
+  }
+
+  // =================================================================
+  // 🆕 MÉTODOS MEJORADOS PARA CÁLCULO DE NOTAS CON PUNTUALIDAD
+  // =================================================================
+
+  // 🆕 MÉTODO MEJORADO PARA CÁLCULO DE NOTAS CON PUNTUALIDAD
+  Future<Map<String, dynamic>> calcularNotaAsistenciaCompleta(
+    String estudianteId, String materiaId, String periodoId, String bimestreId) async {
+    final db = await database;
+    
+    final config = await obtenerConfiguracionNotasAsistenciaActiva();
+    if (config == null) {
+      throw Exception('No hay configuración de notas activa');
+    }
+
+    final asistenciaData = await db.rawQuery('''
+      SELECT 
+        COUNT(*) as total_clases,
+        SUM(CASE WHEN da.estado = 'A' THEN 1 ELSE 0 END) as clases_asistidas,
+        SUM(CASE WHEN da.estado_puntualidad = 'PUNTUAL' THEN 1 ELSE 0 END) as clases_puntuales,
+        SUM(CASE WHEN da.estado_puntualidad = 'TARDANZA' THEN 1 ELSE 0 END) as clases_tardanza,
+        SUM(CASE WHEN da.estado_puntualidad = 'AUSENTE' THEN 1 ELSE 0 END) as clases_ausente,
+        AVG(CASE WHEN da.minutos_retraso > 0 THEN da.minutos_retraso ELSE NULL END) as promedio_retraso
+      FROM asistencias a
+      JOIN detalle_asistencias da ON a.id = da.asistencia_id
+      JOIN bimestres b ON a.periodo_id = b.periodo_id
+      WHERE a.estudiante_id = ? AND a.materia_id = ? AND a.periodo_id = ? AND b.id = ?
+    ''', [estudianteId, materiaId, periodoId, bimestreId]);
+
+    if (asistenciaData.isEmpty) {
+      throw Exception('No se encontraron datos de asistencia para el bimestre');
+    }
+
+    final data = asistenciaData.first;
+    final totalClases = data['total_clases'] as int? ?? 0;
+    final clasesAsistidas = data['clases_asistidas'] as int? ?? 0;
+    final clasesPuntuales = data['clases_puntuales'] as int? ?? 0;
+    final clasesTardanza = data['clases_tardanza'] as int? ?? 0;
+    final promedioRetraso = data['promedio_retraso'] as double? ?? 0.0;
+    
+    final porcentajeAsistencia = totalClases > 0 ? (clasesAsistidas / totalClases) * 100 : 0.0;
+    final porcentajePuntualidad = clasesAsistidas > 0 ? (clasesPuntuales / clasesAsistidas) * 100 : 0.0;
+
+    double notaCalculada = _aplicarFormulaNota(
+      porcentajeAsistencia, 
+      porcentajePuntualidad, 
+      promedioRetraso, 
+      config
+    );
+
+    final resultado = {
+      'estudiante_id': estudianteId,
+      'materia_id': materiaId,
+      'periodo_id': periodoId,
+      'bimestre_id': bimestreId,
+      'total_clases': totalClases,
+      'clases_asistidas': clasesAsistidas,
+      'clases_faltadas': totalClases - clasesAsistidas,
+      'clases_puntuales': clasesPuntuales,
+      'clases_tardanza': clasesTardanza,
+      'promedio_retraso': promedioRetraso,
+      'porcentaje_asistencia': porcentajeAsistencia,
+      'porcentaje_puntualidad': porcentajePuntualidad,
+      'nota_calculada': notaCalculada,
+      'configuracion_usada': config['nombre'],
+      'fecha_calculo': DateTime.now().toIso8601String()
+    };
+
+    await _guardarNotaCalculada(resultado, config['id'] as String);
+    
+    return resultado;
+  }
+
+  double _aplicarFormulaNota(double porcentajeAsistencia, double porcentajePuntualidad, 
+                            double promedioRetraso, Map<String, Object?> config) {
+    final puntajeMaximo = config['puntaje_maximo'] as double? ?? 10.0;
+    
+    double notaAsistencia = (porcentajeAsistencia / 100) * (puntajeMaximo * 0.7);
+    double notaPuntualidad = (porcentajePuntualidad / 100) * (puntajeMaximo * 0.3);
+    
+    if (promedioRetraso > 15) {
+      double penalizacion = (promedioRetraso - 15) * 0.01;
+      notaPuntualidad *= (1 - penalizacion.clamp(0.0, 0.5));
+    }
+    
+    return (notaAsistencia + notaPuntualidad).clamp(0.0, puntajeMaximo);
+  }
+
+  Future<void> _guardarNotaCalculada(Map<String, dynamic> resultado, String configId) async {
+    final db = await database;
+    
+    final notaExistente = await db.query(
+      'notas_asistencia',
+      where: 'estudiante_id = ? AND materia_id = ? AND periodo_id = ? AND bimestre_id = ?',
+      whereArgs: [
+        resultado['estudiante_id'],
+        resultado['materia_id'],
+        resultado['periodo_id'],
+        resultado['bimestre_id']
+      ]
+    );
+    
+    final notaData = {
+      'estudiante_id': resultado['estudiante_id'],
+      'materia_id': resultado['materia_id'],
+      'periodo_id': resultado['periodo_id'],
+      'bimestre_id': resultado['bimestre_id'],
+      'config_asistencia_id': configId,
+      'total_clases': resultado['total_clases'],
+      'clases_asistidas': resultado['clases_asistidas'],
+      'clases_faltadas': resultado['clases_faltadas'],
+      'porcentaje_asistencia': resultado['porcentaje_asistencia'],
+      'nota_calculada': resultado['nota_calculada'],
+      'estado': 'CALCULADO',
+      'fecha_calculo': resultado['fecha_calculo'],
+      'observaciones': 'Calculado con puntualidad - ${resultado['configuracion_usada']}'
+    };
+    
+    if (notaExistente.isNotEmpty) {
+      await db.update(
+        'notas_asistencia',
+        notaData,
+        where: 'id = ?',
+        whereArgs: [notaExistente.first['id']]
+      );
+    } else {
+      notaData['id'] = 'nota_${resultado['estudiante_id']}_${resultado['materia_id']}_${resultado['periodo_id']}_${resultado['bimestre_id']}';
+      await db.insert('notas_asistencia', notaData);
+    }
+  }
+
+  // =================================================================
+  // ✅ MÉTODOS EXISTENTES COMPLETOS (LOS QUE YA TENÍAS)
+  // =================================================================
+
   // ✅ MÉTODO DEFINITIVO ROBUSTO PARA ACTUALIZAR CONTRASEÑA
   Future<int> actualizarPassword(String userId, String nuevaPassword) async {
     final db = await database;
     
     try {
       print('🔄 Actualizando contraseña para usuario: $userId');
-      print('🔑 Nueva contraseña: $nuevaPassword');
       
-      // Obtener estructura de la tabla para debugging
       final tableInfo = await db.rawQuery('PRAGMA table_info(usuarios)');
       final columnas = tableInfo.map((col) => col['name'] as String).toList();
-      print('📋 Columnas disponibles en tabla usuarios: $columnas');
       
-      // Preparar datos para actualizar
       Map<String, dynamic> updateData = {'password': nuevaPassword};
       
-      // Agregar campo de timestamp según lo disponible
       if (columnas.contains('fecha_actualizacion')) {
         updateData['fecha_actualizacion'] = DateTime.now().toIso8601String();
       } 
       if (columnas.contains('updated_at')) {
         updateData['updated_at'] = DateTime.now().toIso8601String();
       }
-      
-      print('📦 Datos a actualizar: $updateData');
       
       final resultado = await db.update(
         'usuarios',
@@ -1289,37 +1751,12 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
       );
       
       print('✅ Resultado de actualización: $resultado filas afectadas');
-      
-      if (resultado > 0) {
-        // Verificar la actualización
-        final usuarioActualizado = await db.query(
-          'usuarios',
-          where: 'id = ?',
-          whereArgs: [userId],
-        );
-        
-        if (usuarioActualizado.isNotEmpty) {
-          final usuario = usuarioActualizado.first;
-          print('🎉 Usuario actualizado exitosamente:');
-          print('   - Username: ${usuario['username']}');
-          print('   - Nuevo password: ${usuario['password']}');
-          if (usuario['updated_at'] != null) {
-            print('   - Updated at: ${usuario['updated_at']}');
-          }
-          if (usuario['fecha_actualizacion'] != null) {
-            print('   - Fecha actualización: ${usuario['fecha_actualizacion']}');
-          }
-        }
-      }
-      
       return resultado;
       
     } catch (e) {
       print('❌ Error en actualizarPassword: $e');
       
-      // Fallback: intentar solo con password si hay error
       try {
-        print('🔄 Intentando actualización solo con password (fallback)...');
         final resultado = await db.update(
           'usuarios',
           {'password': nuevaPassword},
@@ -1355,7 +1792,6 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
         print('✅ Usuario encontrado:');
         print('   - ID: ${usuario['id']}');
         print('   - Nombre: ${usuario['nombre']}');
-        print('   - Password en BD: ${usuario['password']}');
       } else {
         print('❌ Usuario no encontrado o credenciales incorrectas');
       }
@@ -1447,7 +1883,7 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
     );
   }
 
-  // 🆕 MÉTODOS ESPECÍFICOS PARA NOTAS DE ASISTENCIA (SIN DPS)
+  // 🆕 MÉTODOS ESPECÍFICOS PARA NOTAS DE ASISTENCIA
   Future<int> asignarDocenteMateria(Map<String, dynamic> asignacion) async {
     final db = await database;
     return await db.insert('docente_materia', asignacion);
@@ -1473,11 +1909,10 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
     ''', [materiaId]);
   }
 
-  // 🆕 CORREGIDO: MÉTODO PARA CALCULAR NOTA DE ASISTENCIA BIMESTRAL
+  // 🆕 MÉTODO PARA CALCULAR NOTA DE ASISTENCIA BIMESTRAL
   Future<int> calcularNotaAsistencia(String estudianteId, String materiaId, String periodoId, String bimestreId) async {
     final db = await database;
     
-    // Obtener configuración de notas de asistencia activa
     final configs = await db.query('config_notas_asistencia', where: 'activo = 1', limit: 1);
     if (configs.isEmpty) {
       throw Exception('No hay configuración de notas de asistencia activa');
@@ -1487,7 +1922,6 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
     final configId = config['id'] as String;
     final puntajeMaximo = config['puntaje_maximo'] as double? ?? 10.0;
     
-    // Calcular asistencia del bimestre
     final asistenciaData = await db.rawQuery('''
       SELECT 
         COUNT(*) as total_clases,
@@ -1507,10 +1941,8 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
     final clasesAsistidas = data['clases_asistidas'] as int? ?? 0;
     final porcentajeAsistencia = totalClases > 0 ? (clasesAsistidas / totalClases) * 100 : 0.0;
     
-    // Calcular nota sobre 10 puntos
     double notaCalculada = (porcentajeAsistencia / 100) * puntajeMaximo;
     
-    // Insertar o actualizar nota
     final notaExistente = await db.query(
       'notas_asistencia',
       where: 'estudiante_id = ? AND materia_id = ? AND periodo_id = ? AND bimestre_id = ?',
@@ -1573,7 +2005,79 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
   }
 
   // =================================================================
-  // 🆕 MÉTODOS ESPECÍFICOS PARA HORARIOS (Extraídos de HorarioViewModel)
+  // 🆕 MÉTODOS UTILITARIOS COMPLETOS
+  // =================================================================
+
+  // 🆕 GENERAR CHECKSUM PARA VALIDACIÓN
+  String _generarChecksum(String data) {
+    int checksum = 0;
+    for (int i = 0; i < data.length; i++) {
+      checksum = (checksum + data.codeUnitAt(i)) % 256;
+    }
+    return checksum.toRadixString(16).padLeft(2, '0');
+  }
+
+  // 🆕 OBTENER ESTADÍSTICAS DEL SISTEMA
+  Future<Map<String, dynamic>> obtenerEstadisticasSistema() async {
+    final db = await database;
+    
+    final totalEstudiantes = await db.rawQuery('SELECT COUNT(*) as count FROM estudiantes WHERE activo = 1');
+    final totalDocentes = await db.rawQuery('SELECT COUNT(*) as count FROM docentes WHERE estado = "ACTIVO"');
+    final totalMaterias = await db.rawQuery('SELECT COUNT(*) as count FROM materias WHERE activo = 1');
+    final totalAsistencias = await db.rawQuery('SELECT COUNT(*) as count FROM detalle_asistencias');
+    final reportesGenerados = await db.rawQuery('SELECT COUNT(*) as count FROM reportes_generados');
+    final respaldos = await db.rawQuery('SELECT COUNT(*) as count FROM respaldos');
+    
+    return {
+      'total_estudiantes': (totalEstudiantes.first['count'] as int?) ?? 0,
+      'total_docentes': (totalDocentes.first['count'] as int?) ?? 0,
+      'total_materias': (totalMaterias.first['count'] as int?) ?? 0,
+      'total_asistencias': (totalAsistencias.first['count'] as int?) ?? 0,
+      'reportes_generados': (reportesGenerados.first['count'] as int?) ?? 0,
+      'respaldos_realizados': (respaldos.first['count'] as int?) ?? 0,
+      'fecha_consulta': DateTime.now().toIso8601String()
+    };
+  }
+
+  // 🆕 LIMPIAR DATOS TEMPORALES
+  Future<int> limpiarDatosTemporales() async {
+    final db = await database;
+    
+    final fechaLimite = DateTime.now().subtract(Duration(days: 365)).toIso8601String();
+    
+    final resultado = await db.rawDelete('''
+      DELETE FROM detalle_asistencias 
+      WHERE fecha < ?
+    ''', [fechaLimite]);
+    
+    print('✅ Datos temporales limpiados: $resultado registros eliminados');
+    return resultado;
+  }
+
+  // 🆕 EXPORTAR DATOS PARA MIGRACIÓN
+  // 🆕 EXPORTAR DATOS PARA MIGRACIÓN
+Future<Map<String, dynamic>> exportarDatosParaMigracion() async {
+  final db = await database;
+  
+  final datosExportacion = {
+    'fecha_exportacion': DateTime.now().toIso8601String(),
+    'version_sistema': '1.0.0',
+    'datos': {} // Inicializado como mapa vacío
+  };
+  
+  final tablasExportacion = ['estudiantes', 'docentes', 'materias', 'usuarios', 'config_notas_asistencia'];
+  
+  for (String tabla in tablasExportacion) {
+    final datos = await db.rawQuery('SELECT * FROM $tabla');
+    // ✅ SOLUCIÓN: Cast explícito a Map<String, dynamic>
+    (datosExportacion['datos'] as Map<String, dynamic>)[tabla] = datos;
+  }
+  
+  return datosExportacion;
+}
+
+  // =================================================================
+  // 🆕 MÉTODOS COMPLETOS PARA HORARIOS
   // =================================================================
 
   Future<List<Map<String, Object?>>> obtenerHorariosOrdenados() async {
@@ -1661,196 +2165,7 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
   }
 
   // =================================================================
-  // 🆕 MÉTODOS ESPECÍFICOS PARA NOTAS (Extraídos de NotasViewModel)
-  // =================================================================
-
-  Future<String?> obtenerPeriodoActivo() async {
-    final db = await database;
-    final result = await db.rawQuery('''
-      SELECT id FROM periodos_academicos WHERE estado = 'ACTIVO' LIMIT 1
-    ''');
-    return result.isNotEmpty ? result.first['id']?.toString() : null;
-  }
-
-  Future<List<Map<String, Object?>>> obtenerConfiguracionNotasActiva() async {
-    final db = await database;
-    return await db.rawQuery('''
-      SELECT * FROM config_notas_asistencia 
-      WHERE activo = 1 LIMIT 1
-    ''');
-  }
-
-  Future<List<Map<String, Object?>>> obtenerTodasLasNotas() async {
-    final db = await database;
-    return await db.rawQuery('''
-      SELECT * FROM notas_asistencia 
-      ORDER BY bimestre_id, estudiante_id
-    ''');
-  }
-
-  // ✅ CORREGIDO: MÉTODO obtenerFechasBimestre CON LA BARRA INVERTIDA
-  Future<Map<String, String>?> obtenerFechasBimestre(String bimestreId) async {
-    final db = await database;
-    final bimestreInfo = await db.rawQuery(
-      ''' 
-        SELECT 
-          CAST(json_extract(fechas, '\$.inicio') AS TEXT) as inicio, 
-          CAST(json_extract(fechas, '\$.fin') AS TEXT) as fin
-        FROM bimestres 
-        WHERE id = ?
-      ''', 
-      [bimestreId]
-    );
-
-    if (bimestreInfo.isEmpty) return null;
-    
-    final inicio = bimestreInfo.first['inicio'];
-    final fin = bimestreInfo.first['fin'];
-
-    if (inicio == null || fin == null) return null;
-
-    return {
-      'inicio': inicio.toString(),
-      'fin': fin.toString(),
-    };
-  }
-
-  Future<List<Map<String, Object?>>> obtenerEstudiantesActivos() async {
-    final db = await database;
-    return await db.rawQuery('''
-      SELECT id FROM estudiantes WHERE activo = 1
-    ''');
-  }
-
-  Future<int> obtenerTotalHorasProgramadas(String fechaInicio, String fechaFin) async {
-    final db = await database;
-    final horariosBimestre = await db.rawQuery('''
-      SELECT COUNT(DISTINCT id) as total_horas
-      FROM horarios_clases hc
-      WHERE hc.fecha_creacion BETWEEN ? AND ? 
-      AND hc.activo = 1
-    ''', [fechaInicio, fechaFin]);
-    return (horariosBimestre.first['total_horas'] as int?) ?? 0;
-  }
-
-  Future<List<Map<String, Object?>>> obtenerAsistenciasEstudianteEnRango(
-    String estudianteId, String fechaInicio, String fechaFin) async {
-    final db = await database;
-    return await db.rawQuery('''
-      SELECT estado, COUNT(*) as cantidad
-      FROM asistencia_diaria ad
-      WHERE ad.estudiante_id = ? 
-      AND ad.fecha BETWEEN ? AND ?
-      GROUP BY estado
-    ''', [estudianteId, fechaInicio, fechaFin]);
-  }
-
-  Future<int> guardarNotaAsistencia(Map<String, dynamic> notaData) async {
-    final db = await database;
-    
-    // Verificar si ya existe
-    final existe = await db.rawQuery('''
-      SELECT COUNT(*) as count FROM notas_asistencia 
-      WHERE id = ?
-    ''', [notaData['id']]);
-
-    final count = (existe.first['count'] as int?) ?? 0;
-
-    if (count > 0) {
-      // Actualizar
-      return await db.rawUpdate('''
-        UPDATE notas_asistencia SET 
-          total_horas_programadas = ?, horas_asistidas = ?, horas_retraso = ?, horas_falta = ?,
-          porcentaje_asistencia = ?, nota_final = ?, estado = ?, fecha_calculo = ?
-        WHERE id = ?
-      ''', [
-        notaData['total_horas_programadas'],
-        notaData['horas_asistidas'],
-        notaData['horas_retraso'],
-        notaData['horas_falta'],
-        notaData['porcentaje_asistencia'],
-        notaData['nota_final'],
-        notaData['estado'],
-        notaData['fecha_calculo'].toIso8601String(),
-        notaData['id'],
-      ]);
-    } else {
-      // Insertar nueva
-      return await db.rawInsert('''
-        INSERT INTO notas_asistencia (
-          id, estudiante_id, materia_id, periodo_id, bimestre_id,
-          total_horas_programadas, horas_asistidas, horas_retraso, horas_falta,
-          porcentaje_asistencia, nota_final, estado, fecha_calculo
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ''', [
-        notaData['id'],
-        notaData['estudiante_id'],
-        notaData['materia_id'],
-        notaData['periodo_id'],
-        notaData['bimestre_id'],
-        notaData['total_horas_programadas'],
-        notaData['horas_asistidas'],
-        notaData['horas_retraso'],
-        notaData['horas_falta'],
-        notaData['porcentaje_asistencia'],
-        notaData['nota_final'],
-        notaData['estado'],
-        notaData['fecha_calculo'].toIso8601String(),
-      ]);
-    }
-  }
-
-  // =================================================================
-  // 🆕 MÉTODOS ESPECÍFICOS PARA CONFIGURACIÓN (Extraídos de ConfigViewModel)
-  // =================================================================
-
-  Future<List<Map<String, Object?>>> obtenerConfiguracionActiva() async {
-    final db = await database;
-    return await db.rawQuery('''
-      SELECT * FROM config_notas_asistencia 
-      WHERE activo = 1 
-      ORDER BY fecha_actualizacion DESC 
-      LIMIT 1
-    ''');
-  }
-
-  Future<bool> existeConfiguracionConNombre(String nombre, [String? excludeId]) async {
-    final db = await database;
-    final existe = await db.rawQuery('''
-      SELECT COUNT(*) as count FROM config_notas_asistencia 
-      WHERE nombre = ? ${excludeId != null ? 'AND id != ?' : ''}
-    ''', excludeId != null ? [nombre, excludeId] : [nombre]);
-    return ((existe.first['count'] as int?) ?? 0) > 0;
-  }
-
-  Future<int> desactivarTodasLasConfiguraciones() async {
-    final db = await database;
-    return await db.rawUpdate('''
-      UPDATE config_notas_asistencia SET activo = 0
-      WHERE activo = 1
-    ''', []);
-  }
-
-  Future<int> insertarConfiguracion(Map<String, dynamic> config) async {
-    final db = await database;
-    return await db.rawInsert('''
-      INSERT INTO config_notas_asistencia (
-        id, nombre, puntaje_total, reglas_calculo, activo, 
-        fecha_creacion, fecha_actualizacion
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', [
-      config['id'],
-      config['nombre'],
-      config['puntaje_total'],
-      config['reglas_calculo'],
-      config['activo'] ? 1 : 0,
-      config['fecha_creacion'].toIso8601String(),
-      config['fecha_actualizacion'].toIso8601String(),
-    ]);
-  }
-
-  // =================================================================
-  // 🆕 MÉTODOS ESPECÍFICOS PARA ASISTENCIA DIARIA (Extraídos de AsistenciaDiariaViewModel)
+  // 🆕 MÉTODOS COMPLETOS PARA ASISTENCIA DIARIA
   // =================================================================
 
   Future<List<Map<String, Object?>>> obtenerEstudiantesOrdenados() async {
@@ -1920,4 +2235,5 @@ Future<void> _migrarTablaConfiguraciones(Database db) async {
       asistencia['usuario_registro'],
     ]);
   }
-}
+
+} // Fin de la clase DatabaseHelper

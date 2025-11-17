@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import '../models/bimestre_model.dart';
+import '../models/periodo_academico_model.dart';
 import '../models/database_helper.dart';
 
 class PeriodoAcademicoViewModel with ChangeNotifier {

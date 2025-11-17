@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'bimestre_model.dart';
+import 'periodo_academico_model.dart';
 
 class AsistenciaEstudianteCuarto {
   AsistenciaEstudianteCuarto({

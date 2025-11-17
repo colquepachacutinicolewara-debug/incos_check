@@ -15,6 +15,7 @@ class Estudiante {
   final String? paraleloId;
   final String fechaCreacion;
   final String fechaActualizacion;
+  final bool activo;
 
   Estudiante({
     required this.id,
@@ -30,6 +31,7 @@ class Estudiante {
     this.paraleloId,
     required this.fechaCreacion,
     required this.fechaActualizacion,
+    this.activo = true,
   });
 
   Map<String, dynamic> toMap() {
@@ -41,12 +43,13 @@ class Estudiante {
       'ci': ci,
       'fecha_registro': fechaRegistro,
       'huellas_registradas': huellasRegistradas,
-      'carrera_id': carreraId ?? '',
-      'turno_id': turnoId ?? '',
-      'nivel_id': nivelId ?? '',
-      'paralelo_id': paraleloId ?? '',
+      'carrera_id': carreraId,
+      'turno_id': turnoId,
+      'nivel_id': nivelId,
+      'paralelo_id': paraleloId,
       'fecha_creacion': fechaCreacion,
       'fecha_actualizacion': fechaActualizacion,
+      'activo': activo ? 1 : 0,
     };
   }
 
@@ -66,6 +69,7 @@ class Estudiante {
       paraleloId: map['paralelo_id']?.toString(),
       fechaCreacion: map['fecha_creacion']?.toString() ?? DateTime.now().toIso8601String(),
       fechaActualizacion: map['fecha_actualizacion']?.toString() ?? DateTime.now().toIso8601String(),
+      activo: (map['activo'] ?? 1) == 1,
     );
   }
 
@@ -83,6 +87,7 @@ class Estudiante {
     String? paraleloId,
     String? fechaCreacion,
     String? fechaActualizacion,
+    bool? activo,
   }) {
     return Estudiante(
       id: id ?? this.id,
@@ -98,6 +103,7 @@ class Estudiante {
       paraleloId: paraleloId ?? this.paraleloId,
       fechaCreacion: fechaCreacion ?? this.fechaCreacion,
       fechaActualizacion: fechaActualizacion ?? this.fechaActualizacion,
+      activo: activo ?? this.activo,
     );
   }
 
@@ -106,6 +112,7 @@ class Estudiante {
   String get nombreCorto => '$nombres $apellidoPaterno';
   bool get tieneTodasLasHuellas => huellasRegistradas >= 3;
   bool get tieneHuellasRegistradas => huellasRegistradas > 0;
+  bool get estaActivo => activo;
 
   String get estadoHuellas {
     if (huellasRegistradas >= 3) return 'Completas';

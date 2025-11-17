@@ -1,9 +1,12 @@
 import 'dart:convert';
+
 class ConfigNotasAsistencia {
   final String id;
   final String nombre;
-  final double puntajeTotal;
-  final Map<String, dynamic> reglasCalculo;
+  final String? descripcion;
+  final double puntajeMaximo;
+  final String formulaTipo;
+  final String? parametros;
   final bool activo;
   final DateTime fechaCreacion;
   final DateTime fechaActualizacion;
@@ -11,35 +14,51 @@ class ConfigNotasAsistencia {
   ConfigNotasAsistencia({
     required this.id,
     required this.nombre,
-    this.puntajeTotal = 10.0,
-    required this.reglasCalculo,
+    this.descripcion,
+    this.puntajeMaximo = 10.0,
+    this.formulaTipo = 'BIMESTRAL',
+    this.parametros,
     this.activo = true,
     required this.fechaCreacion,
     required this.fechaActualizacion,
   });
 
-  // REGLAS PREDEFINIDAS
-  static Map<String, dynamic> get reglasPorDefecto {
-    return {
-      'retraso_penaliza_media_hora': true,
-      'minimo_aprobatorio': 7.0,
-      'calculo_automatico': true,
-      'considerar_puntualidad': true,
-      'tolerancia_minutos': 15,
-    };
+  // Obtener parámetros como Map
+  Map<String, dynamic> get parametrosMap {
+    if (parametros == null || parametros!.isEmpty) {
+      return _parametrosPorDefecto;
+    }
+    try {
+      return Map<String, dynamic>.from(json.decode(parametros!));
+    } catch (e) {
+      return _parametrosPorDefecto;
+    }
   }
 
-  double get minimoAprobatorio => (reglasCalculo['minimo_aprobatorio'] ?? 7.0).toDouble();
-  bool get retrasoPenaliza => reglasCalculo['retraso_penaliza_media_hora'] ?? true;
-  bool get calculoAutomatico => reglasCalculo['calculo_automatico'] ?? true;
-  int get toleranciaMinutos => reglasCalculo['tolerancia_minutos'] ?? 15;
+  // PARÁMETROS POR DEFECTO
+  static final Map<String, dynamic> _parametrosPorDefecto = {
+    'asistencia_minima': 80.0,
+    'tolerancia_minutos': 15,
+    'considera_puntualidad': true,
+    'penalizacion_retraso': 0.5,
+    'minimo_aprobatorio': 7.0,
+  };
+
+  // Getters para parámetros comunes
+  double get asistenciaMinima => (parametrosMap['asistencia_minima'] ?? 80.0).toDouble();
+  int get toleranciaMinutos => (parametrosMap['tolerancia_minutos'] ?? 15).toInt();
+  bool get consideraPuntualidad => parametrosMap['considera_puntualidad'] ?? true;
+  double get penalizacionRetraso => (parametrosMap['penalizacion_retraso'] ?? 0.5).toDouble();
+  double get minimoAprobatorio => (parametrosMap['minimo_aprobatorio'] ?? 7.0).toDouble();
 
   Map<String, dynamic> toMap() {
     return {
       'id': id,
       'nombre': nombre,
-      'puntaje_total': puntajeTotal,
-      'reglas_calculo': reglasCalculo,
+      'descripcion': descripcion,
+      'puntaje_maximo': puntajeMaximo,
+      'formula_tipo': formulaTipo,
+      'parametros': parametros,
       'activo': activo ? 1 : 0,
       'fecha_creacion': fechaCreacion.toIso8601String(),
       'fecha_actualizacion': fechaActualizacion.toIso8601String(),
@@ -47,23 +66,13 @@ class ConfigNotasAsistencia {
   }
 
   factory ConfigNotasAsistencia.fromMap(Map<String, dynamic> map) {
-    Map<String, dynamic> reglas = {};
-    
-    try {
-      if (map['reglas_calculo'] is String) {
-        reglas = Map<String, dynamic>.from(json.decode(map['reglas_calculo']));
-      } else if (map['reglas_calculo'] is Map) {
-        reglas = Map<String, dynamic>.from(map['reglas_calculo']);
-      }
-    } catch (e) {
-      reglas = reglasPorDefecto;
-    }
-
     return ConfigNotasAsistencia(
-      id: map['id'] ?? '',
-      nombre: map['nombre'] ?? '',
-      puntajeTotal: (map['puntaje_total'] ?? 10.0).toDouble(),
-      reglasCalculo: reglas,
+      id: map['id']?.toString() ?? '',
+      nombre: map['nombre']?.toString() ?? '',
+      descripcion: map['descripcion']?.toString(),
+      puntajeMaximo: (map['puntaje_maximo'] ?? 10.0).toDouble(),
+      formulaTipo: map['formula_tipo']?.toString() ?? 'BIMESTRAL',
+      parametros: map['parametros']?.toString(),
       activo: (map['activo'] ?? 1) == 1,
       fechaCreacion: DateTime.parse(map['fecha_creacion'] ?? DateTime.now().toIso8601String()),
       fechaActualizacion: DateTime.parse(map['fecha_actualizacion'] ?? DateTime.now().toIso8601String()),
@@ -73,8 +82,10 @@ class ConfigNotasAsistencia {
   ConfigNotasAsistencia copyWith({
     String? id,
     String? nombre,
-    double? puntajeTotal,
-    Map<String, dynamic>? reglasCalculo,
+    String? descripcion,
+    double? puntajeMaximo,
+    String? formulaTipo,
+    String? parametros,
     bool? activo,
     DateTime? fechaCreacion,
     DateTime? fechaActualizacion,
@@ -82,17 +93,30 @@ class ConfigNotasAsistencia {
     return ConfigNotasAsistencia(
       id: id ?? this.id,
       nombre: nombre ?? this.nombre,
-      puntajeTotal: puntajeTotal ?? this.puntajeTotal,
-      reglasCalculo: reglasCalculo ?? this.reglasCalculo,
+      descripcion: descripcion ?? this.descripcion,
+      puntajeMaximo: puntajeMaximo ?? this.puntajeMaximo,
+      formulaTipo: formulaTipo ?? this.formulaTipo,
+      parametros: parametros ?? this.parametros,
       activo: activo ?? this.activo,
       fechaCreacion: fechaCreacion ?? this.fechaCreacion,
       fechaActualizacion: fechaActualizacion ?? this.fechaActualizacion,
     );
   }
 
+  // Método para actualizar parámetros
+  ConfigNotasAsistencia withParametros(Map<String, dynamic> nuevosParametros) {
+    final params = parametrosMap;
+    params.addAll(nuevosParametros);
+    
+    return copyWith(
+      parametros: json.encode(params),
+      fechaActualizacion: DateTime.now(),
+    );
+  }
+
   @override
   String toString() {
-    return 'ConfigNotasAsistencia($nombre - $puntajeTotal puntos)';
+    return 'ConfigNotasAsistencia($nombre - $puntajeMaximo puntos)';
   }
 
   @override

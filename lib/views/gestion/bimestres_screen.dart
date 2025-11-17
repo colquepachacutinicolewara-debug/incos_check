@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../utils/constants.dart';
-import '../../../models/bimestre_model.dart';
+import '../../models/periodo_academico_model.dart';
 import '../../viewmodels/periodo_academico_viewmodel.dart';
 import '../../views/asistencia/planilla/primer_bimestre_screen.dart';
 import '../../views/asistencia/planilla/segundo_bimestre_screen.dart';

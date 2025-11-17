@@ -23,7 +23,7 @@ class _CalcularNotasScreenContent extends StatelessWidget {
     final viewModel = context.watch<NotasViewModel>();
 
     return Scaffold(
-      backgroundColor: viewModel.getBackgroundColor(context),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text(
           'Cálculo de Notas de Asistencia',
@@ -34,37 +34,107 @@ class _CalcularNotasScreenContent extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: viewModel.cargarNotas,
+            onPressed: viewModel.isLoading ? null : viewModel.cargarNotas,
             tooltip: 'Recargar',
           ),
         ],
       ),
       body: viewModel.isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                // Controles de cálculo
-                _buildControlesCalculo(context, viewModel),
-                
-                // Filtros
-                _buildFiltros(context, viewModel),
-                
-                // Lista de notas
-                _buildListaNotas(context, viewModel),
-              ],
+          : _buildContent(context, viewModel),
+    );
+  }
+
+  Widget _buildContent(BuildContext context, NotasViewModel viewModel) {
+    return Column(
+      children: [
+        // Estadísticas
+        _buildEstadisticas(context, viewModel),
+        
+        // Controles de cálculo
+        _buildControlesCalculo(context, viewModel),
+        
+        // Filtros
+        _buildFiltros(context, viewModel),
+        
+        // Lista de notas
+        Expanded(child: _buildListaNotas(context, viewModel)),
+      ],
+    );
+  }
+
+  Widget _buildEstadisticas(BuildContext context, NotasViewModel viewModel) {
+    final stats = viewModel.obtenerEstadisticas();
+
+    return Card(
+      margin: const EdgeInsets.all(16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildStatItem(
+              'Total',
+              stats['total'].toString(),
+              Icons.people,
+              Colors.blue,
             ),
+            _buildStatItem(
+              'Aprobados',
+              stats['aprobados'].toString(),
+              Icons.check_circle,
+              Colors.green,
+            ),
+            _buildStatItem(
+              'Reprobados',
+              stats['reprobados'].toString(),
+              Icons.cancel,
+              Colors.red,
+            ),
+            _buildStatItem(
+              'Promedio',
+              stats['promedio'].toStringAsFixed(1),
+              Icons.assessment,
+              Colors.purple,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String title, String value, IconData icon, Color color) {
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 24),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 12,
+            color: Colors.grey,
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildControlesCalculo(BuildContext context, NotasViewModel viewModel) {
     return Card(
-      margin: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             const Text(
-              'Cálculo Automático de Notas',
+              'Cálculo de Notas de Asistencia',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
@@ -72,25 +142,41 @@ class _CalcularNotasScreenContent extends StatelessWidget {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: 'bim2_2024', // Valor por defecto
-                    items: ['bim1_2024', 'bim2_2024', 'bim3_2024', 'bim4_2024'].map((bimestre) {
+                    value: 'bim2_2024',
+                    items: [
+                      'bim1_2024', 
+                      'bim2_2024', 
+                      'bim3_2024', 
+                      'bim4_2024'
+                    ].map((bimestre) {
                       return DropdownMenuItem(
                         value: bimestre,
                         child: Text(_obtenerNombreBimestre(bimestre)),
                       );
                     }).toList(),
-                    onChanged: (value) {},
+                    onChanged: viewModel.isLoading ? null : (value) {},
                     decoration: const InputDecoration(
                       labelText: 'Seleccionar Bimestre',
                       border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.calendar_today),
                     ),
                   ),
                 ),
                 const SizedBox(width: 16),
                 ElevatedButton.icon(
-                  onPressed: () => _calcularNotasBimestre(context, viewModel),
-                  icon: const Icon(Icons.calculate),
-                  label: const Text('Calcular'),
+                  onPressed: viewModel.isLoading 
+                      ? null 
+                      : () => _calcularNotasBimestre(context, viewModel, 'bim2_2024'),
+                  icon: viewModel.isLoading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.calculate),
+                  label: viewModel.isLoading 
+                      ? const Text('Calculando...')
+                      : const Text('Calcular Notas'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.purple,
                     foregroundColor: Colors.white,
@@ -101,7 +187,7 @@ class _CalcularNotasScreenContent extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Calcula las notas de asistencia para todos los estudiantes',
+              'Calcula las notas de asistencia para todos los estudiantes activos',
               style: TextStyle(fontSize: 12, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
@@ -113,26 +199,39 @@ class _CalcularNotasScreenContent extends StatelessWidget {
 
   Widget _buildFiltros(BuildContext context, NotasViewModel viewModel) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(16),
       child: Row(
         children: [
           Expanded(
             child: DropdownButtonFormField<String>(
               value: viewModel.filtroBimestre,
-              items: ['Todos', 'bim1_2024', 'bim2_2024', 'bim3_2024', 'bim4_2024'].map((bimestre) {
+              items: [
+                'Todos', 
+                'bim1_2024', 
+                'bim2_2024', 
+                'bim3_2024', 
+                'bim4_2024'
+              ].map((bimestre) {
                 return DropdownMenuItem(
                   value: bimestre,
-                  child: Text(bimestre == 'Todos' ? 'Todos los bimestres' : _obtenerNombreBimestre(bimestre)),
+                  child: Text(
+                    bimestre == 'Todos' 
+                        ? 'Todos los bimestres' 
+                        : _obtenerNombreBimestre(bimestre)
+                  ),
                 );
               }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  viewModel.cambiarFiltroBimestre(value);
-                }
-              },
+              onChanged: viewModel.isLoading 
+                  ? null 
+                  : (value) {
+                      if (value != null) {
+                        viewModel.cambiarFiltroBimestre(value);
+                      }
+                    },
               decoration: const InputDecoration(
                 labelText: 'Filtrar por bimestre',
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.filter_list),
               ),
             ),
           ),
@@ -140,20 +239,29 @@ class _CalcularNotasScreenContent extends StatelessWidget {
           Expanded(
             child: DropdownButtonFormField<String>(
               value: viewModel.filtroEstado,
-              items: ['Todos', 'APROBADO', 'REPROBADO', 'PENDIENTE'].map((estado) {
+              items: [
+                'Todos', 
+                'PENDIENTE', 
+                'CALCULADO', 
+                'APROBADO', 
+                'REPROBADO'
+              ].map((estado) {
                 return DropdownMenuItem(
                   value: estado,
                   child: Text(_obtenerNombreEstado(estado)),
                 );
               }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  viewModel.cambiarFiltroEstado(value);
-                }
-              },
+              onChanged: viewModel.isLoading 
+                  ? null 
+                  : (value) {
+                      if (value != null) {
+                        viewModel.cambiarFiltroEstado(value);
+                      }
+                    },
               decoration: const InputDecoration(
                 labelText: 'Filtrar por estado',
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.flag),
               ),
             ),
           ),
@@ -164,40 +272,77 @@ class _CalcularNotasScreenContent extends StatelessWidget {
 
   Widget _buildListaNotas(BuildContext context, NotasViewModel viewModel) {
     if (viewModel.notasFiltradas.isEmpty) {
-      return Expanded(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+      return _buildEmptyState(context, viewModel);
+    }
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(
-                Icons.assignment,
-                size: 64,
-                color: Colors.grey.shade400,
+              Text(
+                '${viewModel.notasFiltradas.length} notas encontradas',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey,
+                ),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'No hay notas calculadas',
-                style: TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Presiona "Calcular" para generar las notas de asistencia',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
-              ),
+              if (viewModel.error != null)
+                _buildErrorWidget(viewModel),
             ],
           ),
         ),
-      );
-    }
+        const SizedBox(height: 8),
+        Expanded(
+          child: ListView.builder(
+            itemCount: viewModel.notasFiltradas.length,
+            itemBuilder: (context, index) {
+              final nota = viewModel.notasFiltradas[index];
+              return _buildTarjetaNota(context, nota);
+            },
+          ),
+        ),
+      ],
+    );
+  }
 
-    return Expanded(
-      child: ListView.builder(
-        itemCount: viewModel.notasFiltradas.length,
-        itemBuilder: (context, index) {
-          final nota = viewModel.notasFiltradas[index];
-          return _buildTarjetaNota(context, nota);
-        },
+  Widget _buildEmptyState(BuildContext context, NotasViewModel viewModel) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.assignment_outlined,
+            size: 80,
+            color: Colors.grey.shade400,
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'No hay notas de asistencia',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              'Presiona "Calcular Notas" para generar las notas de asistencia para el bimestre seleccionado',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () => _calcularNotasBimestre(context, viewModel, 'bim2_2024'),
+            icon: const Icon(Icons.calculate),
+            label: const Text('Calcular Notas Ahora'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.purple,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -205,6 +350,7 @@ class _CalcularNotasScreenContent extends StatelessWidget {
   Widget _buildTarjetaNota(BuildContext context, NotaAsistencia nota) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      elevation: 1,
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: nota.colorNota.withOpacity(0.1),
@@ -217,25 +363,78 @@ class _CalcularNotasScreenContent extends StatelessWidget {
           ),
         ),
         title: Text(
-          'Estudiante ID: ${nota.estudianteId}',
+          'Estudiante: ${nota.estudianteId}',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const SizedBox(height: 4),
             Text('Bimestre: ${_obtenerNombreBimestre(nota.bimestreId)}'),
-            Text('Asistencia: ${nota.porcentajeDisplay}'),
+            Text('Asistencia: ${nota.asistenciaDisplay} (${nota.porcentajeDisplay})'),
             Text('Estado: ${nota.estadoDisplay}'),
+            if (nota.observaciones != null && nota.observaciones!.isNotEmpty)
+              Text(
+                'Observaciones: ${nota.observaciones}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade600,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
           ],
         ),
-        trailing: Chip(
-          label: Text(nota.estaAprobado ? 'APROBADO' : 'REPROBADO'),
-          backgroundColor: nota.colorEstado.withOpacity(0.1),
-          labelStyle: TextStyle(
-            color: nota.colorEstado,
-            fontWeight: FontWeight.bold,
-          ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Chip(
+              label: Text(
+                nota.estaAprobado ? 'APROBADO' : 'REPROBADO',
+                style: const TextStyle(fontSize: 10),
+              ),
+              backgroundColor: nota.colorEstado.withOpacity(0.1),
+              labelStyle: TextStyle(
+                color: nota.colorEstado,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Calculado: ${_formatearFecha(nota.fechaCalculo)}',
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey.shade500,
+              ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildErrorWidget(NotasViewModel viewModel) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        border: Border.all(color: Colors.red.shade200),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.error_outline, color: Colors.red.shade600, size: 16),
+          const SizedBox(width: 4),
+          Text(
+            'Error',
+            style: TextStyle(
+              color: Colors.red.shade700,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -252,45 +451,65 @@ class _CalcularNotasScreenContent extends StatelessWidget {
 
   String _obtenerNombreEstado(String estado) {
     switch (estado) {
+      case 'PENDIENTE': return 'Pendiente';
+      case 'CALCULADO': return 'Calculado';
       case 'APROBADO': return 'Aprobado';
       case 'REPROBADO': return 'Reprobado';
-      case 'PENDIENTE': return 'Pendiente';
       default: return estado;
     }
   }
 
-  Future<void> _calcularNotasBimestre(BuildContext context, NotasViewModel viewModel) async {
-    final bimestreId = 'bim2_2024'; // Por defecto segundo bimestre
-    
-    showDialog(
+  String _formatearFecha(DateTime fecha) {
+    return '${fecha.day}/${fecha.month}/${fecha.year}';
+  }
+
+  Future<void> _calcularNotasBimestre(BuildContext context, NotasViewModel viewModel, String bimestreId) async {
+    final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Calcular Notas'),
+        title: const Text('Calcular Notas de Asistencia'),
         content: Text(
-          '¿Calcular notas de asistencia para ${_obtenerNombreBimestre(bimestreId)}?',
+          '¿Deseas calcular las notas de asistencia para ${_obtenerNombreBimestre(bimestreId)}?\n\n'
+          'Esta acción calculará las notas para todos los estudiantes activos.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancelar'),
           ),
           TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await viewModel.calcularNotasBimestre(bimestreId);
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Notas calculadas correctamente'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              }
-            },
-            child: const Text('Calcular'),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'Calcular',
+              style: TextStyle(color: Colors.purple),
+            ),
           ),
         ],
       ),
     );
+
+    if (confirm == true) {
+      await viewModel.calcularNotasBimestre(bimestreId);
+      
+      if (context.mounted) {
+        if (viewModel.error == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Notas calculadas correctamente para ${_obtenerNombreBimestre(bimestreId)}'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: ${viewModel.error}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    }
   }
 }

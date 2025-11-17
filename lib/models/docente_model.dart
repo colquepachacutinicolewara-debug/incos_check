@@ -47,29 +47,29 @@ class Docente {
       'email': email,
       'telefono': telefono,
       'estado': estado,
-      'created_at': fechaCreacion?.toIso8601String(),
-      'updated_at': fechaActualizacion?.toIso8601String(),
+      'fecha_creacion': fechaCreacion?.toIso8601String(),
+      'fecha_actualizacion': fechaActualizacion?.toIso8601String(),
     };
   }
 
   // Crear desde Map desde SQLite
   factory Docente.fromMap(Map<String, dynamic> map) {
     return Docente(
-      id: map['id'] as String,
-      apellidoPaterno: map['apellido_paterno'] as String,
-      apellidoMaterno: map['apellido_materno'] as String,
-      nombres: map['nombres'] as String,
-      ci: map['ci'] as String,
-      carrera: map['carrera'] as String,
-      turno: map['turno'] as String,
-      email: map['email'] as String,
-      telefono: map['telefono'] as String,
-      estado: map['estado'] as String,
-      fechaCreacion: map['created_at'] != null 
-          ? DateTime.parse(map['created_at'] as String)
+      id: map['id']?.toString() ?? '',
+      apellidoPaterno: map['apellido_paterno']?.toString() ?? '',
+      apellidoMaterno: map['apellido_materno']?.toString() ?? '',
+      nombres: map['nombres']?.toString() ?? '',
+      ci: map['ci']?.toString() ?? '',
+      carrera: map['carrera']?.toString() ?? '',
+      turno: map['turno']?.toString() ?? 'MAÑANA',
+      email: map['email']?.toString() ?? '',
+      telefono: map['telefono']?.toString() ?? '',
+      estado: map['estado']?.toString() ?? 'ACTIVO',
+      fechaCreacion: map['fecha_creacion'] != null 
+          ? DateTime.parse(map['fecha_creacion'])
           : null,
-      fechaActualizacion: map['updated_at'] != null
-          ? DateTime.parse(map['updated_at'] as String)
+      fechaActualizacion: map['fecha_actualizacion'] != null
+          ? DateTime.parse(map['fecha_actualizacion'])
           : null,
     );
   }

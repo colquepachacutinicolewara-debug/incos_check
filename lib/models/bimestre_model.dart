@@ -1,155 +1,112 @@
-import 'package:flutter/material.dart';
 import 'dart:convert';
 
-class PeriodoAcademico {
+class Bimestre {
   final String id;
+  final String periodoId;
   final String nombre;
-  final String tipo;
-  final int numero;
-  final DateTime fechaInicio;
-  final DateTime fechaFin;
-  final String estado;
-  final List<String> fechasClases;
-  final String descripcion;
-  final DateTime fechaCreacion;
-  final int? totalClases;
-  final int? duracionDias;
+  final Map<String, dynamic> fechas;
+  final Map<String, dynamic>? datosEstudiantes;
 
-  PeriodoAcademico({
+  Bimestre({
     required this.id,
+    required this.periodoId,
     required this.nombre,
-    required this.tipo,
-    required this.numero,
-    required this.fechaInicio,
-    required this.fechaFin,
-    required this.estado,
-    required this.fechasClases,
-    required this.descripcion,
-    required this.fechaCreacion,
-    this.totalClases,
-    this.duracionDias,
+    required this.fechas,
+    this.datosEstudiantes,
   });
 
-  // Getters computados
-  int get totalClasesComputed => fechasClases.length;
-  int get duracionDiasComputed => fechaFin.difference(fechaInicio).inDays;
-  bool get estaActivo => estado == 'En Curso';
-  bool get puedeEditar => estado == 'Planificado' || estado == 'En Curso';
+  // Constructor desde Map
+  factory Bimestre.fromMap(Map<String, dynamic> map) {
+    Map<String, dynamic> fechasData = {};
+    Map<String, dynamic>? datosEstudiantesData;
 
-  String get rangoFechas =>
-      '${fechaInicio.day}/${fechaInicio.month}/${fechaInicio.year} - '
-      '${fechaFin.day}/${fechaFin.month}/${fechaFin.year}';
-
-  Color get colorEstado {
-    switch (estado) {
-      case 'Planificado':
-        return Colors.blue;
-      case 'En Curso':
-        return Colors.green;
-      case 'Finalizado':
-        return Colors.grey;
-      case 'Cancelado':
-        return Colors.red;
-      default:
-        return Colors.blue;
-    }
-  }
-
-  String get estadoDisplay {
-    switch (estado) {
-      case 'En Curso':
-        return 'En Curso';
-      case 'Planificado':
-        return 'Planificado';
-      case 'Finalizado':
-        return 'Finalizado';
-      case 'Cancelado':
-        return 'Cancelado';
-      default:
-        return estado;
-    }
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'nombre': nombre,
-      'tipo': tipo,
-      'numero': numero,
-      'fecha_inicio': fechaInicio.toIso8601String(),
-      'fecha_fin': fechaFin.toIso8601String(),
-      'estado': estado,
-      'fechas_clases': json.encode(fechasClases),
-      'descripcion': descripcion,
-      'fecha_creacion': fechaCreacion.toIso8601String(),
-      'total_clases': totalClasesComputed,
-      'duracion_dias': duracionDiasComputed,
-    };
-  }
-
-  factory PeriodoAcademico.fromMap(Map<String, dynamic> map) {
-    List<String> fechasClases = [];
     try {
-      if (map['fechas_clases'] is String) {
-        fechasClases = List<String>.from(json.decode(map['fechas_clases']));
-      } else if (map['fechas_clases'] is List) {
-        fechasClases = List<String>.from(map['fechas_clases']);
+      if (map['fechas'] is String) {
+        fechasData = Map<String, dynamic>.from(json.decode(map['fechas']));
+      } else if (map['fechas'] is Map) {
+        fechasData = Map<String, dynamic>.from(map['fechas']);
+      }
+
+      if (map['datos_estudiantes'] != null) {
+        if (map['datos_estudiantes'] is String) {
+          datosEstudiantesData = Map<String, dynamic>.from(json.decode(map['datos_estudiantes']));
+        } else if (map['datos_estudiantes'] is Map) {
+          datosEstudiantesData = Map<String, dynamic>.from(map['datos_estudiantes']);
+        }
       }
     } catch (e) {
-      print('Error parsing fechas_clases: $e');
+      print('Error parsing bimestre data: $e');
     }
 
-    return PeriodoAcademico(
-      id: map['id'] ?? '',
-      nombre: map['nombre'] ?? '',
-      tipo: map['tipo'] ?? '',
-      numero: map['numero'] ?? 0,
-      fechaInicio: DateTime.parse(map['fecha_inicio'] ?? DateTime.now().toIso8601String()),
-      fechaFin: DateTime.parse(map['fecha_fin'] ?? DateTime.now().toIso8601String()),
-      estado: map['estado'] ?? '',
-      fechasClases: fechasClases,
-      descripcion: map['descripcion'] ?? '',
-      fechaCreacion: DateTime.parse(map['fecha_creacion'] ?? DateTime.now().toIso8601String()),
-      totalClases: map['total_clases'],
-      duracionDias: map['duracion_dias'],
+    return Bimestre(
+      id: map['id']?.toString() ?? '',
+      periodoId: map['periodo_id']?.toString() ?? '',
+      nombre: map['nombre']?.toString() ?? '',
+      fechas: fechasData,
+      datosEstudiantes: datosEstudiantesData,
     );
   }
 
-  PeriodoAcademico copyWith({
+  // Convertir a Map para SQLite
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'periodo_id': periodoId,
+      'nombre': nombre,
+      'fechas': json.encode(fechas),
+      'datos_estudiantes': datosEstudiantes != null ? json.encode(datosEstudiantes) : null,
+    };
+  }
+
+  // Propiedades computadas
+  String? get fechaInicio => fechas['inicio']?.toString();
+  String? get fechaFin => fechas['fin']?.toString();
+
+  String get rangoFechas {
+    if (fechaInicio != null && fechaFin != null) {
+      return '$fechaInicio - $fechaFin';
+    }
+    return 'Fechas no definidas';
+  }
+
+  int get numeroBimestre {
+    final match = RegExp(r'(\d+)').firstMatch(nombre);
+    if (match != null) {
+      return int.tryParse(match.group(1)!) ?? 1;
+    }
+    return 1;
+  }
+
+  String get displayName => 'Bimestre $numeroBimestre';
+
+  bool get tieneFechasDefinidas => fechaInicio != null && fechaFin != null;
+
+  // Método para copiar
+  Bimestre copyWith({
     String? id,
+    String? periodoId,
     String? nombre,
-    String? tipo,
-    int? numero,
-    DateTime? fechaInicio,
-    DateTime? fechaFin,
-    String? estado,
-    List<String>? fechasClases,
-    String? descripcion,
-    DateTime? fechaCreacion,
+    Map<String, dynamic>? fechas,
+    Map<String, dynamic>? datosEstudiantes,
   }) {
-    return PeriodoAcademico(
+    return Bimestre(
       id: id ?? this.id,
+      periodoId: periodoId ?? this.periodoId,
       nombre: nombre ?? this.nombre,
-      tipo: tipo ?? this.tipo,
-      numero: numero ?? this.numero,
-      fechaInicio: fechaInicio ?? this.fechaInicio,
-      fechaFin: fechaFin ?? this.fechaFin,
-      estado: estado ?? this.estado,
-      fechasClases: fechasClases ?? this.fechasClases,
-      descripcion: descripcion ?? this.descripcion,
-      fechaCreacion: fechaCreacion ?? this.fechaCreacion,
+      fechas: fechas ?? this.fechas,
+      datosEstudiantes: datosEstudiantes ?? this.datosEstudiantes,
     );
   }
 
   @override
   String toString() {
-    return 'PeriodoAcademico($id: $nombre - $estado)';
+    return 'Bimestre($id: $nombre - $periodoId)';
   }
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is PeriodoAcademico && other.id == id;
+    return other is Bimestre && other.id == id;
   }
 
   @override
