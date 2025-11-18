@@ -1,4 +1,4 @@
-// viewmodels/estudiantes_viewmodel.dart - VERSIÓN COMPLETA MEJORADA
+// viewmodels/estudiantes_viewmodel.dart - VERSIÓN COMPLETA MEJORADA Y CORREGIDA
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
@@ -1066,8 +1066,14 @@ class EstudiantesViewModel with ChangeNotifier {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Vista Previa - CSV'),
-        content: SingleChildScrollView(
-          child: Text(csvContent),
+        content: Container(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: SelectableText(
+              csvContent,
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+            ),
+          ),
         ),
         actions: [
           TextButton(
@@ -1075,32 +1081,49 @@ class EstudiantesViewModel with ChangeNotifier {
             child: const Text('Cerrar'),
           ),
           ElevatedButton(
-            onPressed: () => _exportarDesdeVistaPrevia(context, csvContent),
-            child: const Text('Descargar'),
+            onPressed: () => _exportarDesdeVistaPrevia(context, csvContent, asignatura),
+            child: const Text('Descargar CSV'),
           ),
         ],
       ),
     );
   }
 
+  // ✅ MÉTODO CORREGIDO - CON PARÁMETRO DE ASIGNATURA
   Future<void> _exportarDesdeVistaPrevia(
     BuildContext context, 
-    String csvContent
+    String csvContent,
+    String asignatura,
   ) async {
     try {
       final dir = await getTemporaryDirectory();
-      final file = File(
-        '${dir.path}/lista_estudiantes_${DateTime.now().millisecondsSinceEpoch}.csv',
-      );
+      final filePath = '${dir.path}/lista_estudiantes_${DateTime.now().millisecondsSinceEpoch}.csv';
+      final file = File(filePath);
+      
       await file.writeAsString(csvContent, flush: true);
-      await Share.shareXFiles([XFile(file.path)], text: 'Lista de estudiantes');
-      if (context.mounted) Navigator.pop(context);
+      
+      // ✅ VERIFICAR QUE EL ARCHIVO SE CREÓ CORRECTAMENTE
+      if (await file.exists()) {
+        print('📁 Archivo CSV creado: $filePath');
+        
+        // ✅ COMPARTIR CORRECTAMENTE - CON ASIGNATURA
+        final xFile = XFile(filePath);
+        await Share.shareXFiles(
+          [xFile],
+          text: 'Lista de estudiantes - ${paralelo['nombre']}\nAsignatura: $asignatura',
+          subject: 'Lista de Estudiantes - $asignatura',
+        );
+        
+        if (context.mounted) Navigator.pop(context);
+      } else {
+        throw Exception('No se pudo crear el archivo CSV');
+      }
     } catch (e) {
       rethrow;
     }
   }
 
-  // Los métodos de exportación permanecen igual...
+  // ✅ MÉTODOS DE EXPORTACIÓN CORREGIDOS
   Future<void> exportarExcel({
     bool simple = true,
     String asignatura = 'BASE DE DATOS II',
@@ -1109,11 +1132,25 @@ class EstudiantesViewModel with ChangeNotifier {
       final csvContent = buildCsvString(simple, asignatura);
       
       final dir = await getTemporaryDirectory();
-      final file = File(
-        '${dir.path}/lista_estudiantes_${DateTime.now().millisecondsSinceEpoch}.csv',
-      );
+      final filePath = '${dir.path}/lista_estudiantes_${DateTime.now().millisecondsSinceEpoch}.csv';
+      final file = File(filePath);
+      
       await file.writeAsString(csvContent, flush: true);
-      await Share.shareXFiles([XFile(file.path)], text: 'Lista de estudiantes');
+      
+      // ✅ VERIFICAR QUE EL ARCHIVO SE CREÓ CORRECTAMENTE
+      if (await file.exists()) {
+        print('📁 Archivo CSV creado: $filePath');
+        
+        // ✅ COMPARTIR CORRECTAMENTE
+        final xFile = XFile(filePath);
+        await Share.shareXFiles(
+          [xFile],
+          text: 'Lista de estudiantes - ${paralelo['nombre']}\nAsignatura: $asignatura',
+          subject: 'Lista de Estudiantes - $asignatura',
+        );
+      } else {
+        throw Exception('No se pudo crear el archivo CSV');
+      }
     } catch (e) {
       rethrow;
     }
@@ -1126,10 +1163,11 @@ class EstudiantesViewModel with ChangeNotifier {
     try {
       final doc = buildPdfDocument(_estudiantesFiltrados, simple, asignatura);
       final bytes = await doc.save();
+      
+      // ✅ COMPARTIR PDF CORRECTAMENTE
       await Printing.sharePdf(
         bytes: bytes,
-        filename:
-            'lista_estudiantes_${DateTime.now().millisecondsSinceEpoch}.pdf',
+        filename: 'lista_estudiantes_${DateTime.now().millisecondsSinceEpoch}.pdf',
       );
     } catch (e) {
       rethrow;

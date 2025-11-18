@@ -1,7 +1,10 @@
-// estudiantes_screen.dart - VERSIÓN COMPLETA CORREGIDA
+// estudiantes_screen.dart - VERSIÓN COMPLETA MEJORADA Y CORREGIDA
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:printing/printing.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'dart:io';
 import '../../viewmodels/estudiantes_viewmodel.dart';
 import '../../models/estudiante_model.dart';
 import '../../utils/constants.dart';
@@ -9,6 +12,9 @@ import '../../utils/validators.dart';
 import '../../utils/helpers.dart';
 import '../biometrico/registro_huella_screen.dart';
 import '../inicio/prueba_conexion_screen.dart';
+
+// Enumeración para tipos de exportación
+enum TipoExportacion { simple, completa }
 
 class EstudiantesListScreen extends StatefulWidget {
   final String tipo;
@@ -170,8 +176,25 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
             tooltip: 'Probar conexión ESP32',
           ),
           PopupMenuButton<String>(
-            onSelected: (value) => _handleExportAction(context, value),
+            onSelected: (value) {
+              if (value == 'configurar_exportacion') {
+                _mostrarDialogoExportacion(context);
+              } else {
+                _handleExportAction(context, value);
+              }
+            },
             itemBuilder: (BuildContext context) => [
+              const PopupMenuItem(
+                value: 'configurar_exportacion',
+                child: Row(
+                  children: [
+                    Icon(Icons.settings, color: Colors.blue),
+                    SizedBox(width: 8),
+                    Text('Configurar Exportación'),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
               const PopupMenuItem(
                 value: 'excel_simple',
                 child: Text('Exportar Lista Simple (Excel)'),
@@ -199,11 +222,18 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
             padding: const EdgeInsets.all(AppSpacing.medium),
             child: TextField(
               controller: searchController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Buscar estudiante...',
-                prefixIcon: Icon(Icons.search, color: AppColors.primary),
-                border: OutlineInputBorder(),
-                suffixIcon: Icon(Icons.clear, color: AppColors.primary),
+                prefixIcon: const Icon(Icons.search, color: AppColors.primary),
+                border: const OutlineInputBorder(),
+                suffixIcon: searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: AppColors.primary),
+                        onPressed: () {
+                          searchController.clear();
+                        },
+                      )
+                    : null,
               ),
             ),
           ),
@@ -452,18 +482,266 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
     final viewModel = Provider.of<EstudiantesViewModel>(context, listen: false);
     switch (action) {
       case 'excel_simple':
-        _exportarLista(context, viewModel, isPdf: false, simple: true);
+        _exportarLista(context, viewModel, isPdf: false, simple: true, asignatura: 'BASE DE DATOS II');
         break;
       case 'excel_completo':
-        _exportarLista(context, viewModel, isPdf: false, simple: false);
+        _exportarLista(context, viewModel, isPdf: false, simple: false, asignatura: 'BASE DE DATOS II');
         break;
       case 'pdf_simple':
-        _exportarLista(context, viewModel, isPdf: true, simple: true);
+        _exportarLista(context, viewModel, isPdf: true, simple: true, asignatura: 'BASE DE DATOS II');
         break;
       case 'pdf_completo':
-        _exportarLista(context, viewModel, isPdf: true, simple: false);
+        _exportarLista(context, viewModel, isPdf: true, simple: false, asignatura: 'BASE DE DATOS II');
         break;
     }
+  }
+
+  // ✅ NUEVO MÉTODO PARA CONFIGURAR EXPORTACIÓN
+  void _mostrarDialogoExportacion(BuildContext context) {
+    final viewModel = Provider.of<EstudiantesViewModel>(context, listen: false);
+    String selectedAsignatura = 'BASE DE DATOS II';
+    bool exportacionSimple = true;
+    TipoExportacion? tipoExportacion = TipoExportacion.simple;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.download, color: AppColors.primary),
+              SizedBox(width: 8),
+              Text('Opciones de Exportación'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Selección de asignatura
+                DropdownButtonFormField<String>(
+                  value: selectedAsignatura,
+                  decoration: const InputDecoration(
+                    labelText: 'Asignatura',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: viewModel.asignaturasDisponibles.map((asignatura) {
+                    return DropdownMenuItem<String>(
+                      value: asignatura,
+                      child: Text(asignatura),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      selectedAsignatura = value!;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+                
+                // Tipo de formato
+                const Text('Formato de exportación:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Column(
+                  children: [
+                    RadioListTile<TipoExportacion>(
+                      title: const Text('Lista Simple (Solo nombres)'),
+                      value: TipoExportacion.simple,
+                      groupValue: tipoExportacion,
+                      onChanged: (value) {
+                        setState(() {
+                          tipoExportacion = value;
+                          exportacionSimple = true;
+                        });
+                      },
+                    ),
+                    RadioListTile<TipoExportacion>(
+                      title: const Text('Lista Completa (Todos los datos)'),
+                      value: TipoExportacion.completa,
+                      groupValue: tipoExportacion,
+                      onChanged: (value) {
+                        setState(() {
+                          tipoExportacion = value;
+                          exportacionSimple = false;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () => _procesarExportacion(
+                context, 
+                viewModel, 
+                selectedAsignatura, 
+                exportacionSimple,
+                tipoExportacion!,
+              ),
+              child: const Text('Continuar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _procesarExportacion(
+    BuildContext context,
+    EstudiantesViewModel viewModel,
+    String asignatura,
+    bool simple,
+    TipoExportacion tipoExportacion,
+  ) {
+    Navigator.pop(context); // Cerrar diálogo de configuración
+
+    // Mostrar opciones de exportación
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Seleccionar Formato de Archivo'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
+              title: const Text('PDF'),
+              subtitle: const Text('Exportar como documento PDF'),
+              onTap: () {
+                Navigator.pop(context);
+                _mostrarOpcionesPDF(context, viewModel, asignatura, simple);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.table_chart, color: Colors.green),
+              title: const Text('Excel (CSV)'),
+              subtitle: const Text('Exportar como archivo CSV para Excel'),
+              onTap: () {
+                Navigator.pop(context);
+                _mostrarOpcionesExcel(context, viewModel, asignatura, simple);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _mostrarOpcionesPDF(
+    BuildContext context,
+    EstudiantesViewModel viewModel,
+    String asignatura,
+    bool simple,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.visibility, color: Colors.blue),
+              title: const Text('Vista Previa PDF'),
+              subtitle: const Text('Ver antes de descargar'),
+              onTap: () async {
+                Navigator.pop(context);
+                try {
+                  await viewModel.mostrarVistaPreviaPDF(
+                    simple: simple,
+                    asignatura: asignatura,
+                    context: context,
+                  );
+                } catch (e) {
+                  if (context.mounted) {
+                    Helpers.showSnackBar(
+                      context,
+                      'Error en vista previa: ${e.toString()}',
+                      type: 'error',
+                    );
+                  }
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.download, color: Colors.green),
+              title: const Text('Descargar PDF'),
+              subtitle: const Text('Guardar archivo PDF'),
+              onTap: () {
+                Navigator.pop(context);
+                _exportarLista(context, viewModel, isPdf: true, simple: simple, asignatura: asignatura);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.share, color: Colors.orange),
+              title: const Text('Compartir PDF'),
+              subtitle: const Text('Compartir directamente'),
+              onTap: () {
+                Navigator.pop(context);
+                _compartirPDF(context, viewModel, simple, asignatura);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _mostrarOpcionesExcel(
+    BuildContext context,
+    EstudiantesViewModel viewModel,
+    String asignatura,
+    bool simple,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.visibility, color: Colors.blue),
+              title: const Text('Vista Previa CSV'),
+              subtitle: const Text('Ver contenido antes de exportar'),
+              onTap: () {
+                Navigator.pop(context);
+                viewModel.mostrarVistaPreviaExcel(
+                  simple: simple,
+                  asignatura: asignatura,
+                  context: context,
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.download, color: Colors.green),
+              title: const Text('Descargar CSV'),
+              subtitle: const Text('Guardar archivo CSV para Excel'),
+              onTap: () {
+                Navigator.pop(context);
+                _exportarLista(context, viewModel, isPdf: false, simple: simple, asignatura: asignatura);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.share, color: Colors.orange),
+              title: const Text('Compartir CSV'),
+              subtitle: const Text('Compartir directamente'),
+              onTap: () {
+                Navigator.pop(context);
+                _compartirExcel(context, viewModel, simple, asignatura);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _exportarLista(
@@ -471,15 +749,32 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
     EstudiantesViewModel viewModel, {
     required bool isPdf,
     required bool simple,
+    required String asignatura,
   }) async {
-    final asignatura = 'BASE DE DATOS II';
-    
     try {
+      // Mostrar indicador de carga
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('Generando archivo...'),
+            ],
+          ),
+        ),
+      );
+
       if (isPdf) {
         await viewModel.exportarPDF(simple: simple, asignatura: asignatura);
       } else {
         await viewModel.exportarExcel(simple: simple, asignatura: asignatura);
       }
+      
+      // Cerrar diálogo de carga
+      if (context.mounted) Navigator.pop(context);
       
       if (context.mounted) {
         Helpers.showSnackBar(
@@ -489,10 +784,119 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
         );
       }
     } catch (e) {
+      // Cerrar diálogo de carga en caso de error
+      if (context.mounted) Navigator.pop(context);
+      
       if (context.mounted) {
         Helpers.showSnackBar(
           context,
           'Error en exportación: ${e.toString()}',
+          type: 'error',
+        );
+      }
+    }
+  }
+
+  Future<void> _compartirPDF(
+    BuildContext context,
+    EstudiantesViewModel viewModel,
+    bool simple,
+    String asignatura,
+  ) async {
+    try {
+      // Mostrar indicador de carga
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('Generando PDF...'),
+            ],
+          ),
+        ),
+      );
+
+      final doc = viewModel.buildPdfDocument(viewModel.estudiantesFiltrados, simple, asignatura);
+      final bytes = await doc.save();
+      
+      // Cerrar diálogo de carga
+      if (context.mounted) Navigator.pop(context);
+      
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: 'lista_estudiantes_${DateTime.now().millisecondsSinceEpoch}.pdf',
+      );
+    } catch (e) {
+      // Cerrar diálogo de carga en caso de error
+      if (context.mounted) Navigator.pop(context);
+      
+      if (context.mounted) {
+        Helpers.showSnackBar(
+          context,
+          'Error al compartir PDF: ${e.toString()}',
+          type: 'error',
+        );
+      }
+    }
+  }
+
+  Future<void> _compartirExcel(
+    BuildContext context,
+    EstudiantesViewModel viewModel,
+    bool simple,
+    String asignatura,
+  ) async {
+    try {
+      // Mostrar indicador de carga
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('Generando archivo CSV...'),
+            ],
+          ),
+        ),
+      );
+
+      final csvContent = viewModel.buildCsvString(simple, asignatura);
+      final dir = await getTemporaryDirectory();
+      final filePath = '${dir.path}/lista_estudiantes_${DateTime.now().millisecondsSinceEpoch}.csv';
+      final file = File(filePath);
+      
+      await file.writeAsString(csvContent, flush: true);
+      
+      // Verificar que el archivo se creó correctamente
+      if (await file.exists()) {
+        print('📁 Archivo CSV creado: $filePath');
+        
+        // Cerrar diálogo de carga
+        if (context.mounted) Navigator.pop(context);
+        
+        // ✅ COMPARTIR CORRECTAMENTE CON VERIFICACIÓN ADICIONAL
+        final xFile = XFile(filePath);
+        await Share.shareXFiles(
+          [xFile],
+          text: 'Lista de estudiantes - Paralelo ${widget.paralelo['nombre']}\nAsignatura: $asignatura',
+          subject: 'Lista de Estudiantes - ${widget.paralelo['nombre']}',
+        );
+      } else {
+        throw Exception('No se pudo crear el archivo CSV');
+      }
+    } catch (e) {
+      // Cerrar diálogo de carga en caso de error
+      if (context.mounted) Navigator.pop(context);
+      
+      if (context.mounted) {
+        Helpers.showSnackBar(
+          context,
+          'Error al compartir Excel: ${e.toString()}',
           type: 'error',
         );
       }
@@ -637,7 +1041,7 @@ class _EstudiantesListContentState extends State<_EstudiantesListContent> {
           children: [
             Icon(Icons.person, color: AppColors.primary),
             const SizedBox(width: 8),
-            Text('Información del Estudiante'),
+            const Text('Información del Estudiante'),
           ],
         ),
         content: SingleChildScrollView(

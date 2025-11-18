@@ -1,4 +1,4 @@
-//lib/viewmodels/horario_viewmodel.dart
+// lib/viewmodels/horario_viewmodel.dart
 import 'package:flutter/material.dart';
 import '../models/horario_clase_model.dart';
 import '../models/database_helper.dart';

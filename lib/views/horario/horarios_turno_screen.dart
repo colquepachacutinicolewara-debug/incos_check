@@ -378,7 +378,7 @@ class _HorariosTurnoScreenState extends State<HorariosTurnoScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   
                   // Texto "Paralelo"
                   Text(

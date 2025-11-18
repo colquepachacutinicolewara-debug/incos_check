@@ -1,4 +1,4 @@
-// dashboard_screen.dart - VERSIÓN COMPLETA CORREGIDA
+// views/dashboard/dashboard_screen.dart - VERSIÓN CORREGIDA
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
@@ -23,26 +23,12 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  // Cache para las páginas
-  final List<Widget> _pages = [];
-
   @override
   void initState() {
     super.initState();
-    _initializePages();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadInitialData();
     });
-  }
-
-  void _initializePages() {
-    _pages.addAll([
-      GestionScreen(userData: widget.userData),
-      AsistenciaScreen(userData: widget.userData),
-      InicioScreen(userData: widget.userData),
-      ReportesScreen(userData: widget.userData),
-      ConfiguracionScreen(userData: widget.userData),
-    ]);
   }
 
   void _loadInitialData() {
@@ -348,12 +334,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Icons.school,
             "Gestión Académica",
             children: [
-              // ✅ CORREGIDO: Usar los getters correctos
               if (authVM.puedeGestionarEstudiantes || authVM.esDocente)
                 _buildSubDrawerItem(
                   context,
                   Icons.people,
-                  // 🌟 NOMBRE ESPECIAL PARA DOCENTES
                   authVM.esDocente ? "Mis Estudiantes" : "Estudiantes",
                   () => _navigateToSection(context, 0, 'Estudiantes'),
                 ),
@@ -473,7 +457,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                '• ${authVM.currentUser?.rolDisplay ?? 'Usuario'}',
+                '• ${authVM.rolDisplay}',
                 style: AppTextStyles.body.copyWith(
                   fontSize: 11,
                   color: AppColors.primary,
@@ -1188,7 +1172,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // Navegar de vuelta al login después del logout
       Navigator.pushNamedAndRemoveUntil(
         context, 
-        '/', 
+        '/login', 
         (route) => false
       );
     } catch (error) {

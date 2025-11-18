@@ -1,8 +1,9 @@
+// viewmodels/dashboard_viewmodel.dart - VERSIÓN CORREGIDA
 import 'package:flutter/foundation.dart';
-import '../../models/database_helper.dart';
+import '../models/database_helper.dart';
 
 class DashboardViewModel with ChangeNotifier {
-  final DatabaseHelper _databaseHelper;
+  final DatabaseHelper _databaseHelper = DatabaseHelper.instance;
 
   // Estados
   int _selectedIndex = 2;
@@ -26,7 +27,7 @@ class DashboardViewModel with ChangeNotifier {
   Map<String, dynamic>? get currentUser => _currentUser;
   Map<String, int> get stats => _stats;
 
-  DashboardViewModel({Map<String, dynamic>? userData}) : _databaseHelper = DatabaseHelper.instance {
+  DashboardViewModel({Map<String, dynamic>? userData}) {
     _currentUser = userData;
     _initialize();
   }
@@ -142,7 +143,7 @@ class DashboardViewModel with ChangeNotifier {
       final today = DateTime(now.year, now.month, now.day).toIso8601String();
       
       final result = await _databaseHelper.rawQuery(
-        'SELECT COUNT(*) as count FROM asistencias WHERE date(ultima_actualizacion) = date(?)',
+        'SELECT COUNT(*) as count FROM asistencias WHERE date(fecha) = date(?)',
         [today]
       );
       return (result.first['count'] as int?) ?? 0;
@@ -230,7 +231,6 @@ class DashboardViewModel with ChangeNotifier {
       
       final Map<String, int> estudiantesByCarrera = {};
       for (final row in result) {
-        // CORRECCIÓN: Convertir explícitamente a String
         final carrera = (row['carrera'] as String?) ?? 'Sin carrera';
         final cantidad = (row['cantidad'] as int?) ?? 0;
         estudiantesByCarrera[carrera] = cantidad;
@@ -246,10 +246,10 @@ class DashboardViewModel with ChangeNotifier {
   Future<Map<String, int>> _getAsistenciasByDate() async {
     try {
       final result = await _databaseHelper.rawQuery('''
-        SELECT date(ultima_actualizacion) as fecha, COUNT(*) as cantidad 
+        SELECT date(fecha) as fecha, COUNT(*) as cantidad 
         FROM asistencias 
-        WHERE date(ultima_actualizacion) >= date('now', '-7 days')
-        GROUP BY date(ultima_actualizacion)
+        WHERE date(fecha) >= date('now', '-7 days')
+        GROUP BY date(fecha)
       ''');
       
       final Map<String, int> asistenciasByDate = {};

@@ -1,4 +1,4 @@
-// models/docente_model.dart
+// models/docente_model.dart - VERSIÓN CORREGIDA
 class Docente {
   final String id;
   final String apellidoPaterno;
@@ -12,6 +12,7 @@ class Docente {
   final String estado;
   final DateTime? fechaCreacion;
   final DateTime? fechaActualizacion;
+  final String? usuarioId;
 
   Docente({
     required this.id,
@@ -26,15 +27,18 @@ class Docente {
     required this.estado,
     this.fechaCreacion,
     this.fechaActualizacion,
+    this.usuarioId,
   });
 
-  // Getter para verificar si está activo
+  // ========== PROPIEDADES CALCULADAS MEJORADAS ==========
   bool get estaActivo => estado == 'ACTIVO';
+  String get nombreCompleto => '$nombres $apellidoPaterno $apellidoMaterno';
+  String get nombreCorto => '$nombres $apellidoPaterno';
+  String get iniciales => nombres.isNotEmpty && apellidoPaterno.isNotEmpty 
+      ? '${nombres[0]}${apellidoPaterno[0]}' 
+      : '??';
 
-  // Getter para nombre completo
-  String get nombreCompleto => '$apellidoPaterno $apellidoMaterno $nombres';
-
-  // Convertir a Map para SQLite
+  // ========== CONVERSIÓN SQLITE MEJORADA ==========
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -49,10 +53,10 @@ class Docente {
       'estado': estado,
       'fecha_creacion': fechaCreacion?.toIso8601String(),
       'fecha_actualizacion': fechaActualizacion?.toIso8601String(),
+      'usuario_id': usuarioId,
     };
   }
 
-  // Crear desde Map desde SQLite
   factory Docente.fromMap(Map<String, dynamic> map) {
     return Docente(
       id: map['id']?.toString() ?? '',
@@ -60,7 +64,7 @@ class Docente {
       apellidoMaterno: map['apellido_materno']?.toString() ?? '',
       nombres: map['nombres']?.toString() ?? '',
       ci: map['ci']?.toString() ?? '',
-      carrera: map['carrera']?.toString() ?? '',
+      carrera: map['carrera']?.toString() ?? 'Sistemas Informáticos',
       turno: map['turno']?.toString() ?? 'MAÑANA',
       email: map['email']?.toString() ?? '',
       telefono: map['telefono']?.toString() ?? '',
@@ -71,10 +75,25 @@ class Docente {
       fechaActualizacion: map['fecha_actualizacion'] != null
           ? DateTime.parse(map['fecha_actualizacion'])
           : null,
+      usuarioId: map['usuario_id']?.toString(),
     );
   }
 
-  // Copiar con nuevos valores
+  // ========== MÉTODO PARA CREAR USUARIO AUTOMÁTICO ==========
+  // Este método se implementará en el servicio para evitar importación circular
+  Map<String, dynamic> toUserCreationMap() {
+    return {
+      'id': 'doc_$id',
+      'ci': ci,
+      'nombre_completo': nombreCompleto,
+      'email': email,
+      'telefono': telefono,
+      'carrera': carrera,
+      'turno': turno,
+    };
+  }
+
+  // ========== MÉTODOS DE UTILIDAD ==========
   Docente copyWith({
     String? id,
     String? apellidoPaterno,
@@ -86,6 +105,7 @@ class Docente {
     String? email,
     String? telefono,
     String? estado,
+    String? usuarioId,
   }) {
     return Docente(
       id: id ?? this.id,
@@ -100,19 +120,28 @@ class Docente {
       estado: estado ?? this.estado,
       fechaCreacion: fechaCreacion,
       fechaActualizacion: fechaActualizacion,
+      usuarioId: usuarioId ?? this.usuarioId,
     );
   }
 
-  @override
-  String toString() {
-    return 'Docente(id: $id, nombre: $nombreCompleto, ci: $ci, carrera: $carrera, turno: $turno)';
+  Map<String, dynamic> toAuthMap() {
+    return {
+      'id': id,
+      'ci': ci,
+      'nombre_completo': nombreCompleto,
+      'email': email,
+      'carrera': carrera,
+      'turno': turno,
+      'telefono': telefono,
+      'usuario_id': usuarioId,
+    };
   }
 
   @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is Docente && other.id == id;
-  }
+  String toString() => 'Docente($id: $nombreCompleto - $carrera)';
+
+  @override
+  bool operator ==(Object other) => identical(this, other) || other is Docente && other.id == id;
 
   @override
   int get hashCode => id.hashCode;
