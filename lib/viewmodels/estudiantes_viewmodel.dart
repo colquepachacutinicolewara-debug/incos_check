@@ -1,4 +1,4 @@
-// viewmodels/estudiantes_viewmodel.dart - VERSIÓN COMPLETA CON FILTROS
+// viewmodels/estudiantes_viewmodel.dart - VERSIÓN COMPLETA MEJORADA
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
@@ -47,6 +47,18 @@ class EstudiantesViewModel with ChangeNotifier {
   List<Map<String, dynamic>> get turnos => _turnos;
   List<Map<String, dynamic>> get niveles => _niveles;
   List<Map<String, dynamic>> get paralelos => _paralelos;
+
+  // Lista de asignaturas disponibles
+  List<String> get asignaturasDisponibles => [
+    'BASE DE DATOS II',
+    'PROGRAMACIÓN II',
+    'ANÁLISIS DE SISTEMAS',
+    'INGENIERÍA DE SOFTWARE',
+    'REDES Y COMUNICACIONES',
+    'SISTEMAS OPERATIVOS',
+    'ESTRUCTURA DE DATOS',
+    'ARQUITECTURA DE COMPUTADORAS',
+  ];
 
   // CONSTRUCTOR
   EstudiantesViewModel({
@@ -1027,6 +1039,67 @@ class EstudiantesViewModel with ChangeNotifier {
     notifyListeners();
   }
 
+  // ✅ NUEVOS MÉTODOS PARA VISTA PREVIA Y EXPORTACIÓN MEJORADA
+  Future<void> mostrarVistaPreviaPDF({
+    bool simple = true,
+    String asignatura = 'BASE DE DATOS II',
+    required BuildContext context,
+  }) async {
+    try {
+      final doc = buildPdfDocument(_estudiantesFiltrados, simple, asignatura);
+      await Printing.layoutPdf(
+        onLayout: (format) => doc.save(),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  void mostrarVistaPreviaExcel({
+    bool simple = true,
+    String asignatura = 'BASE DE DATOS II',
+    required BuildContext context,
+  }) {
+    final csvContent = buildCsvString(simple, asignatura);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Vista Previa - CSV'),
+        content: SingleChildScrollView(
+          child: Text(csvContent),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          ),
+          ElevatedButton(
+            onPressed: () => _exportarDesdeVistaPrevia(context, csvContent),
+            child: const Text('Descargar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _exportarDesdeVistaPrevia(
+    BuildContext context, 
+    String csvContent
+  ) async {
+    try {
+      final dir = await getTemporaryDirectory();
+      final file = File(
+        '${dir.path}/lista_estudiantes_${DateTime.now().millisecondsSinceEpoch}.csv',
+      );
+      await file.writeAsString(csvContent, flush: true);
+      await Share.shareXFiles([XFile(file.path)], text: 'Lista de estudiantes');
+      if (context.mounted) Navigator.pop(context);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   // Los métodos de exportación permanecen igual...
   Future<void> exportarExcel({
     bool simple = true,
@@ -1096,7 +1169,13 @@ class EstudiantesViewModel with ChangeNotifier {
                     ),
                   ),
                   pw.SizedBox(height: 4),
-                  pw.Text(asignatura, style: pw.TextStyle(fontSize: 12)),
+                  pw.Text(
+                    'ASIGNATURA: $asignatura',
+                    style: pw.TextStyle(
+                      fontSize: 12,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
                   pw.SizedBox(height: 6),
                   pw.Text(
                     'CARRERA: ${carrera['nombre']}',
@@ -1108,6 +1187,14 @@ class EstudiantesViewModel with ChangeNotifier {
                   ),
                   pw.Text(
                     'CURSO: ${nivel['nombre']} - Paralelo ${paralelo['nombre']}',
+                    style: pw.TextStyle(fontSize: 10),
+                  ),
+                  pw.Text(
+                    'FECHA: ${DateTime.now().toString().split(' ')[0]}',
+                    style: pw.TextStyle(fontSize: 10),
+                  ),
+                  pw.Text(
+                    'TOTAL ESTUDIANTES: ${estudiantes.length}',
                     style: pw.TextStyle(fontSize: 10),
                   ),
                   pw.SizedBox(height: 8),
@@ -1158,10 +1245,13 @@ class EstudiantesViewModel with ChangeNotifier {
 
   String buildCsvString(bool simple, String asignatura) {
     final sb = StringBuffer();
-    sb.writeln('INSTITUCIÓN,$asignatura,,');
+    sb.writeln('"INSTITUTO TÉCNICO COMERCIAL ""INCOS - EL ALTO"""');
+    sb.writeln('"ASIGNATURA: $asignatura"');
     sb.writeln(
-      'CARRERA: ${carrera['nombre']},TURNO: ${turno['nombre']},NIVEL: ${nivel['nombre']},PARAL: ${paralelo['nombre']}',
+      '"CARRERA: ${carrera['nombre']}","TURNO: ${turno['nombre']}","NIVEL: ${nivel['nombre']}","PARALELO: ${paralelo['nombre']}"',
     );
+    sb.writeln('"FECHA: ${DateTime.now().toString().split(' ')[0]}"');
+    sb.writeln('"TOTAL ESTUDIANTES: ${_estudiantesFiltrados.length}"');
     sb.writeln();
 
     final estudiantesExportar = _estudiantesFiltrados;

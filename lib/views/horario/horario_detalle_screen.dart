@@ -22,6 +22,95 @@ class _HorarioDetalleScreenState extends State<HorarioDetalleScreen> {
   final List<String> _dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
   final List<String> _horas = ['19:00-20:00', '20:00-21:00', '21:00-22:00'];
 
+  // Datos de horarios para Tercer Año B (ejemplo)
+  final Map<String, Map<String, Map<String, dynamic>>> _horariosTercerB = {
+    'Lunes': {
+      '19:00-20:00': {
+        'materia': 'Análisis y Diseño de Sistemas II',
+        'docente': 'Marisol Méndez',
+        'color': Colors.purple,
+      },
+      '20:00-21:00': {
+        'materia': 'Programación Web II',
+        'docente': 'Carlos Saavedra',
+        'color': Colors.blue,
+      },
+      '21:00-22:00': {
+        'materia': 'Taller de Modelado 3D',
+        'docente': 'Edith Gutiérrez',
+        'color': Colors.orange,
+      },
+    },
+    'Martes': {
+      '19:00-20:00': {
+        'materia': 'Programación Móviles I',
+        'docente': 'Miguel Machaca',
+        'color': Colors.green,
+      },
+      '20:00-21:00': {
+        'materia': 'Programación Móviles I',
+        'docente': 'Miguel Machaca',
+        'color': Colors.green,
+      },
+      '21:00-22:00': {
+        'materia': 'Diseño y Programación Web II',
+        'docente': 'Carlos Saavedra',
+        'color': Colors.blue,
+      },
+    },
+    'Miércoles': {
+      '19:00-20:00': {
+        'materia': 'Base de Datos II',
+        'docente': 'Víctor Ramos',
+        'color': Colors.red,
+      },
+      '20:00-21:00': {
+        'materia': 'Base de Datos II',
+        'docente': 'Víctor Ramos',
+        'color': Colors.red,
+      },
+      '21:00-22:00': {
+        'materia': 'Diseño y Programación Web II',
+        'docente': 'Carlos Saavedra',
+        'color': Colors.blue,
+      },
+    },
+    'Jueves': {
+      '19:00-20:00': {
+        'materia': 'Emprendimiento Productivo',
+        'docente': 'Fredy Huiza',
+        'color': Colors.teal,
+      },
+      '20:00-21:00': {
+        'materia': 'Taller de Modelado 3D',
+        'docente': 'Edith Gutiérrez',
+        'color': Colors.orange,
+      },
+      '21:00-22:00': {
+        'materia': 'Emprendimiento Productivo',
+        'docente': 'Fredy Huiza',
+        'color': Colors.teal,
+      },
+    },
+    'Viernes': {
+      '19:00-20:00': {
+        'materia': 'Redes de Computadoras II',
+        'docente': 'Mamerito Alvarado',
+        'color': Colors.indigo,
+      },
+      '20:00-21:00': {
+        'materia': 'Programación Web II',
+        'docente': 'Carlos Saavedra',
+        'color': Colors.blue,
+      },
+      '21:00-22:00': {
+        'materia': 'Emprendimiento Productivo',
+        'docente': 'Fredy Huiza',
+        'color': Colors.teal,
+      },
+    },
+  };
+
   @override
   Widget build(BuildContext context) {
     final colorAnio = _obtenerColorAnio(widget.anio);
@@ -64,21 +153,21 @@ class _HorarioDetalleScreenState extends State<HorarioDetalleScreen> {
 
   Widget _buildInfoHeader(Color color) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
               shape: BoxShape.circle,
@@ -86,10 +175,10 @@ class _HorarioDetalleScreenState extends State<HorarioDetalleScreen> {
             child: Icon(
               widget.turno == 'Noche' ? Icons.nights_stay : Icons.wb_sunny,
               color: color,
-              size: 24,
+              size: 28,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -99,25 +188,42 @@ class _HorarioDetalleScreenState extends State<HorarioDetalleScreen> {
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: color,
-                    fontSize: 16,
+                    fontSize: 18,
                   ),
                 ),
+                const SizedBox(height: 4),
                 Text(
-                  'Turno ${widget.turno} • ${_obtenerHorarioCompleto()}',
+                  'Turno ${widget.turno} • Horario: ${_obtenerHorarioCompleto()}',
                   style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 14,
                   ),
                 ),
+                const SizedBox(height: 4),
+                Text(
+                  'Sistemas Informáticos - INCOS EL ALTO',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
               ],
             ),
           ),
-          Chip(
-            label: const Text(
-              'ACTIVO',
-              style: TextStyle(color: Colors.white, fontSize: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.success,
+              borderRadius: BorderRadius.circular(12),
             ),
-            backgroundColor: AppColors.success,
+            child: const Text(
+              'ACTIVO',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -129,6 +235,7 @@ class _HorarioDetalleScreenState extends State<HorarioDetalleScreen> {
       padding: const EdgeInsets.all(16),
       child: Card(
         elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -152,20 +259,20 @@ class _HorarioDetalleScreenState extends State<HorarioDetalleScreen> {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.primary.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
           // Celda de horas (más ancha)
           Container(
             width: 100,
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
             child: Text(
               'HORA',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: AppColors.primary,
-                fontSize: 12,
+                fontSize: 13,
               ),
             ),
           ),
@@ -173,7 +280,7 @@ class _HorarioDetalleScreenState extends State<HorarioDetalleScreen> {
           // Días de la semana
           ..._dias.map((dia) => Expanded(
             child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: const EdgeInsets.symmetric(vertical: 16),
               decoration: BoxDecoration(
                 border: Border(left: BorderSide(color: AppColors.border)),
               ),
@@ -182,7 +289,7 @@ class _HorarioDetalleScreenState extends State<HorarioDetalleScreen> {
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: AppColors.primary,
-                  fontSize: 12,
+                  fontSize: 13,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -207,7 +314,7 @@ class _HorarioDetalleScreenState extends State<HorarioDetalleScreen> {
     return Container(
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: AppColors.border),
+          bottom: BorderSide(color: AppColors.border.withOpacity(0.5)),
         ),
       ),
       child: Row(
@@ -215,7 +322,10 @@ class _HorarioDetalleScreenState extends State<HorarioDetalleScreen> {
           // Celda de hora
           Container(
             width: 100,
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+            ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -223,14 +333,14 @@ class _HorarioDetalleScreenState extends State<HorarioDetalleScreen> {
                   hora.split('-')[0],
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                    fontSize: 13,
                   ),
                 ),
                 Text(
                   hora.split('-')[1],
                   style: TextStyle(
                     color: AppColors.textSecondary,
-                    fontSize: 10,
+                    fontSize: 11,
                   ),
                 ),
               ],
@@ -239,27 +349,26 @@ class _HorarioDetalleScreenState extends State<HorarioDetalleScreen> {
           
           // Celdas de materias por día
           ..._dias.map((dia) => Expanded(
-            child: _buildCeldaMateria(context, dia, hora, indexHora),
+            child: _buildCeldaMateria(context, dia, hora),
           )).toList(),
         ],
       ),
     );
   }
 
-  Widget _buildCeldaMateria(BuildContext context, String dia, String hora, int indexHora) {
-    final materiaInfo = _obtenerMateriaInfo(widget.anio, widget.paralelo, dia, hora);
+  Widget _buildCeldaMateria(BuildContext context, String dia, String hora) {
+    final materiaInfo = _horariosTercerB[dia]?[hora];
     
     return GestureDetector(
-      onTap: () => _editarCeldaHorario(context, dia, hora, materiaInfo),
-      onLongPress: () => _mostrarOpcionesCelda(context, dia, hora, materiaInfo),
+      onTap: () => _mostrarDetalleMateria(context, dia, hora, materiaInfo),
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          border: Border(left: BorderSide(color: AppColors.border)),
-          color: materiaInfo['color']?.withOpacity(0.1) ?? Colors.transparent,
+          border: Border(left: BorderSide(color: AppColors.border.withOpacity(0.5))),
+          color: materiaInfo?['color']?.withOpacity(0.1) ?? Colors.transparent,
         ),
-        height: 80,
-        child: materiaInfo['materia'] != null 
+        height: 90,
+        child: materiaInfo != null 
             ? _buildCeldaConMateria(materiaInfo)
             : _buildCeldaVacia(),
       ),
@@ -275,25 +384,46 @@ class _HorarioDetalleScreenState extends State<HorarioDetalleScreen> {
         Text(
           materiaInfo['materia'] ?? '',
           style: TextStyle(
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w600,
             color: materiaInfo['color'],
             fontSize: 10,
+            height: 1.2,
           ),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
         
-        const SizedBox(height: 2),
+        const SizedBox(height: 4),
         
         // Nombre del docente
         Text(
           materiaInfo['docente'] ?? '',
           style: TextStyle(
             color: AppColors.textSecondary,
-            fontSize: 8,
+            fontSize: 9,
+            fontWeight: FontWeight.w500,
           ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
+        ),
+        
+        const Spacer(),
+        
+        // Indicador de edición
+        Align(
+          alignment: Alignment.bottomRight,
+          child: Container(
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              color: materiaInfo['color']?.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.edit,
+              size: 10,
+              color: materiaInfo['color'],
+            ),
+          ),
         ),
       ],
     );
@@ -302,32 +432,11 @@ class _HorarioDetalleScreenState extends State<HorarioDetalleScreen> {
   Widget _buildCeldaVacia() {
     return Center(
       child: Icon(
-        Icons.add,
+        Icons.add_circle_outline,
         size: 20,
-        color: AppColors.textSecondary.withOpacity(0.5),
+        color: AppColors.textSecondary.withOpacity(0.3),
       ),
     );
-  }
-
-  Map<String, dynamic> _obtenerMateriaInfo(String anio, String paralelo, String dia, String hora) {
-    // Aquí iría la lógica para obtener la información real de la base de datos
-    // Por ahora retornamos datos de ejemplo
-    final materiasEjemplo = {
-      'Primer Año': {
-        'A': {
-          'Lunes': {
-            '19:00-20:00': {
-              'materia': 'Hardware de Computadoras',
-              'docente': 'Omar Condori',
-              'color': Colors.blue,
-            },
-          },
-        },
-      },
-      // ... más datos de ejemplo
-    };
-    
-    return materiasEjemplo[anio]?[paralelo]?[dia]?[hora] ?? {};
   }
 
   Color _obtenerColorAnio(String anio) {
@@ -344,22 +453,11 @@ class _HorarioDetalleScreenState extends State<HorarioDetalleScreen> {
   }
 
   void _editarHorario(BuildContext context) {
-    // Navegar a pantalla de edición completa
-  }
-
-  void _compartirHorario(BuildContext context) {
-    // Implementar compartir horario
-  }
-
-  void _editarCeldaHorario(BuildContext context, String dia, String hora, Map<String, dynamic> materiaInfo) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Editar Horario - $dia $hora'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: _buildFormularioEdicion(materiaInfo),
-        ),
+        title: const Text('Editar Horario Completo'),
+        content: const Text('¿Deseas editar todo el horario de este paralelo?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -367,108 +465,167 @@ class _HorarioDetalleScreenState extends State<HorarioDetalleScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              // Guardar cambios
               Navigator.pop(context);
+              // Navegar a pantalla de edición completa
             },
-            child: const Text('Guardar'),
+            child: const Text('Editar Horario'),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFormularioEdicion(Map<String, dynamic> materiaInfo) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        DropdownButtonFormField(
-          decoration: const InputDecoration(labelText: 'Materia'),
-          items: [], // Lista de materias disponibles
-          onChanged: (value) {},
-        ),
-        const SizedBox(height: 12),
-        DropdownButtonFormField(
-          decoration: const InputDecoration(labelText: 'Docente'),
-          items: [], // Lista de docentes disponibles
-          onChanged: (value) {},
-        ),
-        const SizedBox(height: 12),
-        DropdownButtonFormField(
-          decoration: const InputDecoration(labelText: 'Color'),
-          items: [], // Lista de colores
-          onChanged: (value) {},
-        ),
-      ],
+  void _compartirHorario(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Funcionalidad de compartir en desarrollo...'),
+        backgroundColor: Colors.blue,
+      ),
     );
   }
 
-  void _mostrarOpcionesCelda(BuildContext context, String dia, String hora, Map<String, dynamic> materiaInfo) {
+  void _mostrarDetalleMateria(BuildContext context, String dia, String hora, Map<String, dynamic>? materiaInfo) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ListTile(
-              leading: const Icon(Icons.edit, color: Colors.blue),
-              title: const Text('Editar asignación'),
-              onTap: () {
-                Navigator.pop(context);
-                _editarCeldaHorario(context, dia, hora, materiaInfo);
-              },
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '$dia - $hora',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
             ),
-            if (materiaInfo['materia'] != null) ...[
-              ListTile(
-                leading: const Icon(Icons.person, color: Colors.green),
-                title: const Text('Cambiar docente'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _cambiarDocente(context, dia, hora, materiaInfo);
-                },
+            const SizedBox(height: 16),
+            
+            if (materiaInfo != null) ...[
+              _buildDetalleItem('Materia:', materiaInfo['materia']),
+              _buildDetalleItem('Docente:', materiaInfo['docente']),
+              _buildDetalleItem('Color:', 'Asignado', color: materiaInfo['color']),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _editarAsignacion(context, dia, hora, materiaInfo),
+                      icon: const Icon(Icons.edit, size: 16),
+                      label: const Text('Editar'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _eliminarAsignacion(context, dia, hora),
+                      icon: const Icon(Icons.delete, size: 16),
+                      label: const Text('Eliminar'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              ListTile(
-                leading: const Icon(Icons.swap_horiz, color: Colors.orange),
-                title: const Text('Mover horario'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _moverHorario(context, dia, hora, materiaInfo);
-                },
+            ] else ...[
+              const Text(
+                'Horario disponible',
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () => _agregarAsignacion(context, dia, hora),
+                icon: const Icon(Icons.add),
+                label: const Text('Agregar Materia'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                ),
               ),
             ],
-            const Divider(),
-            ListTile(
-              leading: Icon(
-                materiaInfo['materia'] != null ? Icons.clear : Icons.add,
-                color: materiaInfo['materia'] != null ? Colors.red : Colors.green,
-              ),
-              title: Text(
-                materiaInfo['materia'] != null ? 'Eliminar asignación' : 'Agregar materia',
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                if (materiaInfo['materia'] != null) {
-                  _eliminarAsignacion(context, dia, hora);
-                } else {
-                  _editarCeldaHorario(context, dia, hora, materiaInfo);
-                }
-              },
-            ),
           ],
         ),
       ),
     );
   }
 
-  void _cambiarDocente(BuildContext context, String dia, String hora, Map<String, dynamic> materiaInfo) {
-    // Implementar cambio de docente
+  Widget _buildDetalleItem(String label, String value, {Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          if (color != null) ...[
+            Container(
+              width: 16,
+              height: 16,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 16),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  void _moverHorario(BuildContext context, String dia, String hora, Map<String, dynamic> materiaInfo) {
-    // Implementar mover horario
+  void _editarAsignacion(BuildContext context, String dia, String hora, Map<String, dynamic> materiaInfo) {
+    Navigator.pop(context); // Cerrar el bottom sheet primero
+    // Aquí iría la navegación a la pantalla de edición
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Editando: ${materiaInfo['materia']}'),
+        backgroundColor: Colors.blue,
+      ),
+    );
   }
 
   void _eliminarAsignacion(BuildContext context, String dia, String hora) {
+    Navigator.pop(context); // Cerrar el bottom sheet primero
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -481,13 +638,29 @@ class _HorarioDetalleScreenState extends State<HorarioDetalleScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              // Eliminar asignación
               Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Asignación eliminada correctamente'),
+                  backgroundColor: Colors.green,
+                ),
+              );
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Eliminar'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _agregarAsignacion(BuildContext context, String dia, String hora) {
+    Navigator.pop(context); // Cerrar el bottom sheet primero
+    // Aquí iría la navegación a la pantalla de agregar asignación
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Agregando materia para $dia $hora'),
+        backgroundColor: Colors.green,
       ),
     );
   }

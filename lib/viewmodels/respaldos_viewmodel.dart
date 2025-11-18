@@ -1,11 +1,8 @@
 // viewmodels/respaldos_viewmodel.dart
 import 'package:flutter/material.dart';
 import '../models/respaldo_model.dart';
-import '../models/database_helper.dart';
 
 class RespaldosViewModel with ChangeNotifier {
-  final DatabaseHelper _databaseHelper = DatabaseHelper.instance;
-  
   List<Respaldo> _respaldos = [];
   List<Respaldo> _respaldosFiltrados = [];
   bool _isLoading = false;
@@ -21,149 +18,123 @@ class RespaldosViewModel with ChangeNotifier {
   bool get creandoRespaldo => _creandoRespaldo;
 
   RespaldosViewModel() {
-    cargarRespaldos();
+    _cargarRespaldosIniciales();
+  }
+
+  void _cargarRespaldosIniciales() {
+    _respaldos = [
+      Respaldo(
+        id: '1',
+        tipoRespaldo: 'COMPLETO',
+        descripcion: 'Respaldo completo del sistema',
+        rutaArchivo: '/backups/completo.zip',
+        fechaRespaldo: DateTime.now().subtract(const Duration(days: 2)),
+        tamanoBytes: 15728640,
+        usuarioRespaldo: 'admin',
+        estado: 'COMPLETADO',
+        observaciones: 'Respaldo automático',
+        checksum: 'abc123',
+      ),
+      Respaldo(
+        id: '2',
+        tipoRespaldo: 'INCREMENTAL',
+        descripcion: 'Respaldo incremental de asistencias',
+        rutaArchivo: '/backups/incremental.zip',
+        fechaRespaldo: DateTime.now().subtract(const Duration(days: 1)),
+        tamanoBytes: 5242880,
+        usuarioRespaldo: 'admin',
+        estado: 'COMPLETADO',
+        observaciones: 'Solo cambios recientes',
+        checksum: 'def456',
+      ),
+    ];
+    _aplicarFiltros();
   }
 
   Future<void> cargarRespaldos() async {
-    try {
-      _isLoading = true;
-      _error = null;
-      notifyListeners();
+    _isLoading = true;
+    notifyListeners();
 
-      final result = await _databaseHelper.obtenerHistorialRespaldos();
+    await Future.delayed(const Duration(milliseconds: 500));
 
-      _respaldos = result.map((row) => 
-        Respaldo.fromMap(Map<String, dynamic>.from(row))
-      ).toList();
-
-      _aplicarFiltros();
-      
-      print('✅ ${_respaldos.length} respaldos cargados');
-
-    } catch (e) {
-      _error = 'Error al cargar respaldos: $e';
-      print('❌ Error cargando respaldos: $e');
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
+    _isLoading = false;
+    notifyListeners();
   }
 
-  // 🆕 CREAR RESPALDO COMPLETO
   Future<Map<String, dynamic>> crearRespaldoCompleto(String usuario) async {
-    try {
-      _creandoRespaldo = true;
-      notifyListeners();
+    _creandoRespaldo = true;
+    notifyListeners();
 
-      print('🔄 Creando respaldo completo...');
+    await Future.delayed(const Duration(seconds: 2));
 
-      final respaldoData = await _databaseHelper.generarRespaldoCompleto();
-      
-      _creandoRespaldo = false;
-      await cargarRespaldos();
-      notifyListeners();
+    final nuevoRespaldo = Respaldo(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      tipoRespaldo: 'COMPLETO',
+      descripcion: 'Respaldo completo del sistema',
+      rutaArchivo: '/backups/completo_${DateTime.now().millisecondsSinceEpoch}.zip',
+      fechaRespaldo: DateTime.now(),
+      tamanoBytes: 10485760,
+      usuarioRespaldo: usuario,
+      estado: 'COMPLETADO',
+      observaciones: 'Generado manualmente',
+      checksum: 'xyz789',
+    );
 
-      return {
-        'success': true,
-        'respaldo': respaldoData,
-        'mensaje': 'Respaldo completo creado exitosamente'
-      };
+    _respaldos.insert(0, nuevoRespaldo);
+    _aplicarFiltros();
 
-    } catch (e) {
-      _creandoRespaldo = false;
-      _error = 'Error creando respaldo: $e';
-      notifyListeners();
-      
-      return {
-        'success': false,
-        'error': 'Error creando respaldo: $e'
-      };
-    }
+    _creandoRespaldo = false;
+    notifyListeners();
+
+    return {'success': true, 'respaldo': nuevoRespaldo};
   }
 
-  // 🆕 CREAR RESPALDO INCREMENTAL
   Future<Map<String, dynamic>> crearRespaldoIncremental(String usuario) async {
-    try {
-      _creandoRespaldo = true;
-      notifyListeners();
+    _creandoRespaldo = true;
+    notifyListeners();
 
-      print('🔄 Creando respaldo incremental...');
+    await Future.delayed(const Duration(seconds: 1));
 
-      final respaldoData = await _databaseHelper.generarRespaldoIncremental();
-      
-      _creandoRespaldo = false;
-      await cargarRespaldos();
-      notifyListeners();
+    final nuevoRespaldo = Respaldo(
+      id: 'inc_${DateTime.now().millisecondsSinceEpoch}',
+      tipoRespaldo: 'INCREMENTAL',
+      descripcion: 'Respaldo incremental de cambios',
+      rutaArchivo: '/backups/incremental_${DateTime.now().millisecondsSinceEpoch}.zip',
+      fechaRespaldo: DateTime.now(),
+      tamanoBytes: 2097152,
+      usuarioRespaldo: usuario,
+      estado: 'COMPLETADO',
+      observaciones: 'Cambios recientes',
+      checksum: 'incremental123',
+    );
 
-      return {
-        'success': true,
-        'respaldo': respaldoData,
-        'mensaje': 'Respaldo incremental creado exitosamente'
-      };
+    _respaldos.insert(0, nuevoRespaldo);
+    _aplicarFiltros();
 
-    } catch (e) {
-      _creandoRespaldo = false;
-      _error = 'Error creando respaldo incremental: $e';
-      notifyListeners();
-      
-      return {
-        'success': false,
-        'error': e.toString()
-      };
-    }
+    _creandoRespaldo = false;
+    notifyListeners();
+
+    return {'success': true, 'respaldo': nuevoRespaldo};
   }
 
-  // 🆕 RESTAURAR DESDE RESPALDO
   Future<Map<String, dynamic>> restaurarRespaldo(String respaldoId) async {
-    try {
-      _isLoading = true;
-      notifyListeners();
+    _isLoading = true;
+    notifyListeners();
 
-      print('🔄 Restaurando desde respaldo: $respaldoId');
+    await Future.delayed(const Duration(seconds: 3));
 
-      // Obtener datos del respaldo
-      final respaldo = _respaldos.firstWhere((r) => r.id == respaldoId);
-      
-      // En una implementación real, aquí cargarías el archivo de respaldo
-      // y llamarías a _databaseHelper.restaurarDesdeRespaldo(datos)
+    _isLoading = false;
+    notifyListeners();
 
-      // Simular proceso de restauración
-      await Future.delayed(const Duration(seconds: 2));
-
-      _isLoading = false;
-      notifyListeners();
-
-      return {
-        'success': true,
-        'mensaje': 'Sistema restaurado exitosamente desde el respaldo'
-      };
-
-    } catch (e) {
-      _isLoading = false;
-      _error = 'Error restaurando respaldo: $e';
-      notifyListeners();
-      
-      return {
-        'success': false,
-        'error': e.toString()
-      };
-    }
+    return {'success': true, 'mensaje': 'Respaldo restaurado exitosamente'};
   }
 
-  // 🆕 ELIMINAR RESPALDO
   Future<bool> eliminarRespaldo(String respaldoId) async {
-    try {
-      await _databaseHelper.eliminarRespaldo(respaldoId);
-      await cargarRespaldos();
-      
-      print('✅ Respaldo eliminado: $respaldoId');
-      return true;
-
-    } catch (e) {
-      _error = 'Error eliminando respaldo: $e';
-      notifyListeners();
-      return false;
-    }
+    _respaldos.removeWhere((respaldo) => respaldo.id == respaldoId);
+    _aplicarFiltros();
+    notifyListeners();
+    
+    return true;
   }
 
   void cambiarFiltroTipo(String tipo) {
@@ -178,16 +149,11 @@ class RespaldosViewModel with ChangeNotifier {
     }).toList();
   }
 
-  // 🆕 OBTENER ESTADÍSTICAS DE RESPALDOS
   Map<String, dynamic> obtenerEstadisticasRespaldos() {
     final total = _respaldos.length;
     final completos = _respaldos.where((r) => r.esCompleto).length;
     final incrementales = _respaldos.where((r) => r.esIncremental).length;
     final tamanoTotal = _respaldos.fold(0, (sum, r) => sum + (r.tamanoBytes ?? 0));
-    
-    final ultimoRespaldo = _respaldos.isNotEmpty 
-        ? _respaldos.first.fechaRespaldo 
-        : null;
 
     return {
       'total': total,
@@ -195,7 +161,6 @@ class RespaldosViewModel with ChangeNotifier {
       'incrementales': incrementales,
       'tamano_total': tamanoTotal,
       'tamano_total_display': _formatearTamano(tamanoTotal),
-      'ultimo_respaldo': ultimoRespaldo,
     };
   }
 

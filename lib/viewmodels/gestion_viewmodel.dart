@@ -385,7 +385,7 @@ class GestionViewModel extends ChangeNotifier {
   // En tu gestion_viewmodel.dart, agrega:
 int getHorariosCount() {
   // Lógica para contar horarios activos
-  return 12; // Ejemplo
+  return 18; // Ejemplo
 }
 
 
