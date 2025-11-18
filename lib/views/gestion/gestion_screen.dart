@@ -9,6 +9,8 @@ import 'docentes_screen.dart';
 import 'niveles_screen.dart';
 import '../gestion/paralelos_scren.dart';
 import '../gestion/estudiantes_screen.dart';
+import '../../views/horario/horarios_screen.dart';
+import '../../views/horario/horario_main_screen.dart';
 
 class GestionScreen extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -231,7 +233,7 @@ class _GestionScreenState extends State<GestionScreen> {
 
         const SizedBox(height: AppSpacing.medium),
 
-        // Grid de opciones de gestión (7 CARDS)
+        // Grid de opciones de gestión (8 CARDS - AGREGADO TERCER AÑO B)
         Expanded(
           child: GridView.count(
             crossAxisCount: 2,
@@ -287,6 +289,14 @@ class _GestionScreenState extends State<GestionScreen> {
                 viewModel.getParalelosCount(viewModel.carreraSeleccionada),
                 () => _navigateToParalelos(context, viewModel),
               ),
+              // ✅ NUEVO CARD PARA TERCER AÑO B
+              _buildMenuCard(
+                'Horarios',
+                Icons.calendar_today,
+                const Color.fromARGB(255, 237, 106, 178),
+                viewModel.getHorariosCount(),
+                () => _navigateToHorariosMain(context),
+              ),
             ],
           ),
         ),
@@ -330,7 +340,7 @@ class _GestionScreenState extends State<GestionScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Cambiando a: $newValue'),
-                      duration: Duration(seconds: 1),
+                      duration: const Duration(seconds: 1),
                       backgroundColor: AppColors.primary,
                     ),
                   );
@@ -377,7 +387,14 @@ class _GestionScreenState extends State<GestionScreen> {
             children: [
               Stack(
                 children: [
-                  Icon(icon, size: 50, color: color),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, size: 35, color: color),
+                  ),
                   if (count > 0)
                     Positioned(
                       right: 0,
@@ -389,7 +406,7 @@ class _GestionScreenState extends State<GestionScreen> {
                           shape: BoxShape.circle,
                         ),
                         child: Text(
-                          count.toString(),
+                          count > 99 ? '99+' : count.toString(),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 10,
@@ -408,21 +425,47 @@ class _GestionScreenState extends State<GestionScreen> {
                   color: _getTextColor(),
                 ),
                 textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: AppSpacing.small),
               Text(
-                'Gestión',
+                _obtenerSubtituloCard(title),
                 style: TextStyle(
                   color: _getSecondaryTextColor(),
-                  fontSize: 12,
+                  fontSize: 11,
                 ),
                 textAlign: TextAlign.center,
+                maxLines: 1,
               ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  String _obtenerSubtituloCard(String titulo) {
+    switch (titulo) {
+      case 'Tercer Año B':
+        return 'Horarios & Asistencia';
+      case 'Estudiantes':
+        return 'Gestión de alumnos';
+      case 'Cursos':
+        return 'Materias académicas';
+      case 'Carreras':
+        return 'Programas de estudio';
+      case 'Docentes':
+        return 'Personal docente';
+      case 'Turnos':
+        return 'Horarios de clases';
+      case 'Grados':
+        return 'Niveles académicos';
+      case 'Paralelos':
+        return 'Grupos de estudio';
+      default:
+        return 'Gestión';
+    }
   }
 
   // ========== FUNCIONES DE NAVEGACIÓN ==========
@@ -462,7 +505,7 @@ class _GestionScreenState extends State<GestionScreen> {
   void _navigateToCursos(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => MateriasScreen()),
+      MaterialPageRoute(builder: (context) => const MateriasScreen()),
     );
   }
 
@@ -491,7 +534,7 @@ class _GestionScreenState extends State<GestionScreen> {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Carreras actualizadas correctamente'),
+                  content: const Text('Carreras actualizadas correctamente'),
                   backgroundColor: AppColors.success,
                 ),
               );
@@ -549,4 +592,12 @@ class _GestionScreenState extends State<GestionScreen> {
       ),
     );
   }
+
+  // ✅ NUEVA FUNCIÓN DE NAVEGACIÓN PARA TERCER AÑO B
+  void _navigateToHorariosMain(BuildContext context) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => HorariosMainScreen()),
+  );
+}
 }

@@ -1,4 +1,4 @@
-// models/database_helper.dart - VERSIÓN 100% COMPLETA
+// models/database_helper.dart - VERSIÓN 100% COMPLETA ACTUALIZADA
 import 'dart:async';
 //import 'dart:io';
 import 'package:flutter/foundation.dart' show kReleaseMode;
@@ -650,25 +650,22 @@ class DatabaseHelper {
         observaciones TEXT,
         checksum TEXT
       );
-      
-      
     ''');
     
-await db.execute('''
-  CREATE TABLE IF NOT EXISTS logs_seguridad(
-    id TEXT PRIMARY KEY,
-    usuario_id TEXT NOT NULL,
-    modulo TEXT NOT NULL,
-    accion TEXT NOT NULL,
-    fecha TEXT NOT NULL,
-    tipo TEXT NOT NULL,
-    ip TEXT,
-    dispositivo TEXT,
-    detalles TEXT,
-    FOREIGN KEY(usuario_id) REFERENCES usuarios(id) ON UPDATE CASCADE ON DELETE CASCADE
-  );
-''');
-    
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS logs_seguridad(
+        id TEXT PRIMARY KEY,
+        usuario_id TEXT NOT NULL,
+        modulo TEXT NOT NULL,
+        accion TEXT NOT NULL,
+        fecha TEXT NOT NULL,
+        tipo TEXT NOT NULL,
+        ip TEXT,
+        dispositivo TEXT,
+        detalles TEXT,
+        FOREIGN KEY(usuario_id) REFERENCES usuarios(id) ON UPDATE CASCADE ON DELETE CASCADE
+      );
+    ''');
 
     // ✅ AGREGAR ÍNDICES DE OPTIMIZACIÓN AL FINAL
     await _createIndexes(db);
@@ -1198,6 +1195,94 @@ await db.execute('''
     } catch (e) {
       print('⚠️ Error agregando campos de puntualidad: $e');
     }
+  }
+
+  // =================================================================
+  // 🆕 MÉTODOS COMPLETOS PARA HUELLAS BIOMÉTRICAS - AGREGADOS
+  // =================================================================
+
+  // ✅ MÉTODO PARA INSERTAR HUELLA
+  Future<int> insertarHuellaBiometrica(Map<String, dynamic> huella) async {
+    final db = await database;
+    return await db.insert('huellas_biometricas', huella);
+  }
+
+  // ✅ MÉTODO PARA OBTENER HUELLAS POR ESTUDIANTE
+  Future<List<Map<String, Object?>>> obtenerHuellasPorEstudiante(String estudianteId) async {
+    final db = await database;
+    return await db.query(
+      'huellas_biometricas',
+      where: 'estudiante_id = ?',
+      whereArgs: [estudianteId],
+      orderBy: 'numero_dedo ASC'
+    );
+  }
+
+  // ✅ MÉTODO PARA ELIMINAR HUELLA
+  Future<int> eliminarHuellaBiometrica(String huellaId) async {
+    final db = await database;
+    return await db.delete(
+      'huellas_biometricas',
+      where: 'id = ?',
+      whereArgs: [huellaId]
+    );
+  }
+
+  // ✅ MÉTODO PARA OBTENER HUELLA POR DEDO
+  Future<Map<String, Object?>?> obtenerHuellaPorDedo(String estudianteId, int numeroDedo) async {
+    final db = await database;
+    final results = await db.query(
+      'huellas_biometricas',
+      where: 'estudiante_id = ? AND numero_dedo = ?',
+      whereArgs: [estudianteId, numeroDedo]
+    );
+    return results.isNotEmpty ? results.first : null;
+  }
+
+  // ✅ MÉTODO PARA ACTUALIZAR ESTADO DE HUELLA
+  Future<int> actualizarEstadoHuella(String estudianteId, int numeroDedo, bool registrada) async {
+    final db = await database;
+    return await db.update(
+      'huellas_biometricas',
+      {
+        'registrada': registrada ? 1 : 0,
+        'fecha_registro': DateTime.now().toIso8601String()
+      },
+      where: 'estudiante_id = ? AND numero_dedo = ?',
+      whereArgs: [estudianteId, numeroDedo]
+    );
+  }
+
+  // ✅ MÉTODO PARA VERIFICAR SI UN ESTUDIANTE TIENE HUELLAS REGISTRADAS
+  Future<bool> estudianteTieneHuellasRegistradas(String estudianteId) async {
+    final db = await database;
+    final results = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM huellas_biometricas WHERE estudiante_id = ? AND registrada = 1',
+      [estudianteId]
+    );
+    return ((results.first['count'] as int?) ?? 0) > 0;
+  }
+
+  // ✅ MÉTODO PARA OBTENER EL TOTAL DE HUELLAS REGISTRADAS POR ESTUDIANTE
+  Future<int> obtenerTotalHuellasRegistradas(String estudianteId) async {
+    final db = await database;
+    final results = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM huellas_biometricas WHERE estudiante_id = ? AND registrada = 1',
+      [estudianteId]
+    );
+    return results.first['count'] as int? ?? 0;
+  }
+
+  // ✅ MÉTODO PARA OBTENER TODAS LAS HUELLAS REGISTRADAS EN EL SISTEMA
+  Future<List<Map<String, Object?>>> obtenerTodasLasHuellasRegistradas() async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT hb.*, e.nombres, e.apellido_paterno, e.apellido_materno, e.ci
+      FROM huellas_biometricas hb
+      JOIN estudiantes e ON hb.estudiante_id = e.id
+      WHERE hb.registrada = 1
+      ORDER BY e.apellido_paterno, e.apellido_materno, e.nombres
+    ''');
   }
 
   // ====== CRUD DE BAJO NIVEL EXPUESTO ======
@@ -1853,54 +1938,6 @@ await db.execute('''
     return info;
   }
 
-  // 🌟 MÉTODOS ESPECÍFICOS PARA HUELLAS BIOMÉTRICAS
-  Future<int> insertarHuellaBiometrica(Map<String, dynamic> huella) async {
-    final db = await database;
-    return await db.insert('huellas_biometricas', huella);
-  }
-
-  Future<List<Map<String, Object?>>> obtenerHuellasPorEstudiante(String estudianteId) async {
-    final db = await database;
-    return await db.query(
-      'huellas_biometricas',
-      where: 'estudiante_id = ?',
-      whereArgs: [estudianteId],
-      orderBy: 'numero_dedo ASC'
-    );
-  }
-
-  Future<int> eliminarHuellaBiometrica(String huellaId) async {
-    final db = await database;
-    return await db.delete(
-      'huellas_biometricas',
-      where: 'id = ?',
-      whereArgs: [huellaId]
-    );
-  }
-
-  Future<Map<String, Object?>?> obtenerHuellaPorDedo(String estudianteId, int numeroDedo) async {
-    final db = await database;
-    final results = await db.query(
-      'huellas_biometricas',
-      where: 'estudiante_id = ? AND numero_dedo = ?',
-      whereArgs: [estudianteId, numeroDedo]
-    );
-    return results.isNotEmpty ? results.first : null;
-  }
-
-  Future<int> actualizarEstadoHuella(String estudianteId, int numeroDedo, bool registrada) async {
-    final db = await database;
-    return await db.update(
-      'huellas_biometricas',
-      {
-        'registrada': registrada ? 1 : 0,
-        'fecha_registro': DateTime.now().toIso8601String()
-      },
-      where: 'estudiante_id = ? AND numero_dedo = ?',
-      whereArgs: [estudianteId, numeroDedo]
-    );
-  }
-
   // 🆕 MÉTODOS ESPECÍFICOS PARA NOTAS DE ASISTENCIA
   Future<int> asignarDocenteMateria(Map<String, dynamic> asignacion) async {
     final db = await database;
@@ -2073,26 +2110,25 @@ await db.execute('''
   }
 
   // 🆕 EXPORTAR DATOS PARA MIGRACIÓN
-  // 🆕 EXPORTAR DATOS PARA MIGRACIÓN
-Future<Map<String, dynamic>> exportarDatosParaMigracion() async {
-  final db = await database;
-  
-  final datosExportacion = {
-    'fecha_exportacion': DateTime.now().toIso8601String(),
-    'version_sistema': '1.0.0',
-    'datos': {} // Inicializado como mapa vacío
-  };
-  
-  final tablasExportacion = ['estudiantes', 'docentes', 'materias', 'usuarios', 'config_notas_asistencia'];
-  
-  for (String tabla in tablasExportacion) {
-    final datos = await db.rawQuery('SELECT * FROM $tabla');
-    // ✅ SOLUCIÓN: Cast explícito a Map<String, dynamic>
-    (datosExportacion['datos'] as Map<String, dynamic>)[tabla] = datos;
+  Future<Map<String, dynamic>> exportarDatosParaMigracion() async {
+    final db = await database;
+    
+    final datosExportacion = {
+      'fecha_exportacion': DateTime.now().toIso8601String(),
+      'version_sistema': '1.0.0',
+      'datos': {} // Inicializado como mapa vacío
+    };
+    
+    final tablasExportacion = ['estudiantes', 'docentes', 'materias', 'usuarios', 'config_notas_asistencia'];
+    
+    for (String tabla in tablasExportacion) {
+      final datos = await db.rawQuery('SELECT * FROM $tabla');
+      // ✅ SOLUCIÓN: Cast explícito a Map<String, dynamic>
+      (datosExportacion['datos'] as Map<String, dynamic>)[tabla] = datos;
+    }
+    
+    return datosExportacion;
   }
-  
-  return datosExportacion;
-}
 
   // =================================================================
   // 🆕 MÉTODOS COMPLETOS PARA HORARIOS

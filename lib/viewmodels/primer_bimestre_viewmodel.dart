@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:csv/csv.dart';
 import 'dart:io';
@@ -8,6 +7,8 @@ import 'package:open_file/open_file.dart';
 import '../models/primer_bimestre_model.dart';
 import '../models/periodo_academico_model.dart';
 import '../models/database_helper.dart';
+import '../models/estudiante_model.dart';
+import '../viewmodels/estudiantes_viewmodel.dart';
 
 class PrimerBimestreViewModel with ChangeNotifier {
   final DatabaseHelper _databaseHelper = DatabaseHelper.instance;
@@ -21,6 +22,9 @@ class PrimerBimestreViewModel with ChangeNotifier {
   int? _estudianteSeleccionado;
   bool _isLoading = false;
 
+  // Referencia al ViewModel de estudiantes
+  late EstudiantesViewModel _estudiantesViewModel;
+
   // Getters
   PeriodoAcademico get bimestre => _model.bimestre;
   List<String> get fechas => _model.fechas;
@@ -32,8 +36,10 @@ class PrimerBimestreViewModel with ChangeNotifier {
   TextEditingController get fechaInicioController => _fechaInicioController;
   TextEditingController get fechaFinController => _fechaFinController;
 
-  PrimerBimestreViewModel() {
-    _cargarDatosDesdeSQLite();
+  // Método para inicializar con el ViewModel de estudiantes
+  void initializeWithEstudiantes(EstudiantesViewModel estudiantesViewModel) {
+    _estudiantesViewModel = estudiantesViewModel;
+    _cargarDatosDesdeEstudiantes();
     _searchController.addListener(_filtrarEstudiantes);
     _fechaInicioController.text = _formatDate(_model.bimestre.fechaInicio);
     _fechaFinController.text = _formatDate(_model.bimestre.fechaFin);
@@ -43,10 +49,30 @@ class PrimerBimestreViewModel with ChangeNotifier {
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
-  Future<void> _cargarDatosDesdeSQLite() async {
+  Future<void> _cargarDatosDesdeEstudiantes() async {
     try {
       _isLoading = true;
       notifyListeners();
+
+      // Esperar a que los estudiantes estén cargados
+      if (_estudiantesViewModel.estudiantes.isEmpty) {
+        await _estudiantesViewModel.recargarEstudiantes();
+      }
+
+      // Convertir estudiantes a AsistenciaEstudiante
+      _model.estudiantes.clear();
+      
+      int item = 1;
+      for (var estudiante in _estudiantesViewModel.estudiantes) {
+        final nombreCompleto = '${estudiante.apellidoPaterno} ${estudiante.apellidoMaterno} ${estudiante.nombres}';
+        
+        final asistenciaEstudiante = AsistenciaEstudiante(
+          item: item,
+          nombre: nombreCompleto,
+        );
+        _model.estudiantes.add(asistenciaEstudiante);
+        item++;
+      }
 
       // Verificar si ya existen datos en SQLite para este bimestre
       final result = await _databaseHelper.rawQuery('''
@@ -57,8 +83,8 @@ class PrimerBimestreViewModel with ChangeNotifier {
       final count = (result.first['count'] as int?) ?? 0;
 
       if (count == 0) {
-        // Insertar datos de ejemplo si no existen
-        await _insertarDatosEjemploEnSQLite();
+        // Insertar datos iniciales en SQLite
+        await _insertarDatosInicialesEnSQLite();
       } else {
         // Cargar datos existentes desde SQLite
         await _cargarDatosExistentesDesdeSQLite();
@@ -67,24 +93,19 @@ class PrimerBimestreViewModel with ChangeNotifier {
       _filteredEstudiantes = _model.estudiantes;
       _isLoading = false;
       notifyListeners();
+      
+      print('✅ ${_model.estudiantes.length} estudiantes cargados desde EstudiantesViewModel');
     } catch (e) {
-      print('❌ Error cargando datos desde SQLite: $e');
+      print('❌ Error cargando datos desde estudiantes: $e');
       _cargarDatosEjemplo();
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  Future<void> _insertarDatosEjemploEnSQLite() async {
+  Future<void> _insertarDatosInicialesEnSQLite() async {
     try {
-      for (int i = 1; i <= 60; i++) {
-        final estudiante = AsistenciaEstudiante(
-          item: i,
-          nombre: 'Estudiante ${i.toString().padLeft(2, '0')}',
-        );
-
-        _model.estudiantes.add(estudiante);
-
+      for (final estudiante in _model.estudiantes) {
         // Guardar en SQLite
         await _databaseHelper.rawInsert('''
           INSERT INTO asistencias (
@@ -104,7 +125,7 @@ class PrimerBimestreViewModel with ChangeNotifier {
 
       print('✅ ${_model.estudiantes.length} estudiantes insertados en SQLite para primer bimestre');
     } catch (e) {
-      print('❌ Error insertando datos ejemplo en SQLite: $e');
+      print('❌ Error insertando datos iniciales en SQLite: $e');
     }
   }
 
@@ -116,32 +137,63 @@ class PrimerBimestreViewModel with ChangeNotifier {
         ORDER BY estudiante_id
       ''', [_model.bimestre.id]);
 
-      _model.estudiantes.clear();
+      // Mapear datos existentes a los estudiantes actuales
       for (var row in result) {
         try {
           final datos = json.decode(row['datos_asistencia'] as String);
-          final estudiante = AsistenciaEstudiante.fromMap(Map<String, dynamic>.from(datos));
-          _model.estudiantes.add(estudiante);
+          final estudianteExistente = AsistenciaEstudiante.fromMap(Map<String, dynamic>.from(datos));
+          
+          // Actualizar el estudiante correspondiente en la lista
+          final index = _model.estudiantes.indexWhere((e) => e.item == estudianteExistente.item);
+          if (index != -1) {
+            // ✅ CORREGIDO: Crear un nuevo objeto con los datos actualizados
+            final estudianteActual = _model.estudiantes[index];
+            final estudianteActualizado = AsistenciaEstudiante(
+              item: estudianteActual.item,
+              nombre: estudianteActual.nombre, // Mantener el nombre original
+              febL: estudianteExistente.febL,
+              febM: estudianteExistente.febM,
+              febMi: estudianteExistente.febMi,
+              febJ: estudianteExistente.febJ,
+              febV: estudianteExistente.febV,
+              marL: estudianteExistente.marL,
+              marM: estudianteExistente.marM,
+              marMi: estudianteExistente.marMi,
+              marJ: estudianteExistente.marJ,
+              marV: estudianteExistente.marV,
+              abrL: estudianteExistente.abrL,
+              abrM: estudianteExistente.abrM,
+              abrMi: estudianteExistente.abrMi,
+              abrJ: estudianteExistente.abrJ,
+              abrV: estudianteExistente.abrV,
+            );
+            
+            _model.estudiantes[index] = estudianteActualizado;
+          }
         } catch (e) {
-          print('❌ Error parseando estudiante: $e');
+          print('❌ Error parseando estudiante existente: $e');
         }
       }
 
-      print('✅ ${_model.estudiantes.length} estudiantes cargados desde SQLite para primer bimestre');
+      print('✅ Datos de asistencia cargados desde SQLite para primer bimestre');
     } catch (e) {
       print('❌ Error cargando datos desde SQLite: $e');
-      _cargarDatosEjemplo();
     }
   }
 
   void _cargarDatosEjemplo() {
-    for (int i = 1; i <= 60; i++) {
+    // Solo como fallback si todo falla
+    int item = 1;
+    for (var estudiante in _estudiantesViewModel.estudiantes) {
+      final nombreCompleto = '${estudiante.apellidoPaterno} ${estudiante.apellidoMaterno} ${estudiante.nombres}';
+      
       _model.estudiantes.add(
         AsistenciaEstudiante(
-          item: i,
-          nombre: 'Estudiante ${i.toString().padLeft(2, '0')}',
+          item: item,
+          nombre: nombreCompleto,
         ),
       );
+      item++;
     }
     _filteredEstudiantes = _model.estudiantes;
   }
@@ -173,20 +225,51 @@ class PrimerBimestreViewModel with ChangeNotifier {
     String valor,
   ) async {
     try {
-      estudiante.actualizarAsistencia(fecha, valor);
-      
-      // Actualizar en SQLite
-      await _databaseHelper.rawUpdate('''
-        UPDATE asistencias SET 
-        datos_asistencia = ?, ultima_actualizacion = ?
-        WHERE id = ?
-      ''', [
-        json.encode(estudiante.toMap()),
-        DateTime.now().toIso8601String(),
-        'asist_primer_${estudiante.item}',
-      ]);
+      // Encontrar el índice del estudiante
+      final index = _model.estudiantes.indexWhere((e) => e.item == estudiante.item);
+      if (index != -1) {
+        // Crear una nueva instancia con la asistencia actualizada
+        final estudianteActualizado = AsistenciaEstudiante(
+          item: estudiante.item,
+          nombre: estudiante.nombre,
+          febL: estudiante.febL,
+          febM: estudiante.febM,
+          febMi: estudiante.febMi,
+          febJ: estudiante.febJ,
+          febV: estudiante.febV,
+          marL: estudiante.marL,
+          marM: estudiante.marM,
+          marMi: estudiante.marMi,
+          marJ: estudiante.marJ,
+          marV: estudiante.marV,
+          abrL: estudiante.abrL,
+          abrM: estudiante.abrM,
+          abrMi: estudiante.abrMi,
+          abrJ: estudiante.abrJ,
+          abrV: estudiante.abrV,
+        );
+        
+        // Actualizar la asistencia
+        estudianteActualizado.actualizarAsistencia(fecha, valor);
+        
+        // Reemplazar en la lista
+        _model.estudiantes[index] = estudianteActualizado;
+        
+        // Actualizar en SQLite
+        await _databaseHelper.rawUpdate('''
+          UPDATE asistencias SET 
+          datos_asistencia = ?, ultima_actualizacion = ?
+          WHERE id = ?
+        ''', [
+          json.encode(estudianteActualizado.toMap()),
+          DateTime.now().toIso8601String(),
+          'asist_primer_${estudiante.item}',
+        ]);
 
-      notifyListeners();
+        // Actualizar la lista filtrada
+        _filtrarEstudiantes();
+        notifyListeners();
+      }
     } catch (e) {
       print('❌ Error actualizando asistencia en SQLite: $e');
     }
@@ -206,7 +289,7 @@ class PrimerBimestreViewModel with ChangeNotifier {
       for (var estudiante in _filteredEstudiantes) {
         List<dynamic> row = [
           estudiante.item.toString().padLeft(2, '0'),
-          estudiante.nombre,
+          estudiante.nombre, // Nombre completo
         ];
 
         // Agregar todas las asistencias

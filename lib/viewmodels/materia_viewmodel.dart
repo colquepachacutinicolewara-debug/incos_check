@@ -5,7 +5,7 @@ import '../models/database_helper.dart';
 import '../utils/constants.dart';
 
 class MateriaViewModel extends ChangeNotifier {
-  final DatabaseHelper _databaseHelper = DatabaseHelper.instance;
+  final DatabaseHelper _databaseHelper = DatabaseHelper.instance; 
   
   List<Materia> _materias = [];
   List<Materia> _materiasFiltradas = [];
@@ -81,7 +81,7 @@ class MateriaViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  MateriaViewModel() {
+  MateriaViewModel() { // ✅ Constructor sin parámetros
     _initialize();
     _searchController.addListener(_filtrarMateriasHistorial);
   }
@@ -90,20 +90,25 @@ class MateriaViewModel extends ChangeNotifier {
     await _cargarMateriasDesdeDatabase();
   }
 
-  // ✅ CORREGIDO: CARGA EN TIEMPO REAL DESDE SQLITE
+  // ✅ CARGA DESDE SQLITE - MANTIENE TUS MATERIAS PREDEFINIDAS
   Future<void> _cargarMateriasDesdeDatabase() async {
     try {
       _isLoading = true;
       notifyListeners();
 
-      // ✅ PRIMERO: Siempre cargar desde la base de datos (fuente de verdad)
-      await _cargarMateriasExistentes();
+      // Primero verificar si hay materias en la base de datos
+      final result = await _databaseHelper.rawQuery('''
+        SELECT COUNT(*) as count FROM materias 
+        WHERE carrera = 'Sistemas Informáticos'
+      ''');
 
-      // ✅ SEGUNDO: Solo si no hay materias en la BD, insertar las predefinidas
-      if (_materias.isEmpty) {
-        print('📝 Base de datos vacía, insertando materias predefinidas...');
+      final count = (result.first['count'] as int?) ?? 0;
+
+      if (count == 0) {
+        // Si no hay materias, insertar todas las predefinidas
         await _insertarMateriasPredefinidas();
-        // Después de insertar, volver a cargar desde la BD
+      } else {
+        // Si ya hay materias, cargarlas desde la base de datos
         await _cargarMateriasExistentes();
       }
 
@@ -118,17 +123,16 @@ class MateriaViewModel extends ChangeNotifier {
     }
   }
 
-  // ✅ MANTENIDO: Insertar materias predefinidas en SQLite
+  // ✅ INSERTAR TODAS TUS MATERIAS PREDEFINIDAS EN SQLITE
   Future<void> _insertarMateriasPredefinidas() async {
     try {
-      // Crear lista temporal para las predefinidas
-      final List<Materia> materiasPredefinidas = [];
+      _materias.clear();
       
-      // Cargar todas las materias predefinidas en lista temporal
-      _cargarMateriasPredefinidasEnLista(materiasPredefinidas);
+      // Cargar todas tus materias predefinidas
+      _cargarTodasLasMateriasCompletas();
       
       // Insertar cada materia en SQLite
-      for (final materia in materiasPredefinidas) {
+      for (final materia in _materias) {
         await _databaseHelper.rawInsert('''
           INSERT INTO materias (id, codigo, nombre, carrera, anio, color, activo,
           paralelo, turno, created_at, updated_at)
@@ -148,14 +152,13 @@ class MateriaViewModel extends ChangeNotifier {
         ]);
       }
 
-      print('✅ ${materiasPredefinidas.length} materias predefinidas insertadas en SQLite');
+      print('✅ ${_materias.length} materias predefinidas insertadas en SQLite');
     } catch (e) {
       print('❌ Error insertando materias predefinidas: $e');
-      throw e;
     }
   }
 
-  // ✅ CORREGIDO: Cargar SOLO desde SQLite - FUENTE DE VERDAD
+  // ✅ CARGAR MATERIAS EXISTENTES DESDE SQLITE
   Future<void> _cargarMateriasExistentes() async {
     try {
       final result = await _databaseHelper.rawQuery('''
@@ -164,27 +167,32 @@ class MateriaViewModel extends ChangeNotifier {
         ORDER BY carrera, anio, paralelo, turno, nombre
       ''');
 
-      // ✅ IMPORTANTE: Limpiar la lista y cargar SOLO desde la BD
-      _materias.clear();
       _materias = result.map((row) => 
         Materia.fromMap(Map<String, dynamic>.from(row))
       ).toList();
 
-      print('✅ ${_materias.length} materias cargadas desde SQLite en tiempo real');
+      print('✅ ${_materias.length} materias cargadas desde SQLite');
     } catch (e) {
       print('❌ Error cargando materias desde SQLite: $e');
-      _materias.clear();
-      throw e;
+      // Si hay error, cargar las predefinidas en memoria
+      _cargarTodasLasMateriasCompletas();
     }
   }
 
-  // ✅ NUEVO MÉTODO: Cargar predefinidas en lista temporal (no en _materias)
-  void _cargarMateriasPredefinidasEnLista(List<Materia> lista) {
-    lista.clear();
-    
-    // ========== PARALELO A - TURNO NOCHE ==========
+  // ========== TUS MATERIAS PREDEFINIDAS - EXACTAMENTE COMO LAS TIENES ==========
+
+  void _cargarTodasLasMateriasCompletas() {
+    _materias.clear();
+    _cargarParaleloANoche();
+    _cargarParaleloBNoche();
+    _cargarParaleloAManana();
+    _cargarParaleloBManana();
+  }
+
+  // ========== PARALELO A - TURNO NOCHE ==========
+  void _cargarParaleloANoche() {
     // PRIMER AÑO - Paralelo A - Noche
-    lista.addAll([
+    _materias.addAll([
       Materia(
         id: 'hardware_a_noche',
         codigo: 'HARD101',
@@ -258,7 +266,7 @@ class MateriaViewModel extends ChangeNotifier {
     ]);
 
     // SEGUNDO AÑO - Paralelo A - Noche
-    lista.addAll([
+    _materias.addAll([
       Materia(
         id: 'programacion2_a_noche',
         codigo: 'PROG201',
@@ -342,7 +350,7 @@ class MateriaViewModel extends ChangeNotifier {
     ]);
 
     // TERCER AÑO - Paralelo A - Noche
-    lista.addAll([
+    _materias.addAll([
       Materia(
         id: 'redes2_a_noche',
         codigo: 'RED301',
@@ -424,10 +432,12 @@ class MateriaViewModel extends ChangeNotifier {
         turno: 'Noche',
       ),
     ]);
+  }
 
-    // ========== PARALELO B - TURNO NOCHE ==========
+  // ========== PARALELO B - TURNO NOCHE ==========
+  void _cargarParaleloBNoche() {
     // PRIMER AÑO - Paralelo B - Noche
-    lista.addAll([
+    _materias.addAll([
       Materia(
         id: 'hardware_b_noche',
         codigo: 'HARD101',
@@ -501,7 +511,7 @@ class MateriaViewModel extends ChangeNotifier {
     ]);
 
     // SEGUNDO AÑO - Paralelo B - Noche
-    lista.addAll([
+    _materias.addAll([
       Materia(
         id: 'programacion2_b_noche',
         codigo: 'PROG201',
@@ -585,7 +595,7 @@ class MateriaViewModel extends ChangeNotifier {
     ]);
 
     // TERCER AÑO - Paralelo B - Noche
-    lista.addAll([
+    _materias.addAll([
       Materia(
         id: 'redes2_b_noche',
         codigo: 'RED301',
@@ -667,10 +677,12 @@ class MateriaViewModel extends ChangeNotifier {
         turno: 'Noche',
       ),
     ]);
+  }
 
-    // ========== PARALELO A - TURNO MAÑANA ==========
+  // ========== PARALELO A - TURNO MAÑANA ==========
+  void _cargarParaleloAManana() {
     // PRIMER AÑO - Paralelo A - Mañana
-    lista.addAll([
+    _materias.addAll([
       Materia(
         id: 'hardware_a_manana',
         codigo: 'HARD101',
@@ -744,7 +756,7 @@ class MateriaViewModel extends ChangeNotifier {
     ]);
 
     // SEGUNDO AÑO - Paralelo A - Mañana
-    lista.addAll([
+    _materias.addAll([
       Materia(
         id: 'programacion2_a_manana',
         codigo: 'PROG201',
@@ -828,7 +840,7 @@ class MateriaViewModel extends ChangeNotifier {
     ]);
 
     // TERCER AÑO - Paralelo A - Mañana
-    lista.addAll([
+    _materias.addAll([
       Materia(
         id: 'redes2_a_manana',
         codigo: 'RED301',
@@ -910,10 +922,12 @@ class MateriaViewModel extends ChangeNotifier {
         turno: 'Mañana',
       ),
     ]);
+  }
 
-    // ========== PARALELO B - TURNO MAÑANA ==========
+  // ========== PARALELO B - TURNO MAÑANA ==========
+  void _cargarParaleloBManana() {
     // PRIMER AÑO - Paralelo B - Mañana
-    lista.addAll([
+    _materias.addAll([
       Materia(
         id: 'hardware_b_manana',
         codigo: 'HARD101',
@@ -987,7 +1001,7 @@ class MateriaViewModel extends ChangeNotifier {
     ]);
 
     // SEGUNDO AÑO - Paralelo B - Mañana
-    lista.addAll([
+    _materias.addAll([
       Materia(
         id: 'programacion2_b_manana',
         codigo: 'PROG201',
@@ -1071,7 +1085,7 @@ class MateriaViewModel extends ChangeNotifier {
     ]);
 
     // TERCER AÑO - Paralelo B - Mañana
-    lista.addAll([
+    _materias.addAll([
       Materia(
         id: 'redes2_b_manana',
         codigo: 'RED301',
@@ -1193,7 +1207,7 @@ class MateriaViewModel extends ChangeNotifier {
 
   // ========== MÉTODOS CRUD PARA SQLITE ==========
 
-  // ✅ CORREGIDO: AGREGAR NUEVA MATERIA - ACTUALIZACIÓN EN TIEMPO REAL
+  // ✅ AGREGAR NUEVA MATERIA
   Future<void> agregarMateria() async {
     try {
       if (_codigoController.text.isEmpty || _nombreController.text.isEmpty) {
@@ -1217,7 +1231,6 @@ class MateriaViewModel extends ChangeNotifier {
         activo: true,
       );
 
-      // 1. Insertar en la base de datos
       await _databaseHelper.rawInsert('''
         INSERT INTO materias (id, codigo, nombre, carrera, anio, color, activo,
         paralelo, turno, created_at, updated_at)
@@ -1236,11 +1249,8 @@ class MateriaViewModel extends ChangeNotifier {
         DateTime.now().toIso8601String()
       ]);
 
-      // ✅ 2. ACTUALIZAR EN TIEMPO REAL: Agregar a la lista local
-      _materias.add(nuevaMateria);
-      
-      // 3. Aplicar filtros para actualizar la vista
-      _aplicarFiltros();
+      // Recargar desde la base de datos
+      await _cargarMateriasExistentes();
       
       _limpiarFormulario();
       _mostrarMensajeBurbuja('Materia agregada correctamente', Colors.green);
@@ -1266,7 +1276,7 @@ class MateriaViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ✅ CORREGIDO: ACTUALIZAR MATERIA - ACTUALIZACIÓN EN TIEMPO REAL
+  // ✅ ACTUALIZAR MATERIA
   Future<void> actualizarMateria() async {
     try {
       if (_codigoController.text.isEmpty || _nombreController.text.isEmpty) {
@@ -1277,7 +1287,6 @@ class MateriaViewModel extends ChangeNotifier {
       _isLoading = true;
       notifyListeners();
 
-      // 1. Actualizar en la base de datos
       await _databaseHelper.rawUpdate('''
         UPDATE materias 
         SET codigo = ?, nombre = ?, carrera = ?, anio = ?, color = ?,
@@ -1295,24 +1304,8 @@ class MateriaViewModel extends ChangeNotifier {
         _materiaEditandoId
       ]);
 
-      // ✅ 2. ACTUALIZAR EN TIEMPO REAL: Buscar y actualizar en la lista local
-      final index = _materias.indexWhere((m) => m.id == _materiaEditandoId);
-      if (index != -1) {
-        _materias[index] = Materia(
-          id: _materiaEditandoId,
-          codigo: _codigoController.text.trim(),
-          nombre: _nombreController.text.trim(),
-          carrera: _carreraSeleccionadaForm,
-          anio: _anioSeleccionadoForm,
-          color: _colorSeleccionado,
-          paralelo: _paraleloSeleccionadoForm,
-          turno: _turnoSeleccionadoForm,
-          activo: true,
-        );
-      }
-      
-      // 3. Aplicar filtros para actualizar la vista
-      _aplicarFiltros();
+      // Recargar desde la base de datos
+      await _cargarMateriasExistentes();
       
       _limpiarFormulario();
       _mostrarMensajeBurbuja('Materia actualizada correctamente', Colors.green);
@@ -1325,20 +1318,14 @@ class MateriaViewModel extends ChangeNotifier {
     }
   }
 
-  // ✅ CORREGIDO: DESACTIVAR MATERIA - ACTUALIZACIÓN EN TIEMPO REAL
+  // ✅ DESACTIVAR MATERIA
   Future<void> desactivarMateria(String id) async {
     try {
-      // 1. Actualizar en la base de datos
       await _databaseHelper.rawUpdate('''
         UPDATE materias SET activo = 0, updated_at = ? WHERE id = ?
       ''', [DateTime.now().toIso8601String(), id]);
 
-      // ✅ 2. ACTUALIZAR EN TIEMPO REAL: Eliminar de la lista local
-      _materias.removeWhere((m) => m.id == id);
-
-      // 3. Aplicar filtros para actualizar la vista
-      _aplicarFiltros();
-      
+      await _cargarMateriasExistentes();
       _mostrarMensajeBurbuja('Materia desactivada', Colors.orange);
     } catch (e) {
       _mostrarMensajeBurbuja('Error al desactivar materia: $e', Colors.red);
@@ -1352,7 +1339,6 @@ class MateriaViewModel extends ChangeNotifier {
         UPDATE materias SET activo = 1, updated_at = ? WHERE id = ?
       ''', [DateTime.now().toIso8601String(), id]);
 
-      // Recargar desde la base de datos para asegurar consistencia
       await _cargarMateriasExistentes();
       _mostrarMensajeBurbuja('Materia activada', Colors.green);
     } catch (e) {
@@ -1360,20 +1346,14 @@ class MateriaViewModel extends ChangeNotifier {
     }
   }
 
-  // ✅ CORREGIDO: ELIMINAR MATERIA - ACTUALIZACIÓN EN TIEMPO REAL
+  // ✅ ELIMINAR MATERIA
   Future<void> eliminarMateria(String id) async {
     try {
-      // 1. Eliminar de la base de datos
       await _databaseHelper.rawDelete('''
         DELETE FROM materias WHERE id = ?
       ''', [id]);
 
-      // ✅ 2. ACTUALIZAR EN TIEMPO REAL: Eliminar de la lista local
-      _materias.removeWhere((m) => m.id == id);
-      
-      // 3. Aplicar filtros para actualizar la vista
-      _aplicarFiltros();
-      
+      await _cargarMateriasExistentes();
       _mostrarMensajeBurbuja('Materia eliminada', Colors.red);
     } catch (e) {
       _mostrarMensajeBurbuja('Error al eliminar materia: $e', Colors.red);
@@ -1548,9 +1528,9 @@ class MateriaViewModel extends ChangeNotifier {
     super.dispose();
   }
 
-  // ✅ MÉTODO PÚBLICO PARA RECARGAR MATERIAS EN TIEMPO REAL
-  Future<void> recargarMaterias() async {
-    print('🔄 Recargando materias en tiempo real...');
-    await _cargarMateriasDesdeDatabase();
-  }
+  // ✅ MÉTODO PÚBLICO PARA RECARGAR MATERIAS
+Future<void> recargarMaterias() async {
+  print('🔄 Recargando materias desde historial...');
+  await _cargarMateriasDesdeDatabase();
+}
 }

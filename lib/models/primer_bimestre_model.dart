@@ -41,6 +41,47 @@ class AsistenciaEstudiante {
     this.abrV = '',
   });
 
+  // ✅ MÉTODO COPYWITH AGREGADO
+  AsistenciaEstudiante copyWith({
+    int? item,
+    String? nombre,
+    String? febL,
+    String? febM,
+    String? febMi,
+    String? febJ,
+    String? febV,
+    String? marL,
+    String? marM,
+    String? marMi,
+    String? marJ,
+    String? marV,
+    String? abrL,
+    String? abrM,
+    String? abrMi,
+    String? abrJ,
+    String? abrV,
+  }) {
+    return AsistenciaEstudiante(
+      item: item ?? this.item,
+      nombre: nombre ?? this.nombre,
+      febL: febL ?? this.febL,
+      febM: febM ?? this.febM,
+      febMi: febMi ?? this.febMi,
+      febJ: febJ ?? this.febJ,
+      febV: febV ?? this.febV,
+      marL: marL ?? this.marL,
+      marM: marM ?? this.marM,
+      marMi: marMi ?? this.marMi,
+      marJ: marJ ?? this.marJ,
+      marV: marV ?? this.marV,
+      abrL: abrL ?? this.abrL,
+      abrM: abrM ?? this.abrM,
+      abrMi: abrMi ?? this.abrMi,
+      abrJ: abrJ ?? this.abrJ,
+      abrV: abrV ?? this.abrV,
+    );
+  }
+
   int get totalAsistencias {
     int total = 0;
     List<String> asistencias = [

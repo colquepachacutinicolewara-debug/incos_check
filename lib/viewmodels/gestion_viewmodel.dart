@@ -374,13 +374,20 @@ class GestionViewModel extends ChangeNotifier {
     return icons[carrera] ?? Icons.school;
   }
 
-  // ========== ERROR HANDLING ==========
+  // ========== ERROR HANDLING =======
   void clearError() {
     if (_error.isNotEmpty) {
       _error = '';
       notifyListeners();
     }
   }
+
+  // En tu gestion_viewmodel.dart, agrega:
+int getHorariosCount() {
+  // Lógica para contar horarios activos
+  return 12; // Ejemplo
+}
+
 
   // ========== REFRESH ==========
   Future<void> refresh() async {
