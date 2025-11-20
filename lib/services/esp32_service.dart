@@ -1,11 +1,11 @@
-// services/esp32_service.dart
-import 'dart:convert';
+// services/esp32_service.dart - VERSIÓN MEJORADA
 import 'package:http/http.dart' as http;
 
 class ESP32Service {
-  static const String baseUrl = 'http://192.168.0.58';
+  static const String baseUrl = 'http://10.64.241.202';
   
-  static Future<bool> verificarConexion() async {
+  // ✅ VERIFICAR CONEXIÓN MEJORADA
+  static Future<Map<String, dynamic>> verificarConexion() async {
     try {
       print('🌐 Conectando a: $baseUrl/status');
       final response = await http.get(Uri.parse('$baseUrl/status')).timeout(
@@ -13,68 +13,62 @@ class ESP32Service {
       );
       
       print('📡 Respuesta del ESP32: ${response.statusCode} - ${response.body}');
-      return response.statusCode == 200;
+      
+      return {
+        'conectado': response.statusCode == 200,
+        'mensaje': response.body,
+        'statusCode': response.statusCode,
+      };
     } catch (e) {
       print('❌ Error de conexión ESP32: $e');
-      return false;
+      return {
+        'conectado': false,
+        'error': e.toString(),
+        'mensaje': 'No se pudo conectar al ESP32',
+      };
     }
   }
 
-  // MEJORADO: Registrar huella con mejor manejo de respuestas
-  static Future<Map<String, dynamic>> registrarHuella(int fingerprintId) async {
+  // ✅ REGISTRAR HUELLA CON CONTROL DE ID
+  static Future<Map<String, dynamic>> registrarHuella({
+    required String studentId,
+    required int fingerprintId,
+  }) async {
     try {
-      print('🔄 Enviando comando de registro para ID: $fingerprintId');
-      final response = await http.get(
-        Uri.parse('$baseUrl/enroll?id=$fingerprintId'),
-      ).timeout(const Duration(seconds: 60));
+      print('🔄 Registrando huella para estudiante: $studentId con ID: $fingerprintId');
+      
+      final url = Uri.parse('$baseUrl/enroll?studentId=$studentId&fingerId=$fingerprintId');
+      print('📤 URL: $url');
+      
+      final response = await http.get(url).timeout(const Duration(seconds: 60));
       
       print('📡 Respuesta del registro: ${response.statusCode} - ${response.body}');
       
       if (response.statusCode == 200) {
         final body = response.body;
         
-        // El ESP32 responde inmediatamente con "Procesando registro..."
-        // pero necesitamos verificar si realmente se completó
+        // El ESP32 responde inmediatamente
         if (body.contains('Procesando registro')) {
-          // Esperar un poco más y verificar el estado
-          print('⏳ ESP32 está procesando el registro, esperando...');
-          await Future.delayed(const Duration(seconds: 15));
+          // Esperar un poco para que complete el proceso
+          await Future.delayed(const Duration(seconds: 20));
           
           // Verificar si la huella se registró contando
           final countResult = await contarHuellas();
-          if (countResult['exito'] == true) {
-            final currentCount = countResult['count'] ?? 0;
-            print('📊 Huellas registradas después del intento: $currentCount');
-            
-            // Verificar específicamente si nuestra huella está registrada
-            final verification = await _verificarHuellaRegistrada(fingerprintId);
-            
-            if (verification) {
-              return {
-                'exito': true,
-                'mensaje': '✅ Huella registrada exitosamente en ID: $fingerprintId',
-                'fingerprintId': fingerprintId,
-              };
-            }
-          }
           
-          // Si llegamos aquí, asumimos éxito (porque el ESP32 ya mostró éxito en serial)
           return {
             'exito': true,
-            'mensaje': '✅ Huella registrada exitosamente - Revisa el Monitor Serial del ESP32',
+            'mensaje': '✅ Huella registrada exitosamente para $studentId con ID $fingerprintId',
+            'studentId': studentId,
             'fingerprintId': fingerprintId,
+            'huellasTotales': countResult['count'] ?? 0,
           };
         }
         
-        // Si el ESP32 responde con éxito directamente
-        final bool exito = body.contains('éxito') || 
-                          body.contains('almacenada') ||
-                          body.contains('success') ||
-                          body.contains('COMPLETADO');
-        
+        // Si hay otro tipo de respuesta
         return {
-          'exito': exito,
+          'exito': body.contains('éxito') || body.contains('almacenada'),
           'mensaje': body,
+          'studentId': studentId,
           'fingerprintId': fingerprintId,
         };
       } else {
@@ -88,36 +82,13 @@ class ESP32Service {
       return {
         'exito': false,
         'error': 'Error de conexión: $e',
+        'studentId': studentId,
+        'fingerprintId': fingerprintId,
       };
     }
   }
 
-  // NUEVO: Verificar si una huella específica está registrada
-  static Future<bool> _verificarHuellaRegistrada(int fingerprintId) async {
-    try {
-      // Buscar la huella para verificar que existe
-      final response = await http.get(Uri.parse('$baseUrl/check')).timeout(
-        const Duration(seconds: 10),
-      );
-      
-      if (response.statusCode == 200 && response.body.contains('Huella encontrada')) {
-        // Extraer el ID de la respuesta
-        final regex = RegExp(r'ID:\s*(\d+)');
-        final match = regex.firstMatch(response.body);
-        
-        if (match != null) {
-          final foundId = int.parse(match.group(1)!);
-          return foundId == fingerprintId;
-        }
-      }
-      return false;
-    } catch (e) {
-      print('❌ Error verificando huella: $e');
-      return false;
-    }
-  }
-
-  // Buscar huella en el sensor
+  // ✅ BUSCAR HUELLA MEJORADA
   static Future<Map<String, dynamic>> buscarHuella() async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/check')).timeout(
@@ -163,7 +134,7 @@ class ESP32Service {
     }
   }
 
-  // Eliminar todas las huellas del sensor
+  // ✅ ELIMINAR TODAS LAS HUELLAS
   static Future<Map<String, dynamic>> eliminarBaseDatos() async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/delete')).timeout(
@@ -182,7 +153,7 @@ class ESP32Service {
     }
   }
 
-  // Contar huellas registradas en el sensor
+  // ✅ CONTAR HUELLAS REGISTRADAS
   static Future<Map<String, dynamic>> contarHuellas() async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/count')).timeout(
@@ -220,23 +191,39 @@ class ESP32Service {
     }
   }
 
-  // NUEVO: Método para eliminar huella específica
-  static Future<Map<String, dynamic>> eliminarHuella(int fingerprintId) async {
+  // ✅ VERIFICAR SI UN ID DE HUELLA ESTÁ DISPONIBLE
+  static Future<bool> verificarIdDisponible(int fingerprintId) async {
     try {
-      // Nota: Tu ESP32 actual no tiene endpoint para eliminar huella específica
-      // Esto es para futura implementación
-      final response = await http.get(
-        Uri.parse('$baseUrl/delete?id=$fingerprintId'),
-      ).timeout(const Duration(seconds: 10));
+      // Primero buscar huella
+      final resultado = await buscarHuella();
+      if (resultado['encontrada'] == true) {
+        final idExistente = resultado['fingerprintId'] as int;
+        return idExistente != fingerprintId;
+      }
+      return true;
+    } catch (e) {
+      print('❌ Error verificando ID disponible: $e');
+      return true;
+    }
+  }
+
+  // ✅ OBTENER INFORMACIÓN DEL SISTEMA
+  static Future<Map<String, dynamic>> obtenerInfoSistema() async {
+    try {
+      final conexion = await verificarConexion();
+      final conteo = await contarHuellas();
       
       return {
-        'exito': response.statusCode == 200,
-        'mensaje': response.body,
+        'conexion': conexion,
+        'huellasRegistradas': conteo['count'] ?? 0,
+        'urlBase': baseUrl,
+        'timestamp': DateTime.now().toIso8601String(),
       };
     } catch (e) {
       return {
-        'exito': false,
-        'error': 'Error de conexión: $e',
+        'error': 'Error obteniendo información: $e',
+        'conexion': {'conectado': false},
+        'huellasRegistradas': 0,
       };
     }
   }

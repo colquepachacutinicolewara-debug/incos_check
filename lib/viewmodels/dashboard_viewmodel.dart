@@ -294,8 +294,4 @@ class DashboardViewModel with ChangeNotifier {
   /// Obtener el rol del usuario
   String get userRole => _currentUser?['role'] ?? 'Usuario';
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
 }

@@ -294,7 +294,7 @@ class _HorarioDetalleScreenState extends State<HorarioDetalleScreen> {
                 textAlign: TextAlign.center,
               ),
             ),
-          )).toList(),
+          )),
         ],
       ),
     );
@@ -350,7 +350,7 @@ class _HorarioDetalleScreenState extends State<HorarioDetalleScreen> {
           // Celdas de materias por día
           ..._dias.map((dia) => Expanded(
             child: _buildCeldaMateria(context, dia, hora),
-          )).toList(),
+          )),
         ],
       ),
     );

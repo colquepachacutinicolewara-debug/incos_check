@@ -215,7 +215,7 @@ class _NivelesScreenContent extends StatelessWidget {
               onChanged: (value) {
                 viewModel.toggleActivarNivel(nivel, value);
               },
-              activeColor: color,
+              activeThumbColor: color,
             ),
             PopupMenuButton<String>(
               onSelected: (value) => _handleMenuAction(value, nivel, viewModel, context),

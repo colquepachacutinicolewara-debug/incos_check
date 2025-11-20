@@ -257,7 +257,7 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
         top: AppSpacing.medium,
       ),
       color: isDarkMode ? Colors.grey.shade800 : Colors.white,
-      child: Container(
+      child: SizedBox(
         height: 100,
         child: ListTile(
           leading: Container(
@@ -322,14 +322,14 @@ class _CarrerasScreenState extends State<CarrerasScreen> {
       color: isActiva
           ? Theme.of(context).cardColor
           : Colors.grey.shade300.withOpacity(0.5),
-      child: Container(
+      child: SizedBox(
         height: 80,
         child: ListTile(
           leading: CircleAvatar(
             backgroundColor: isActiva ? color : Colors.grey,
             child: Icon(carrera.icon, color: Colors.white),
           ),
-          title: Container(
+          title: SizedBox(
             height: 60,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,

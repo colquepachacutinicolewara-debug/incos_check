@@ -735,7 +735,7 @@ class _MateriasScreenState extends State<MateriasScreen> {
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  value: viewModel.carreraSeleccionadaForm,
+                  initialValue: viewModel.carreraSeleccionadaForm,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12),
@@ -758,7 +758,7 @@ class _MateriasScreenState extends State<MateriasScreen> {
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<int>(
-                  value: viewModel.anioSeleccionadoForm,
+                  initialValue: viewModel.anioSeleccionadoForm,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12),
@@ -787,7 +787,7 @@ class _MateriasScreenState extends State<MateriasScreen> {
                           ),
                           const SizedBox(height: 8),
                           DropdownButtonFormField<String>(
-                            value: viewModel.paraleloSeleccionadoForm,
+                            initialValue: viewModel.paraleloSeleccionadoForm,
                             decoration: InputDecoration(
                               border: OutlineInputBorder(),
                               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
@@ -817,7 +817,7 @@ class _MateriasScreenState extends State<MateriasScreen> {
                           ),
                           const SizedBox(height: 8),
                           DropdownButtonFormField<String>(
-                            value: viewModel.turnoSeleccionadoForm,
+                            initialValue: viewModel.turnoSeleccionadoForm,
                             decoration: InputDecoration(
                               border: OutlineInputBorder(),
                               contentPadding: const EdgeInsets.symmetric(horizontal: 12),

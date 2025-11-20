@@ -280,10 +280,10 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                       _buildInfoRow('Rol:', widget.usuario.rolDisplay, context),
                       _buildInfoRow('Estado:', widget.usuario.estaActivo ? 'Activo' : 'Inactivo', context),
                       _buildInfoRow('ID Usuario:', widget.usuario.id, context),
-                      if (widget.usuario.carnet != null && widget.usuario.carnet!.isNotEmpty)
-                        _buildInfoRow('Carnet:', widget.usuario.carnet!, context),
-                      if (widget.usuario.departamento != null && widget.usuario.departamento!.isNotEmpty)
-                        _buildInfoRow('Departamento:', widget.usuario.departamento!, context),
+                      if (widget.usuario.carnet.isNotEmpty)
+                        _buildInfoRow('Carnet:', widget.usuario.carnet, context),
+                      if (widget.usuario.departamento.isNotEmpty)
+                        _buildInfoRow('Departamento:', widget.usuario.departamento, context),
                     ],
                   ),
                 ),

@@ -142,7 +142,7 @@ class _CalcularNotasScreenContent extends StatelessWidget {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: 'bim2_2024',
+                    initialValue: 'bim2_2024',
                     items: [
                       'bim1_2024', 
                       'bim2_2024', 
@@ -204,7 +204,7 @@ class _CalcularNotasScreenContent extends StatelessWidget {
         children: [
           Expanded(
             child: DropdownButtonFormField<String>(
-              value: viewModel.filtroBimestre,
+              initialValue: viewModel.filtroBimestre,
               items: [
                 'Todos', 
                 'bim1_2024', 
@@ -238,7 +238,7 @@ class _CalcularNotasScreenContent extends StatelessWidget {
           const SizedBox(width: 16),
           Expanded(
             child: DropdownButtonFormField<String>(
-              value: viewModel.filtroEstado,
+              initialValue: viewModel.filtroEstado,
               items: [
                 'Todos', 
                 'PENDIENTE', 

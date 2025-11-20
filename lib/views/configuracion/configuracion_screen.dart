@@ -57,22 +57,22 @@ class _ConfiguracionView extends StatelessWidget {
     final configViewModel = context.read<ConfiguracionViewModel>();
     final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
     
-    final _currentPasswordController = TextEditingController();
-    final _newPasswordController = TextEditingController();
-    final _confirmPasswordController = TextEditingController();
+    final currentPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
 
-    String _nivelFortaleza = 'Débil';
-    Color _colorFortaleza = Colors.red;
-    List<String> _recomendaciones = [];
+    String nivelFortaleza = 'Débil';
+    Color colorFortaleza = Colors.red;
+    List<String> recomendaciones = [];
 
-    void _actualizarFortaleza() {
+    void actualizarFortaleza() {
       final validacion = configViewModel.validarFortalezaPassword(
-        _newPasswordController.text
+        newPasswordController.text
       );
       
-      _nivelFortaleza = validacion['fortaleza'];
-      _colorFortaleza = validacion['colorFortaleza'];
-      _recomendaciones = List<String>.from(validacion['recomendaciones']);
+      nivelFortaleza = validacion['fortaleza'];
+      colorFortaleza = validacion['colorFortaleza'];
+      recomendaciones = List<String>.from(validacion['recomendaciones']);
     }
 
     showDialog(
@@ -92,7 +92,7 @@ class _ConfiguracionView extends StatelessWidget {
               children: [
                 // Contraseña actual
                 TextField(
-                  controller: _currentPasswordController,
+                  controller: currentPasswordController,
                   decoration: InputDecoration(
                     labelText: 'Contraseña actual',
                     labelStyle: TextStyle(color: _getTextColor(context)),
@@ -108,7 +108,7 @@ class _ConfiguracionView extends StatelessWidget {
 
                 // Nueva contraseña
                 TextField(
-                  controller: _newPasswordController,
+                  controller: newPasswordController,
                   decoration: InputDecoration(
                     labelText: 'Nueva contraseña',
                     labelStyle: TextStyle(color: _getTextColor(context)),
@@ -118,14 +118,14 @@ class _ConfiguracionView extends StatelessWidget {
                   obscureText: true,
                   onChanged: (value) {
                     setState(() {
-                      _actualizarFortaleza();
+                      actualizarFortaleza();
                     });
                   },
                 ),
                 const SizedBox(height: AppSpacing.small),
 
                 // Indicador de fortaleza
-                if (_newPasswordController.text.isNotEmpty) ...[
+                if (newPasswordController.text.isNotEmpty) ...[
                   Row(
                     children: [
                       Text(
@@ -136,29 +136,29 @@ class _ConfiguracionView extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        _nivelFortaleza,
+                        nivelFortaleza,
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: _colorFortaleza,
+                          color: colorFortaleza,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   LinearProgressIndicator(
-                    value: _newPasswordController.text.isEmpty 
+                    value: newPasswordController.text.isEmpty 
                         ? 0 
-                        : _newPasswordController.text.length / 12,
+                        : newPasswordController.text.length / 12,
                     backgroundColor: Colors.grey[300],
-                    valueColor: AlwaysStoppedAnimation<Color>(_colorFortaleza),
+                    valueColor: AlwaysStoppedAnimation<Color>(colorFortaleza),
                   ),
                   const SizedBox(height: AppSpacing.small),
                 ],
 
                 // Confirmar contraseña
                 TextField(
-                  controller: _confirmPasswordController,
+                  controller: confirmPasswordController,
                   decoration: InputDecoration(
                     labelText: 'Confirmar nueva contraseña',
                     labelStyle: TextStyle(color: _getTextColor(context)),
@@ -173,7 +173,7 @@ class _ConfiguracionView extends StatelessWidget {
                 const SizedBox(height: AppSpacing.small),
 
                 // Recomendaciones
-                if (_recomendaciones.isNotEmpty) ...[
+                if (recomendaciones.isNotEmpty) ...[
                   Container(
                     padding: const EdgeInsets.all(AppSpacing.small),
                     decoration: BoxDecoration(
@@ -193,9 +193,9 @@ class _ConfiguracionView extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        ..._recomendaciones.map((recomendacion) => 
+                        ...recomendaciones.map((recomendacion) => 
                           _buildRecomendacionItem(recomendacion, context)
-                        ).toList(),
+                        ),
                       ],
                     ),
                   ),
@@ -269,9 +269,9 @@ class _ConfiguracionView extends StatelessWidget {
             ),
             ElevatedButton(
               onPressed: configViewModel.guardando ? null : () async {
-                final currentPassword = _currentPasswordController.text;
-                final newPassword = _newPasswordController.text;
-                final confirmPassword = _confirmPasswordController.text;
+                final currentPassword = currentPasswordController.text;
+                final newPassword = newPasswordController.text;
+                final confirmPassword = confirmPasswordController.text;
 
                 // Limpiar error anterior
                 configViewModel.limpiarErrorPassword();
@@ -326,9 +326,9 @@ class _ConfiguracionView extends StatelessWidget {
                   if (resultado['success'] == true) {
                     print('✅ Contraseña cambiada exitosamente desde diálogo');
                     
-                    _currentPasswordController.clear();
-                    _newPasswordController.clear();
-                    _confirmPasswordController.clear();
+                    currentPasswordController.clear();
+                    newPasswordController.clear();
+                    confirmPasswordController.clear();
 
                     Navigator.pop(context);
                     Helpers.showSnackBar(
@@ -555,7 +555,7 @@ class _ConfiguracionView extends StatelessWidget {
                   groupValue: viewModel.configuracion.selectedTheme,
                   onChanged: (value) async {
                     await viewModel.updateTheme(value!);
-                    await themeService.updateTheme(value!);
+                    await themeService.updateTheme(value);
                     Navigator.pop(context);
                     Helpers.showSnackBar(
                       context,
@@ -1372,7 +1372,7 @@ class _ConfiguracionView extends StatelessWidget {
           ),
           value: value,
           onChanged: onChanged,
-          activeColor: AppColors.primary,
+          activeThumbColor: AppColors.primary,
         ),
         Divider(height: 1, color: _getSecondaryTextColor(context)),
       ],

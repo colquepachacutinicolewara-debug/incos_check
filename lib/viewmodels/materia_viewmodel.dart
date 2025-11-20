@@ -8,7 +8,7 @@ class MateriaViewModel extends ChangeNotifier {
   final DatabaseHelper _databaseHelper = DatabaseHelper.instance; 
   
   List<Materia> _materias = [];
-  List<Materia> _materiasFiltradas = [];
+  final List<Materia> _materiasFiltradas = [];
   final TextEditingController _searchController = TextEditingController();
 
   // Filtros para gestión de cursos
@@ -39,9 +39,9 @@ class MateriaViewModel extends ChangeNotifier {
   int get anioSeleccionado => _anioSeleccionado;
 
   // Opciones dinámicas
-  List<String> _carrerasDisponibles = ['Sistemas Informáticos'];
-  List<String> _paralelosDisponibles = ['A', 'B'];
-  List<String> _turnosDisponibles = ['Mañana', 'Noche'];
+  final List<String> _carrerasDisponibles = ['Sistemas Informáticos'];
+  final List<String> _paralelosDisponibles = ['A', 'B'];
+  final List<String> _turnosDisponibles = ['Mañana', 'Noche'];
 
   // Getters
   List<Materia> get materias => _materias;

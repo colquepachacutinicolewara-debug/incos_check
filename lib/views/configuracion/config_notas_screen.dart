@@ -211,7 +211,7 @@ class _ConfigNotasScreenContent extends StatelessWidget {
             
             // Puntaje máximo
             DropdownButtonFormField<double>(
-              value: config.puntajeMaximo,
+              initialValue: config.puntajeMaximo,
               items: [5.0, 10.0, 20.0, 100.0].map((puntaje) {
                 return DropdownMenuItem(
                   value: puntaje,
@@ -233,7 +233,7 @@ class _ConfigNotasScreenContent extends StatelessWidget {
             
             // Tipo de fórmula
             DropdownButtonFormField<String>(
-              value: config.formulaTipo,
+              initialValue: config.formulaTipo,
               items: ['BIMESTRAL', 'TRIMESTRAL', 'SEMESTRAL', 'ANUAL'].map((tipo) {
                 return DropdownMenuItem(
                   value: tipo,

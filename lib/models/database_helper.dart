@@ -1,10 +1,11 @@
-// models/database_helper.dart - VERSIÓN 7 COMPLETA CON SISTEMA DE HUELLAS ESP32
+// models/database_helper.dart - VERSIÓN 100% COMPLETA ACTUALIZADA
 import 'dart:async';
-import 'dart:convert';
+//import 'dart:io';
 import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_live/sqflite_live.dart';
 import 'package:path/path.dart';
+//import 'package:path_provider/path_provider.dart';
 
 // 🌟 IMPORTAR LA FUNCIÓN databaseExists EXPLÍCITAMENTE
 import 'package:sqflite/sqflite.dart' as sqflite;
@@ -36,7 +37,7 @@ class DatabaseHelper {
         print('📁 Base de datos existente encontrada, preservando datos...');
         _db = await openDatabase(
           path,
-          version: 7, // ✅ INCREMENTADO A VERSIÓN 7
+          version: 5, // ✅ INCREMENTADO A VERSIÓN 5 PARA NUEVAS FUNCIONALIDADES
           onConfigure: (db) async {
             await db.execute('PRAGMA foreign_keys = ON');
           },
@@ -89,7 +90,7 @@ class DatabaseHelper {
 
     final db = await openDatabase(
       path,
-      version: 7, // ✅ INCREMENTADO A VERSIÓN 7
+      version: 5, // ✅ INCREMENTADO A VERSIÓN 5
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
       },
@@ -166,55 +167,6 @@ class DatabaseHelper {
         print('✅ Migración a versión 5 completada - Tablas REPORTES Y RESPALDOS creadas');
       } catch (e) {
         print('⚠️ Error en upgrade a versión 5: $e');
-      }
-    }
-
-    // 🆕 NUEVA MIGRACIÓN PARA VERSIÓN 6 - MEJORAS DE SISTEMA
-    if (oldVersion < 6) {
-      try {
-        // Crear tabla estudiante_usuario si no existe
-        await db.execute('''
-          CREATE TABLE IF NOT EXISTS estudiante_usuario(
-            id TEXT PRIMARY KEY,
-            estudiante_id TEXT NOT NULL UNIQUE,
-            usuario_id TEXT NOT NULL UNIQUE,
-            fecha_vinculacion TEXT NOT NULL,
-            FOREIGN KEY(estudiante_id) REFERENCES estudiantes(id) ON UPDATE CASCADE ON DELETE CASCADE,
-            FOREIGN KEY(usuario_id) REFERENCES usuarios(id) ON UPDATE CASCADE ON DELETE CASCADE
-          );
-        ''');
-        
-        // Actualizar configuración de notas
-        await db.update(
-          'config_notas_asistencia',
-          {
-            'nombre': 'Configuración Notas Asistencia - 10 Puntos Directos',
-            'descripcion': 'Cálculo directo de nota sobre 10 puntos - 4 bimestres',
-            'formula_tipo': 'DIRECTO',
-            'parametros': '{"total_bimestres": 4, "considera_puntualidad": false}',
-            'fecha_actualizacion': DateTime.now().toIso8601String()
-          },
-          where: 'id = ?',
-          whereArgs: ['config_asistencia_default']
-        );
-        
-        print('✅ Migración a versión 6 completada - Sistema mejorado');
-      } catch (e) {
-        print('⚠️ Error en upgrade a versión 6: $e');
-      }
-    }
-
-    // 🆕 NUEVA MIGRACIÓN PARA VERSIÓN 7 - SISTEMA DE HUELLAS ESP32
-    if (oldVersion < 7) {
-      try {
-        // Agregar campo dispositivo_registro a huellas_biometricas
-        await db.execute('''
-          ALTER TABLE huellas_biometricas ADD COLUMN dispositivo_registro TEXT DEFAULT 'MOVIL'
-        ''');
-        
-        print('✅ Migración a versión 7 completada - Sistema de huellas ESP32');
-      } catch (e) {
-        print('⚠️ Error en upgrade a versión 7 (posiblemente campo ya existe): $e');
       }
     }
   }
@@ -318,18 +270,6 @@ class DatabaseHelper {
         FOREIGN KEY(turno_id) REFERENCES turnos(id) ON UPDATE CASCADE ON DELETE SET NULL,
         FOREIGN KEY(nivel_id) REFERENCES niveles(id) ON UPDATE CASCADE ON DELETE SET NULL,
         FOREIGN KEY(paralelo_id) REFERENCES paralelos(id) ON UPDATE CASCADE ON DELETE SET NULL
-      );
-    ''');
-
-    // 🆕 TABLA PARA RELACIÓN ESTUDIANTE-USUARIO
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS estudiante_usuario(
-        id TEXT PRIMARY KEY,
-        estudiante_id TEXT NOT NULL UNIQUE,
-        usuario_id TEXT NOT NULL UNIQUE,
-        fecha_vinculacion TEXT NOT NULL,
-        FOREIGN KEY(estudiante_id) REFERENCES estudiantes(id) ON UPDATE CASCADE ON DELETE CASCADE,
-        FOREIGN KEY(usuario_id) REFERENCES usuarios(id) ON UPDATE CASCADE ON DELETE CASCADE
       );
     ''');
 
@@ -462,7 +402,7 @@ class DatabaseHelper {
         nombre TEXT NOT NULL,
         descripcion TEXT,
         puntaje_maximo REAL DEFAULT 10.0,
-        formula_tipo TEXT DEFAULT 'DIRECTO',
+        formula_tipo TEXT DEFAULT 'BIMESTRAL',
         parametros TEXT,
         activo INTEGER DEFAULT 1,
         fecha_creacion TEXT NOT NULL,
@@ -523,7 +463,7 @@ class DatabaseHelper {
       );
     ''');
 
-    // ✅ TABLA HUELLAS_BIOMETRICAS MEJORADA CON ESP32
+    // ✅ TABLA HUELLAS_BIOMETRICAS CORREGIDA
     await db.execute('''
       CREATE TABLE IF NOT EXISTS huellas_biometricas(
         id TEXT PRIMARY KEY,
@@ -534,7 +474,6 @@ class DatabaseHelper {
         registrada INTEGER DEFAULT 0,
         template_data TEXT,
         fecha_registro TEXT NOT NULL,
-        dispositivo_registro TEXT DEFAULT 'MOVIL',
         UNIQUE(estudiante_id, numero_dedo),
         FOREIGN KEY(estudiante_id) REFERENCES estudiantes(id) ON UPDATE CASCADE ON DELETE CASCADE
       );
@@ -800,17 +739,6 @@ class DatabaseHelper {
       ON estudiantes(carrera_id);
     ''');
 
-    // 🆕 ÍNDICE PARA ESTUDIANTE_USUARIO
-    await db.execute('''
-      CREATE INDEX IF NOT EXISTS idx_estudiante_usuario_usuario 
-      ON estudiante_usuario(usuario_id);
-    ''');
-    
-    await db.execute('''
-      CREATE INDEX IF NOT EXISTS idx_estudiante_usuario_estudiante 
-      ON estudiante_usuario(estudiante_id);
-    ''');
-
     await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_asistencias_estudiante 
       ON asistencias(estudiante_id);
@@ -1026,103 +954,39 @@ class DatabaseHelper {
       print('✅ Materias de ejemplo insertadas');
     }
 
-    // ✅ Insertar usuarios de prueba CON ROLES ESPECÍFICOS
+    // ✅ Insertar usuario admin
     final usuariosCount = await db.rawQuery('SELECT COUNT(*) AS c FROM usuarios');
     if ((usuariosCount.first['c'] as int?) == 0) {
       final now = DateTime.now().toIso8601String();
       
-      // 🌟 ADMINISTRADOR
       await db.insert('usuarios', {
         'id': 'admin_001',
         'username': 'admin',
         'email': 'admin@incos.edu.bo',
-        'nombre': 'Administrador Sistema',
+        'nombre': 'Administrador Principal',
         'password': 'admin123',
-        'role': 'administrador',
+        'role': 'Administrador',
         'carnet': 'ADMIN001',
-        'departamento': 'Sistemas',
+        'departamento': 'Dirección',
         'esta_activo': 1,
         'fecha_registro': now,
         'updated_at': now
       });
       
-      // 🌟 SECRETARÍA
-      await db.insert('usuarios', {
-        'id': 'secretaria_001',
-        'username': 'secretaria',
-        'email': 'secretaria@incos.edu.bo',
-        'nombre': 'María López - Secretaría',
-        'password': 'secretaria123',
-        'role': 'secretaria',
-        'carnet': 'SEC001',
-        'departamento': 'Secretaría Académica',
-        'esta_activo': 1,
-        'fecha_registro': now,
-        'updated_at': now
-      });
-      
-      // 🌟 DIRECTOR ACADÉMICO
-      await db.insert('usuarios', {
-        'id': 'director_001',
-        'username': 'director',
-        'email': 'director@incos.edu.bo',
-        'nombre': 'Dr. Carlos Rodríguez - Director',
-        'password': 'director123',
-        'role': 'director',
-        'carnet': 'DIR001',
-        'departamento': 'Dirección Académica',
-        'esta_activo': 1,
-        'fecha_registro': now,
-        'updated_at': now
-      });
-      
-      // 🌟 JEFE DE CARRERA
-      await db.insert('usuarios', {
-        'id': 'jefe_001',
-        'username': 'jefe',
-        'email': 'jefe.sistemas@incos.edu.bo',
-        'nombre': 'Ing. Ana Martínez - Jefe Carrera',
-        'password': 'jefe123',
-        'role': 'jefe_carrera',
-        'carnet': 'JEF001',
-        'departamento': 'Sistemas Informáticos',
-        'esta_activo': 1,
-        'fecha_registro': now,
-        'updated_at': now
-      });
-      
-      // 🌟 DOCENTE
       await db.insert('usuarios', {
         'id': 'docente_001',
         'username': 'profesor',
         'email': 'profesor@incos.edu.bo',
-        'nombre': 'Lic. Roberto Sánchez - Docente',
+        'nombre': 'Profesor Ejemplo',
         'password': 'profesor123',
-        'role': 'docente',
+        'role': 'Docente',
         'carnet': 'DOC001',
         'departamento': 'Académico',
         'esta_activo': 1,
         'fecha_registro': now,
         'updated_at': now
       });
-      
-      // 🌟 ESTUDIANTE
-      await db.insert('usuarios', {
-        'id': 'estudiante_001',
-        'username': 'estudiante',
-        'email': 'estudiante@incos.edu.bo',
-        'nombre': 'Juan García López',
-        'password': 'estudiante123',
-        'role': 'estudiante',
-        'carnet': '2023001',
-        'departamento': 'Sistemas Informáticos',
-        'esta_activo': 1,
-        'fecha_registro': now,
-        'updated_at': now
-      });
-      
-      print('✅ Usuarios con ROLES ESPECÍFICOS insertados');
-      print('💡 NOTA: Solo los ESTUDIANTES pueden registrar huellas biométricas');
+      print('✅ Usuarios insertados');
     }
 
     // Insertar docente de ejemplo
@@ -1131,13 +995,13 @@ class DatabaseHelper {
       final now = DateTime.now().toIso8601String();
       await db.insert('docentes', {
         'id': 'docente_001',
-        'apellido_paterno': 'Sánchez',
-        'apellido_materno': 'Gómez',
-        'nombres': 'Roberto Carlos',
+        'apellido_paterno': 'Pérez',
+        'apellido_materno': 'García',
+        'nombres': 'Carlos Alberto',
         'ci': '1234567',
         'carrera': 'Informática',
         'turno': 'MAÑANA',
-        'email': 'roberto.sanchez@incos.edu.bo',
+        'email': 'carlos.perez@incos.edu.bo',
         'telefono': '77788899',
         'estado': 'ACTIVO',
         'fecha_creacion': now,
@@ -1145,58 +1009,174 @@ class DatabaseHelper {
       });
       print('✅ Docente de ejemplo insertado');
     }
+// =================================================================
+// 🆕 MÉTODOS COMPLETOS PARA DOCENTES - AGREGAR EN DatabaseHelper
+// =================================================================
 
-    // Insertar estudiante de ejemplo
-    final estudiantesCount = await db.rawQuery('SELECT COUNT(*) AS c FROM estudiantes');
-    if ((estudiantesCount.first['c'] as int?) == 0) {
-      final now = DateTime.now().toIso8601String();
-      await db.insert('estudiantes', {
-        'id': 'est_001',
-        'nombres': 'Juan',
-        'apellido_paterno': 'García',
-        'apellido_materno': 'López',
-        'ci': '9876543',
-        'fecha_registro': now,
-        'huellas_registradas': 0,
-        'carrera_id': 'info',
-        'turno_id': 'turno_manana',
-        'nivel_id': 'nivel_secundaria',
-        'paralelo_id': 'paralelo_b',
-        'fecha_creacion': now,
-        'fecha_actualizacion': now,
-        'activo': 1
-      });
-      print('✅ Estudiante de ejemplo insertado');
-    }
+// ✅ MÉTODO PARA OBTENER TODOS LOS DOCENTES
+Future<List<Map<String, Object?>>> getDocentes() async {
+  final db = await database;
+  return await db.query(
+    'docentes',
+    orderBy: 'apellido_paterno, apellido_materno, nombres'
+  );
+}
 
-    // 🌟 VINCULAR ESTUDIANTE CON USUARIO
-    final estudianteUsuarioCount = await db.rawQuery('SELECT COUNT(*) AS c FROM estudiante_usuario');
-    if ((estudianteUsuarioCount.first['c'] as int?) == 0) {
-      await db.insert('estudiante_usuario', {
-        'id': 'eu_001',
-        'estudiante_id': 'est_001',
-        'usuario_id': 'estudiante_001',
-        'fecha_vinculacion': DateTime.now().toIso8601String()
-      });
-      print('✅ Estudiante vinculado con usuario');
-    }
+// ✅ MÉTODO PARA OBTENER DOCENTE POR ID
+Future<Map<String, Object?>?> getDocenteById(String id) async {
+  final db = await database;
+  final results = await db.query(
+    'docentes',
+    where: 'id = ?',
+    whereArgs: [id]
+  );
+  return results.isNotEmpty ? results.first : null;
+}
 
-    // 🆕 Insertar CONFIGURACIÓN DE NOTAS DE ASISTENCIA por defecto - CORREGIDA
+
+
+// ✅ MÉTODO PARA ELIMINAR DOCENTE
+Future<int> deleteDocente(String id) async {
+  final db = await database;
+  return await db.delete(
+    'docentes',
+    where: 'id = ?',
+    whereArgs: [id]
+  );
+}
+
+// ✅ MÉTODO PARA VERIFICAR SI EXISTE DOCENTE CON CI
+Future<bool> existeDocenteConCi(String ci, {String? excludeId}) async {
+  final db = await database;
+  
+  String whereClause = 'ci = ?';
+  List<Object?> whereArgs = [ci];
+  
+  if (excludeId != null) {
+    whereClause += ' AND id != ?';
+    whereArgs.add(excludeId);
+  }
+  
+  final results = await db.query(
+    'docentes',
+    where: whereClause,
+    whereArgs: whereArgs
+  );
+  
+  return results.isNotEmpty;
+}
+
+// ✅ MÉTODO PARA OBTENER CONTEO DE DOCENTES
+Future<int> getDocentesCount() async {
+  final db = await database;
+  final results = await db.rawQuery('SELECT COUNT(*) as count FROM docentes');
+  return (results.first['count'] as int?) ?? 0;
+}
+
+// ✅ MÉTODO PARA OBTENER DOCENTES POR CARRERA
+Future<List<Map<String, Object?>>> getDocentesPorCarrera(String carrera) async {
+  final db = await database;
+  return await db.query(
+    'docentes',
+    where: 'carrera = ?',
+    whereArgs: [carrera],
+    orderBy: 'apellido_paterno, apellido_materno, nombres'
+  );
+}
+
+// ✅ MÉTODO PARA OBTENER DOCENTES POR TURNO
+Future<List<Map<String, Object?>>> getDocentesPorTurno(String turno) async {
+  final db = await database;
+  return await db.query(
+    'docentes',
+    where: 'turno = ?',
+    whereArgs: [turno],
+    orderBy: 'apellido_paterno, apellido_materno, nombres'
+  );
+}
+
+// ✅ MÉTODO PARA OBTENER DOCENTES POR CARRERA Y TURNO
+Future<List<Map<String, Object?>>> getDocentesPorCarreraYTurno(String carrera, String turno) async {
+  final db = await database;
+  return await db.query(
+    'docentes',
+    where: 'carrera = ? AND turno = ?',
+    whereArgs: [carrera, turno],
+    orderBy: 'apellido_paterno, apellido_materno, nombres'
+  );
+}
+
+// ✅ MÉTODO PARA BUSCAR DOCENTES POR NOMBRE O CI
+Future<List<Map<String, Object?>>> buscarDocentes(String query) async {
+  final db = await database;
+  final searchTerm = '%$query%';
+  
+  return await db.rawQuery('''
+    SELECT * FROM docentes 
+    WHERE nombres LIKE ? 
+       OR apellido_paterno LIKE ? 
+       OR apellido_materno LIKE ?
+       OR ci LIKE ?
+    ORDER BY apellido_paterno, apellido_materno, nombres
+  ''', [searchTerm, searchTerm, searchTerm, searchTerm]);
+}
+
+// ✅ MÉTODO PARA OBTENER ESTADÍSTICAS DE DOCENTES
+Future<Map<String, dynamic>> getEstadisticasDocentes() async {
+  final db = await database;
+  
+  final total = await db.rawQuery('SELECT COUNT(*) as count FROM docentes');
+  final activos = await db.rawQuery('SELECT COUNT(*) as count FROM docentes WHERE estado = "ACTIVO"');
+  final porCarrera = await db.rawQuery('''
+    SELECT carrera, COUNT(*) as count 
+    FROM docentes 
+    GROUP BY carrera 
+    ORDER BY count DESC
+  ''');
+  final porTurno = await db.rawQuery('''
+    SELECT turno, COUNT(*) as count 
+    FROM docentes 
+    GROUP BY turno 
+    ORDER BY count DESC
+  ''');
+  
+  return {
+    'total': (total.first['count'] as int?) ?? 0,
+    'activos': (activos.first['count'] as int?) ?? 0,
+    'inactivos': ((total.first['count'] as int?) ?? 0) - ((activos.first['count'] as int?) ?? 0),
+    'por_carrera': porCarrera,
+    'por_turno': porTurno,
+  };
+}
+
+// ✅ MÉTODO PARA OBTENER CARRERAS ÚNICAS DE DOCENTES
+Future<List<String>> getCarrerasDocentes() async {
+  final db = await database;
+  final results = await db.rawQuery('''
+    SELECT DISTINCT carrera 
+    FROM docentes 
+    WHERE carrera IS NOT NULL AND carrera != ''
+    ORDER BY carrera
+  ''');
+  
+  return results.map((row) => row['carrera'] as String).toList();
+}
+    // 🆕 Insertar CONFIGURACIÓN DE NOTAS DE ASISTENCIA por defecto
     final configNotasCount = await db.rawQuery('SELECT COUNT(*) AS c FROM config_notas_asistencia');
     if ((configNotasCount.first['c'] as int?) == 0) {
       final now = DateTime.now().toIso8601String();
       await db.insert('config_notas_asistencia', {
         'id': 'config_asistencia_default',
-        'nombre': 'Configuración Notas Asistencia - 10 Puntos Directos',
-        'descripcion': 'Cálculo directo de nota sobre 10 puntos - 4 bimestres',
+        'nombre': 'Configuración Notas Asistencia Tercer Año B',
+        'descripcion': 'Cálculo de nota de asistencia bimestral sobre 10 puntos',
         'puntaje_maximo': 10.0,
-        'formula_tipo': 'DIRECTO',
-        'parametros': '{"total_bimestres": 4, "considera_puntualidad": false}',
+        'formula_tipo': 'BIMESTRAL',
+        'parametros': '{"asistencia_minima": 80, "tolerancia_minutos": 15, "considera_puntualidad": true}',
         'activo': 1,
         'fecha_creacion': now,
         'fecha_actualizacion': now
       });
-      print('✅ Configuración notas asistencia CORREGIDA insertada');
+      print('✅ Configuración notas asistencia insertada');
     }
 
     // 🆕 Insertar relación docente-materia de ejemplo
@@ -1257,46 +1237,6 @@ class DatabaseHelper {
       });
       print('✅ Periodo académico insertado');
     }
-
-    // 🌟 INSERTAR BIMESTRES PARA EL AÑO
-    final bimestresCount = await db.rawQuery('SELECT COUNT(*) AS c FROM bimestres');
-    if ((bimestresCount.first['c'] as int?) == 0) {
-      final now = DateTime.now().toIso8601String();
-      
-      await db.insert('bimestres', {
-        'id': 'bimestre_1_2024',
-        'periodo_id': 'periodo_2024',
-        'nombre': 'Primer Bimestre',
-        'fechas': '{"inicio": "2024-01-01", "fin": "2024-03-31"}',
-        'datos_estudiantes': '{}'
-      });
-      
-      await db.insert('bimestres', {
-        'id': 'bimestre_2_2024',
-        'periodo_id': 'periodo_2024',
-        'nombre': 'Segundo Bimestre',
-        'fechas': '{"inicio": "2024-04-01", "fin": "2024-06-30"}',
-        'datos_estudiantes': '{}'
-      });
-      
-      await db.insert('bimestres', {
-        'id': 'bimestre_3_2024',
-        'periodo_id': 'periodo_2024',
-        'nombre': 'Tercer Bimestre',
-        'fechas': '{"inicio": "2024-07-01", "fin": "2024-09-30"}',
-        'datos_estudiantes': '{}'
-      });
-      
-      await db.insert('bimestres', {
-        'id': 'bimestre_4_2024',
-        'periodo_id': 'periodo_2024',
-        'nombre': 'Cuarto Bimestre',
-        'fechas': '{"inicio": "2024-10-01", "fin": "2024-12-31"}',
-        'datos_estudiantes': '{}'
-      });
-      
-      print('✅ 4 BIMESTRES insertados para el año 2024');
-    }
     
     print('🎉 Seed completado exitosamente');
   }
@@ -1333,7 +1273,7 @@ class DatabaseHelper {
           nombre TEXT NOT NULL,
           descripcion TEXT,
           puntaje_maximo REAL DEFAULT 10.0,
-          formula_tipo TEXT DEFAULT 'DIRECTO',
+          formula_tipo TEXT DEFAULT 'BIMESTRAL',
           parametros TEXT,
           activo INTEGER DEFAULT 1,
           fecha_creacion TEXT NOT NULL,
@@ -1409,376 +1349,7 @@ class DatabaseHelper {
   }
 
   // =================================================================
-  // 🆕 MÉTODOS ESPECÍFICOS PARA EL SISTEMA DE ASISTENCIA - CORREGIDOS
-  // =================================================================
-
-  // 🌟 OBTENER USUARIO POR USERNAME
-  Future<Map<String, Object?>?> obtenerUsuarioPorUsername(String username) async {
-    final db = await database;
-    final results = await db.query(
-      'usuarios',
-      where: 'username = ? AND esta_activo = 1',
-      whereArgs: [username],
-    );
-    return results.isNotEmpty ? results.first : null;
-  }
-
-  // 🌟 OBTENER ESTUDIANTE POR USUARIO_ID
-  Future<Map<String, Object?>?> obtenerEstudiantePorUsuarioId(String usuarioId) async {
-    final db = await database;
-    final results = await db.rawQuery('''
-      SELECT e.* 
-      FROM estudiantes e
-      JOIN estudiante_usuario eu ON e.id = eu.estudiante_id
-      WHERE eu.usuario_id = ? AND e.activo = 1
-    ''', [usuarioId]);
-    
-    return results.isNotEmpty ? results.first : null;
-  }
-
-  // 🌟 OBTENER MATERIAS POR DOCENTE
-  Future<List<Map<String, Object?>>> obtenerMateriasPorDocente(String docenteId) async {
-    final db = await database;
-    return await db.rawQuery('''
-      SELECT m.*, dm.paralelo_id, p.nombre as paralelo_nombre
-      FROM docente_materia dm
-      JOIN materias m ON dm.materia_id = m.id
-      LEFT JOIN paralelos p ON dm.paralelo_id = p.id
-      WHERE dm.docente_id = ? AND dm.activo = 1 AND m.activo = 1
-      ORDER BY m.nombre
-    ''', [docenteId]);
-  }
-
-  // 🌟 OBTENER ESTUDIANTES POR MATERIA Y PARALELO
-  Future<List<Map<String, Object?>>> obtenerEstudiantesPorMateriaParalelo(String materiaId, String paraleloId) async {
-    final db = await database;
-    return await db.rawQuery('''
-      SELECT e.*, eu.usuario_id
-      FROM estudiantes e
-      JOIN estudiante_usuario eu ON e.id = eu.estudiante_id
-      WHERE e.paralelo_id = ? AND e.activo = 1
-      ORDER BY e.apellido_paterno, e.apellido_materno, e.nombres
-    ''', [paraleloId]);
-  }
-
-  // 🌟 REGISTRAR ASISTENCIA CON HUELLA
-  Future<int> registrarAsistenciaBiometrica({
-    required String estudianteId,
-    required String materiaId,
-    required String fecha,
-    required int periodoNumero,
-    required String usuarioRegistro,
-    int minutosRetraso = 0,
-    String observaciones = '',
-  }) async {
-    final db = await database;
-    
-    // Verificar si ya existe asistencia para evitar duplicados
-    final existe = await existeAsistenciaRegistrada(estudianteId, materiaId, fecha, periodoNumero);
-    if (existe) {
-      throw Exception('Ya existe asistencia registrada para esta clase');
-    }
-    
-    return await insertarAsistenciaDiaria({
-      'id': 'asist_${DateTime.now().millisecondsSinceEpoch}',
-      'estudiante_id': estudianteId,
-      'materia_id': materiaId,
-      'fecha': fecha,
-      'periodo_numero': periodoNumero,
-      'estado': minutosRetraso > 0 ? 'T' : 'A', // T = Tarde, A = Asistió
-      'minutos_retraso': minutosRetraso,
-      'observaciones': observaciones.isNotEmpty ? observaciones : 'Registro biométrico',
-      'fecha_creacion': DateTime.now().toIso8601String(),
-      'usuario_registro': usuarioRegistro,
-    });
-  }
-
-  // 🌟 CALCULAR NOTA DE ASISTENCIA SIMPLE (10 PUNTOS DIRECTOS) - CORREGIDO
-  Future<double> calcularNotaAsistenciaSimple(
-    String estudianteId, String materiaId, String bimestreId) async {
-    final db = await database;
-    
-    // Primero obtener las fechas del bimestre
-    final bimestreData = await db.rawQuery(
-      'SELECT fechas FROM bimestres WHERE id = ?',
-      [bimestreId]
-    );
-    
-    if (bimestreData.isEmpty) {
-      return 0.0;
-    }
-    
-    final fechasJson = bimestreData.first['fechas'] as String?;
-    if (fechasJson == null) {
-      return 0.0;
-    }
-    
-    // Parsear las fechas manualmente
-    final fechas = _parsearFechasBimestre(fechasJson);
-    final fechaInicio = fechas['inicio'];
-    final fechaFin = fechas['fin'];
-    
-    if (fechaInicio == null || fechaFin == null) {
-      return 0.0;
-    }
-    
-    final asistenciaData = await db.rawQuery('''
-      SELECT 
-        COUNT(*) as total_clases,
-        SUM(CASE WHEN estado IN ('A', 'T') THEN 1 ELSE 0 END) as clases_asistidas
-      FROM asistencia_diaria
-      WHERE estudiante_id = ? 
-        AND materia_id = ?
-        AND fecha BETWEEN ? AND ?
-    ''', [estudianteId, materiaId, fechaInicio, fechaFin]);
-    
-    if (asistenciaData.isEmpty) {
-      return 0.0;
-    }
-    
-    final data = asistenciaData.first;
-    final totalClases = data['total_clases'] as int? ?? 0;
-    final clasesAsistidas = data['clases_asistidas'] as int? ?? 0;
-    
-    if (totalClases == 0) {
-      return 0.0;
-    }
-    
-    // Cálculo directo: (clases_asistidas / total_clases) * 10
-    final porcentaje = (clasesAsistidas / totalClases) * 100;
-    final nota = (porcentaje / 100) * 10.0;
-    
-    return double.parse(nota.toStringAsFixed(2));
-  }
-
-  // 🌟 MÉTODO AUXILIAR MEJORADO PARA PARSEAR FECHAS DEL BIMESTRE
-  Map<String, String?> _parsearFechasBimestre(String fechasJson) {
-    try {
-      // Intentar parsear como JSON primero
-      final parsed = jsonDecode(fechasJson) as Map<String, dynamic>;
-      return {
-        'inicio': parsed['inicio']?.toString(),
-        'fin': parsed['fin']?.toString(),
-      };
-    } catch (e) {
-      // Fallback al método manual si el JSON no es válido
-      try {
-        String cleaned = fechasJson.replaceAll('{', '').replaceAll('}', '').replaceAll('"', '');
-        List<String> partes = cleaned.split(',');
-        
-        String? inicio, fin;
-        
-        for (String parte in partes) {
-          if (parte.contains('inicio:')) {
-            inicio = parte.split(':')[1].trim();
-          } else if (parte.contains('fin:')) {
-            fin = parte.split(':')[1].trim();
-          }
-        }
-        
-        return {'inicio': inicio, 'fin': fin};
-      } catch (e2) {
-        print('❌ Error parseando fechas: $e2');
-        return {'inicio': null, 'fin': null};
-      }
-    }
-  }
-
-  // 🌟 OBTENER ASISTENCIA POR ESTUDIANTE Y BIMESTRE - CORREGIDO
-  Future<List<Map<String, Object?>>> obtenerAsistenciaPorEstudianteBimestre(
-    String estudianteId, String bimestreId, String materiaId) async {
-    final db = await database;
-    
-    // Primero obtener las fechas del bimestre
-    final bimestreData = await db.rawQuery(
-      'SELECT fechas FROM bimestres WHERE id = ?',
-      [bimestreId]
-    );
-    
-    if (bimestreData.isEmpty) {
-      return [];
-    }
-    
-    final fechasJson = bimestreData.first['fechas'] as String?;
-    if (fechasJson == null) {
-      return [];
-    }
-    
-    // Parsear las fechas manualmente
-    final fechas = _parsearFechasBimestre(fechasJson);
-    final fechaInicio = fechas['inicio'];
-    final fechaFin = fechas['fin'];
-    
-    if (fechaInicio == null || fechaFin == null) {
-      return [];
-    }
-    
-    return await db.rawQuery('''
-      SELECT 
-        ad.fecha,
-        ad.estado,
-        ad.minutos_retraso,
-        ad.observaciones,
-        hc.dia_semana,
-        hc.hora_inicio,
-        hc.hora_fin,
-        m.nombre as materia_nombre
-      FROM asistencia_diaria ad
-      JOIN materias m ON ad.materia_id = m.id
-      LEFT JOIN horarios_clases hc ON ad.horario_clase_id = hc.id
-      WHERE ad.estudiante_id = ? 
-        AND ad.materia_id = ?
-        AND ad.fecha BETWEEN ? AND ?
-      ORDER BY ad.fecha DESC
-    ''', [estudianteId, materiaId, fechaInicio, fechaFin]);
-  }
-
-  // 🌟 OBTENER HORARIOS POR ESTUDIANTE
-  Future<List<Map<String, Object?>>> obtenerHorariosPorEstudiante(String estudianteId) async {
-    final db = await database;
-    
-    return await db.rawQuery('''
-      SELECT 
-        hc.*,
-        m.nombre as materia_nombre,
-        m.codigo as materia_codigo,
-        d.nombres || ' ' || d.apellido_paterno as docente_nombre
-      FROM horarios_clases hc
-      JOIN materias m ON hc.materia_id = m.id
-      JOIN docentes d ON hc.docente_id = d.id
-      JOIN estudiantes e ON hc.paralelo_id = e.paralelo_id
-      WHERE e.id = ? AND hc.activo = 1 AND m.activo = 1
-      ORDER BY 
-        CASE hc.dia_semana 
-          WHEN 'Lunes' THEN 1
-          WHEN 'Martes' THEN 2
-          WHEN 'Miércoles' THEN 3
-          WHEN 'Jueves' THEN 4
-          WHEN 'Viernes' THEN 5
-          WHEN 'Sábado' THEN 6
-          ELSE 7
-        END,
-        hc.periodo_numero
-    ''', [estudianteId]);
-  }
-
-  // 🌟 VERIFICAR SI HAY CLASE ACTIVA PARA ESTUDIANTE
-  Future<Map<String, dynamic>?> obtenerClaseActiva(String estudianteId) async {
-    final db = await database;
-    final ahora = DateTime.now();
-    final diaSemana = _obtenerDiaSemana(ahora.weekday);
-    final horaActual = '${ahora.hour.toString().padLeft(2, '0')}:${ahora.minute.toString().padLeft(2, '0')}';
-    
-    final resultados = await db.rawQuery('''
-      SELECT 
-        hc.*,
-        m.nombre as materia_nombre,
-        m.id as materia_id
-      FROM horarios_clases hc
-      JOIN materias m ON hc.materia_id = m.id
-      JOIN estudiantes e ON hc.paralelo_id = e.paralelo_id
-      WHERE e.id = ? 
-        AND hc.dia_semana = ?
-        AND hc.activo = 1
-        AND ? BETWEEN hc.hora_inicio AND hc.hora_fin
-      LIMIT 1
-    ''', [estudianteId, diaSemana, horaActual]);
-    
-    return resultados.isNotEmpty ? {
-      'horario': resultados.first,
-      'hora_actual': horaActual,
-      'dia_actual': diaSemana
-    } : null;
-  }
-
-  // 🌟 MÉTODO AUXILIAR PARA OBTENER DÍA DE LA SEMANA
-  String _obtenerDiaSemana(int weekday) {
-    switch (weekday) {
-      case 1: return 'Lunes';
-      case 2: return 'Martes';
-      case 3: return 'Miércoles';
-      case 4: return 'Jueves';
-      case 5: return 'Viernes';
-      case 6: return 'Sábado';
-      case 7: return 'Domingo';
-      default: return 'Lunes';
-    }
-  }
-
-  // 🌟 OBTENER ESTADÍSTICAS RÁPIDAS PARA DASHBOARD
-  Future<Map<String, dynamic>> obtenerEstadisticasDashboard(String usuarioId, String rol) async {
-    final db = await database;
-    
-    Map<String, dynamic> estadisticas = {
-      'rol': rol,
-      'fecha_consulta': DateTime.now().toIso8601String()
-    };
-    
-    switch (rol.toLowerCase()) {
-      case 'estudiante':
-        final estudiante = await obtenerEstudiantePorUsuarioId(usuarioId);
-        if (estudiante != null) {
-          final estudianteId = estudiante['id'] as String;
-          
-          // Total asistencias del mes
-          final asistenciasMes = await db.rawQuery('''
-            SELECT COUNT(*) as total 
-            FROM asistencia_diaria 
-            WHERE estudiante_id = ? 
-              AND strftime('%Y-%m', fecha) = strftime('%Y-%m', 'now')
-              AND estado IN ('A', 'T')
-          ''', [estudianteId]);
-          
-          // Clases del día
-          final clasesHoy = await db.rawQuery('''
-            SELECT COUNT(*) as total
-            FROM horarios_clases hc
-            JOIN estudiantes e ON hc.paralelo_id = e.paralelo_id
-            WHERE e.id = ? AND hc.dia_semana = ? AND hc.activo = 1
-          ''', [estudianteId, _obtenerDiaSemana(DateTime.now().weekday)]);
-          
-          estadisticas['asistencias_mes'] = asistenciasMes.first['total'] ?? 0;
-          estadisticas['clases_hoy'] = clasesHoy.first['total'] ?? 0;
-          estadisticas['estudiante_id'] = estudianteId;
-        }
-        break;
-        
-      case 'docente':
-        // Materias asignadas
-        final materiasCount = await db.rawQuery('''
-          SELECT COUNT(*) as total 
-          FROM docente_materia 
-          WHERE docente_id = ? AND activo = 1
-        ''', [usuarioId]);
-        
-        // Asistencias por tomar hoy
-        final asistenciasHoy = await db.rawQuery('''
-          SELECT COUNT(DISTINCT hc.materia_id) as total
-          FROM horarios_clases hc
-          JOIN docente_materia dm ON hc.materia_id = dm.materia_id AND hc.docente_id = dm.docente_id
-          WHERE dm.docente_id = ? AND hc.dia_semana = ? AND hc.activo = 1
-        ''', [usuarioId, _obtenerDiaSemana(DateTime.now().weekday)]);
-        
-        estadisticas['materias_asignadas'] = materiasCount.first['total'] ?? 0;
-        estadisticas['clases_hoy'] = asistenciasHoy.first['total'] ?? 0;
-        break;
-        
-      case 'administrador':
-        final totalEstudiantes = await db.rawQuery('SELECT COUNT(*) as total FROM estudiantes WHERE activo = 1');
-        final totalDocentes = await db.rawQuery('SELECT COUNT(*) as total FROM docentes WHERE estado = "ACTIVO"');
-        final totalMaterias = await db.rawQuery('SELECT COUNT(*) as total FROM materias WHERE activo = 1');
-        
-        estadisticas['total_estudiantes'] = totalEstudiantes.first['total'] ?? 0;
-        estadisticas['total_docentes'] = totalDocentes.first['total'] ?? 0;
-        estadisticas['total_materias'] = totalMaterias.first['total'] ?? 0;
-        break;
-    }
-    
-    return estadisticas;
-  }
-
-  // =================================================================
-  // 🆕 MÉTODOS COMPLETOS PARA HUELLAS BIOMÉTRICAS CON ESP32
+  // 🆕 MÉTODOS COMPLETOS PARA HUELLAS BIOMÉTRICAS - AGREGADOS
   // =================================================================
 
   // ✅ MÉTODO PARA INSERTAR HUELLA
@@ -1863,253 +1434,6 @@ class DatabaseHelper {
       WHERE hb.registrada = 1
       ORDER BY e.apellido_paterno, e.apellido_materno, e.nombres
     ''');
-  }
-
-  // 🌟 VERIFICAR SI USUARIO PUEDE REGISTRAR HUELLAS (SOLO ESTUDIANTES)
-  Future<bool> usuarioPuedeRegistrarHuellas(String usuarioId) async {
-    final db = await database;
-    
-    final usuario = await db.query(
-      'usuarios',
-      where: 'id = ? AND esta_activo = 1',
-      whereArgs: [usuarioId],
-      columns: ['role']
-    );
-    
-    if (usuario.isEmpty) return false;
-    
-    final role = usuario.first['role'] as String?;
-    
-    // ✅ SOLO estudiantes pueden registrar huellas
-    return role?.toLowerCase() == 'estudiante';
-  }
-
-  // 🌟 OBTENER ESTUDIANTE_ID DESDE USUARIO_ID
-  Future<String?> obtenerEstudianteIdDesdeUsuario(String usuarioId) async {
-    final db = await database;
-    
-    final resultado = await db.rawQuery('''
-      SELECT eu.estudiante_id 
-      FROM estudiante_usuario eu
-      JOIN usuarios u ON eu.usuario_id = u.id
-      WHERE u.id = ? AND u.esta_activo = 1
-    ''', [usuarioId]);
-    
-    return resultado.isNotEmpty ? resultado.first['estudiante_id'] as String? : null;
-  }
-
-  // 🌟 REGISTRAR HUELLA CON VALIDACIONES DE SEGURIDAD
-  Future<Map<String, dynamic>> registrarHuellaEstudiante({
-    required String usuarioId,
-    required int numeroDedo,
-    required String templateData,
-    required String dispositivo, // 'MOVIL' o 'ESP32'
-  }) async {
-    final db = await database;
-    
-    // 1. VERIFICAR QUE EL USUARIO PUEDE REGISTRAR HUELLAS
-    final puedeRegistrar = await usuarioPuedeRegistrarHuellas(usuarioId);
-    if (!puedeRegistrar) {
-      throw Exception('Solo los estudiantes pueden registrar huellas biométricas');
-    }
-    
-    // 2. OBTENER ESTUDIANTE_ID
-    final estudianteId = await obtenerEstudianteIdDesdeUsuario(usuarioId);
-    if (estudianteId == null) {
-      throw Exception('No se encontró estudiante asociado a este usuario');
-    }
-    
-    // 3. VERIFICAR SI YA TIENE HUELLA REGISTRADA EN ESTE DEDO
-    final huellaExistente = await obtenerHuellaPorDedo(estudianteId, numeroDedo);
-    if (huellaExistente != null && (huellaExistente['registrada'] as int?) == 1) {
-      throw Exception('Ya existe una huella registrada para este dedo');
-    }
-    
-    // 4. NOMBRES DE DEDOS
-    final nombresDedos = {
-      1: 'Pulgar Derecho', 2: 'Índice Derecho', 3: 'Medio Derecho', 
-      4: 'Anular Derecho', 5: 'Meñique Derecho',
-      6: 'Pulgar Izquierdo', 7: 'Índice Izquierdo', 8: 'Medio Izquierdo',
-      9: 'Anular Izquierdo', 10: 'Meñique Izquierdo'
-    };
-    
-    final nombreDedo = nombresDedos[numeroDedo] ?? 'Dedo $numeroDedo';
-    final iconos = {
-      1: '👍', 2: '👆', 3: '✌️', 4: '🖖', 5: '🤘',
-      6: '👍', 7: '👆', 8: '✌️', 9: '🖖', 10: '🤘'
-    };
-    
-    // 5. INSERTAR O ACTUALIZAR HUELLA
-    final ahora = DateTime.now().toIso8601String();
-    final huellaData = {
-      'id': 'huella_${estudianteId}_$numeroDedo',
-      'estudiante_id': estudianteId,
-      'numero_dedo': numeroDedo,
-      'nombre_dedo': nombreDedo,
-      'icono': iconos[numeroDedo],
-      'registrada': 1,
-      'template_data': templateData,
-      'fecha_registro': ahora,
-      'dispositivo_registro': dispositivo,
-    };
-    
-    int resultado;
-    if (huellaExistente != null) {
-      // Actualizar huella existente
-      resultado = await db.update(
-        'huellas_biometricas',
-        huellaData,
-        where: 'id = ?',
-        whereArgs: [huellaExistente['id']]
-      );
-    } else {
-      // Insertar nueva huella
-      resultado = await db.insert('huellas_biometricas', huellaData);
-    }
-    
-    // 6. ACTUALIZAR CONTADOR EN ESTUDIANTE
-    await db.update(
-      'estudiantes',
-      {
-        'huellas_registradas': await obtenerTotalHuellasRegistradas(estudianteId),
-        'fecha_actualizacion': ahora
-      },
-      where: 'id = ?',
-      whereArgs: [estudianteId]
-    );
-    
-    return {
-      'success': true,
-      'estudiante_id': estudianteId,
-      'huella_id': huellaData['id'],
-      'mensaje': 'Huella registrada exitosamente ($nombreDedo) desde $dispositivo',
-      'resultado': resultado
-    };
-  }
-
-  // 🌟 MARCAR ASISTENCIA CON VALIDACIÓN DE HUELLA
-  Future<Map<String, dynamic>> marcarAsistenciaConHuella({
-    required String templateData,
-    required String materiaId,
-    required int periodoNumero,
-    required String dispositivo, // 'MOVIL' o 'ESP32'
-  }) async {
-    final db = await database;
-    
-    try {
-      // 1. BUSCAR ESTUDIANTE POR HUELLA
-      final estudianteConHuella = await db.rawQuery('''
-        SELECT hb.estudiante_id, e.nombres, e.apellido_paterno, e.apellido_materno
-        FROM huellas_biometricas hb
-        JOIN estudiantes e ON hb.estudiante_id = e.id
-        WHERE hb.template_data = ? AND hb.registrada = 1 AND e.activo = 1
-      ''', [templateData]);
-      
-      if (estudianteConHuella.isEmpty) {
-        return {
-          'success': false,
-          'error': 'Huella no reconocida o estudiante no encontrado'
-        };
-      }
-      
-      final estudiante = estudianteConHuella.first;
-      final estudianteId = estudiante['estudiante_id'] as String;
-      final nombreCompleto = '${estudiante['nombres']} ${estudiante['apellido_paterno']} ${estudiante['apellido_materno']}';
-      
-      // 2. VERIFICAR SI YA TIENE ASISTENCIA REGISTRADA HOY
-      final fechaHoy = DateTime.now().toIso8601String().split('T')[0];
-      final asistenciaExistente = await existeAsistenciaRegistrada(
-        estudianteId, materiaId, fechaHoy, periodoNumero
-      );
-      
-      if (asistenciaExistente) {
-        return {
-          'success': false,
-          'error': 'Ya tienes asistencia registrada para esta clase hoy'
-        };
-      }
-      
-      // 3. REGISTRAR ASISTENCIA
-      final resultado = await registrarAsistenciaBiometrica(
-        estudianteId: estudianteId,
-        materiaId: materiaId,
-        fecha: fechaHoy,
-        periodoNumero: periodoNumero,
-        usuarioRegistro: 'sistema_biometrico',
-        minutosRetraso: 0,
-        observaciones: 'Asistencia biométrica - $dispositivo'
-      );
-      
-      return {
-        'success': true,
-        'estudiante_id': estudianteId,
-        'nombre_estudiante': nombreCompleto,
-        'materia_id': materiaId,
-        'fecha': fechaHoy,
-        'periodo_numero': periodoNumero,
-        'dispositivo': dispositivo,
-        'mensaje': 'Asistencia registrada exitosamente',
-        'resultado': resultado
-      };
-      
-    } catch (e) {
-      return {
-        'success': false,
-        'error': 'Error al registrar asistencia: $e'
-      };
-    }
-  }
-
-  // 🌟 OBTENER ESTUDIANTES SIN HUELLAS REGISTRADAS
-  Future<List<Map<String, Object?>>> obtenerEstudiantesSinHuellas() async {
-    final db = await database;
-    
-    return await db.rawQuery('''
-      SELECT e.*, u.username, u.email
-      FROM estudiantes e
-      JOIN estudiante_usuario eu ON e.id = eu.estudiante_id
-      JOIN usuarios u ON eu.usuario_id = u.id
-      WHERE e.activo = 1 AND e.huellas_registradas = 0
-      ORDER BY e.apellido_paterno, e.apellido_materno, e.nombres
-    ''');
-  }
-
-  // 🌟 OBTENER ESTADÍSTICAS DE HUELLAS
-  Future<Map<String, dynamic>> obtenerEstadisticasHuellas() async {
-    final db = await database;
-    
-    final totalEstudiantes = await db.rawQuery(
-      'SELECT COUNT(*) as total FROM estudiantes WHERE activo = 1'
-    );
-    final estudiantesConHuellas = await db.rawQuery('''
-      SELECT COUNT(DISTINCT estudiante_id) as total 
-      FROM huellas_biometricas 
-      WHERE registrada = 1
-    ''');
-    final totalHuellas = await db.rawQuery('''
-      SELECT COUNT(*) as total 
-      FROM huellas_biometricas 
-      WHERE registrada = 1
-    ''');
-    final porDispositivo = await db.rawQuery('''
-      SELECT dispositivo_registro, COUNT(*) as total
-      FROM huellas_biometricas
-      WHERE registrada = 1
-      GROUP BY dispositivo_registro
-    ''');
-    
-    final totalEst = (totalEstudiantes.first['total'] as int?) ?? 0;
-    final conHuellas = (estudiantesConHuellas.first['total'] as int?) ?? 0;
-    
-    return {
-      'total_estudiantes': totalEst,
-      'estudiantes_con_huellas': conHuellas,
-      'total_huellas_registradas': (totalHuellas.first['total'] as int?) ?? 0,
-      'registros_por_dispositivo': porDispositivo,
-      'porcentaje_cobertura': totalEst != 0 
-          ? ((conHuellas / totalEst) * 100).toStringAsFixed(1)
-          : '0.0'
-    };
   }
 
   // ====== CRUD DE BAJO NIVEL EXPUESTO ======
@@ -2242,6 +1566,415 @@ class DatabaseHelper {
   }
 
   // =================================================================
+  // 🆕 MÉTODOS COMPLETOS PARA REPORTES E INFORMES
+  // =================================================================
+
+  // 🆕 GENERAR REPORTE DE ASISTENCIA BIMESTRAL
+  Future<List<Map<String, Object?>>> generarReporteAsistenciaBimestral(
+    String bimestreId, String materiaId, String formato) async {
+    final db = await database;
+    
+    return await db.rawQuery('''
+      SELECT 
+        e.id, 
+        e.nombres || ' ' || e.apellido_paterno || ' ' || e.apellido_materno as nombre_completo,
+        e.ci,
+        na.total_clases, 
+        na.clases_asistidas, 
+        na.clases_faltadas,
+        na.porcentaje_asistencia, 
+        na.nota_calculada,
+        (SELECT COUNT(*) FROM detalle_asistencias da 
+         JOIN asistencias a ON da.asistencia_id = a.id 
+         WHERE a.estudiante_id = e.id AND a.materia_id = ? 
+         AND da.estado_puntualidad = 'TARDANZA') as total_tardanzas,
+        (SELECT COUNT(*) FROM detalle_asistencias da 
+         JOIN asistencias a ON da.asistencia_id = a.id 
+         WHERE a.estudiante_id = e.id AND a.materia_id = ? 
+         AND da.estado_puntualidad = 'PUNTUAL') as total_puntual
+      FROM estudiantes e
+      LEFT JOIN notas_asistencia na ON e.id = na.estudiante_id 
+        AND na.materia_id = ? AND na.bimestre_id = ?
+      WHERE e.activo = 1
+      ORDER BY e.apellido_paterno, e.apellido_materno, e.nombres
+    ''', [materiaId, materiaId, materiaId, bimestreId]);
+  }
+
+  // 🆕 GENERAR REPORTE ESTADÍSTICO DE ASISTENCIA
+  Future<Map<String, dynamic>> generarReporteEstadistico(
+    String periodoId, String materiaId) async {
+    final db = await database;
+    
+    final estadisticas = await db.rawQuery('''
+      SELECT 
+        COUNT(DISTINCT e.id) as total_estudiantes,
+        AVG(na.porcentaje_asistencia) as promedio_asistencia,
+        MIN(na.porcentaje_asistencia) as minima_asistencia,
+        MAX(na.porcentaje_asistencia) as maxima_asistencia,
+        SUM(CASE WHEN na.porcentaje_asistencia >= 80 THEN 1 ELSE 0 END) as estudiantes_aprobados,
+        SUM(CASE WHEN na.porcentaje_asistencia < 80 THEN 1 ELSE 0 END) as estudiantes_reprobados
+      FROM estudiantes e
+      LEFT JOIN notas_asistencia na ON e.id = na.estudiante_id 
+        AND na.materia_id = ? AND na.periodo_id = ?
+      WHERE e.activo = 1
+    ''', [materiaId, periodoId]);
+
+    final distribucion = await db.rawQuery('''
+      SELECT 
+        CASE 
+          WHEN porcentaje_asistencia >= 90 THEN '90-100%'
+          WHEN porcentaje_asistencia >= 80 THEN '80-89%'
+          WHEN porcentaje_asistencia >= 70 THEN '70-79%'
+          WHEN porcentaje_asistencia >= 60 THEN '60-69%'
+          ELSE 'Menos del 60%'
+        END as rango,
+        COUNT(*) as cantidad
+      FROM notas_asistencia
+      WHERE materia_id = ? AND periodo_id = ?
+      GROUP BY rango
+      ORDER BY rango
+    ''', [materiaId, periodoId]);
+
+    return {
+      'estadisticas': estadisticas.first,
+      'distribucion': distribucion,
+      'fecha_generacion': DateTime.now().toIso8601String(),
+      'periodo_id': periodoId,
+      'materia_id': materiaId
+    };
+  }
+
+  // 🆕 GUARDAR REPORTE GENERADO
+  Future<int> guardarReporteGenerado(Map<String, dynamic> reporte) async {
+    final db = await database;
+    return await db.insert('reportes_generados', {
+      'id': 'reporte_${DateTime.now().millisecondsSinceEpoch}',
+      'tipo_reporte': reporte['tipo_reporte'],
+      'titulo': reporte['titulo'],
+      'periodo_id': reporte['periodo_id'],
+      'materia_id': reporte['materia_id'],
+      'bimestre_id': reporte['bimestre_id'],
+      'formato': reporte['formato'],
+      'parametros': reporte['parametros'],
+      'ruta_archivo': reporte['ruta_archivo'],
+      'fecha_generacion': DateTime.now().toIso8601String(),
+      'usuario_generador': reporte['usuario_generador'],
+      'estado': 'COMPLETADO',
+      'tamano_bytes': reporte['tamano_bytes']
+    });
+  }
+
+  // 🆕 OBTENER HISTORIAL DE REPORTES
+  Future<List<Map<String, Object?>>> obtenerHistorialReportes() async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT rg.*, m.nombre as materia_nombre, p.nombre as periodo_nombre
+      FROM reportes_generados rg
+      LEFT JOIN materias m ON rg.materia_id = m.id
+      LEFT JOIN periodos_academicos p ON rg.periodo_id = p.id
+      ORDER BY rg.fecha_generacion DESC
+    ''');
+  }
+
+  // =================================================================
+  // 🆕 MÉTODOS COMPLETOS PARA RESPALDOS Y RECUPERACIÓN
+  // =================================================================
+
+  // 🆕 GENERAR RESPALDO COMPLETO
+  Future<Map<String, dynamic>> generarRespaldoCompleto() async {
+    final db = await database;
+    final timestamp = DateTime.now().toIso8601String();
+    final respaldoId = 'respaldo_${DateTime.now().millisecondsSinceEpoch}';
+    
+    final tables = [
+      'estudiantes', 'docentes', 'materias', 'asistencias', 
+      'detalle_asistencias', 'notas_asistencia', 'huellas_biometricas',
+      'usuarios', 'periodos_academicos', 'bimestres', 'docente_materia'
+    ];
+    
+    Map<String, dynamic> respaldoData = {
+      'fecha_generacion': timestamp,
+      'version_bd': 5,
+      'total_tablas': tables.length,
+      'tablas': {}
+    };
+    
+    for (String table in tables) {
+      try {
+        final datos = await db.rawQuery('SELECT * FROM $table');
+        respaldoData['tablas'][table] = {
+          'total_registros': datos.length,
+          'datos': datos
+        };
+      } catch (e) {
+        print('⚠️ Error respaldando tabla $table: $e');
+      }
+    }
+    
+    await db.insert('respaldos', {
+      'id': respaldoId,
+      'tipo_respaldo': 'COMPLETO',
+      'descripcion': 'Respaldo completo del sistema',
+      'ruta_archivo': 'local/$respaldoId.json',
+      'fecha_respaldo': timestamp,
+      'tamano_bytes': respaldoData.toString().length,
+      'usuario_respaldo': 'sistema',
+      'estado': 'COMPLETADO',
+      'checksum': _generarChecksum(respaldoData.toString())
+    });
+    
+    return respaldoData;
+  }
+
+  // 🆕 GENERAR RESPALDO INCREMENTAL
+  Future<Map<String, dynamic>> generarRespaldoIncremental() async {
+    final db = await database;
+    final timestamp = DateTime.now().toIso8601String();
+    final respaldoId = 'respaldo_inc_${DateTime.now().millisecondsSinceEpoch}';
+    
+    final ultimoRespaldo = await db.rawQuery('''
+      SELECT fecha_respaldo FROM respaldos 
+      WHERE tipo_respaldo = 'COMPLETO' 
+      ORDER BY fecha_respaldo DESC LIMIT 1
+    ''');
+    
+    DateTime? fechaUltimoRespaldo;
+    if (ultimoRespaldo.isNotEmpty) {
+      fechaUltimoRespaldo = DateTime.parse(ultimoRespaldo.first['fecha_respaldo'] as String);
+    }
+    
+    Map<String, dynamic> respaldoData = {
+      'fecha_generacion': timestamp,
+      'tipo': 'INCREMENTAL',
+      'desde_ultimo_respaldo': fechaUltimoRespaldo?.toIso8601String(),
+      'tablas': {}
+    };
+    
+    final tablasIncremental = ['asistencias', 'detalle_asistencias', 'notas_asistencia'];
+    
+    for (String table in tablasIncremental) {
+      String whereClause = '';
+      List<Object?> whereArgs = [];
+      
+      if (fechaUltimoRespaldo != null) {
+        if (table == 'asistencias') {
+          whereClause = 'WHERE ultima_actualizacion > ?';
+          whereArgs = [fechaUltimoRespaldo.toIso8601String()];
+        } else if (table == 'detalle_asistencias') {
+          whereClause = 'WHERE fecha > ?';
+          whereArgs = [fechaUltimoRespaldo.toIso8601String()];
+        } else if (table == 'notas_asistencia') {
+          whereClause = 'WHERE fecha_calculo > ?';
+          whereArgs = [fechaUltimoRespaldo.toIso8601String()];
+        }
+      }
+      
+      final datos = await db.rawQuery('SELECT * FROM $table $whereClause', whereArgs);
+      respaldoData['tablas'][table] = {
+        'total_registros': datos.length,
+        'datos': datos
+      };
+    }
+    
+    await db.insert('respaldos', {
+      'id': respaldoId,
+      'tipo_respaldo': 'INCREMENTAL',
+      'descripcion': 'Respaldo incremental del sistema',
+      'ruta_archivo': 'local/$respaldoId.json',
+      'fecha_respaldo': timestamp,
+      'tamano_bytes': respaldoData.toString().length,
+      'usuario_respaldo': 'sistema',
+      'estado': 'COMPLETADO',
+      'checksum': _generarChecksum(respaldoData.toString())
+    });
+    
+    return respaldoData;
+  }
+
+  // 🆕 RESTAURAR DESDE RESPALDO
+  Future<bool> restaurarDesdeRespaldo(Map<String, dynamic> respaldoData) async {
+    final db = await database;
+    
+    try {
+      await db.transaction((txn) async {
+        for (var tableEntry in respaldoData['tablas'].entries) {
+          final String tableName = tableEntry.key;
+          final dynamic tableData = tableEntry.value;
+          
+          if (tableData is Map && tableData['datos'] is List) {
+            final List<dynamic> datos = tableData['datos'];
+            
+            if (respaldoData['tipo'] == 'COMPLETO') {
+              await txn.delete(tableName);
+            }
+            
+            for (var row in datos) {
+              if (row is Map<String, dynamic>) {
+                await txn.insert(tableName, row, conflictAlgorithm: ConflictAlgorithm.replace);
+              }
+            }
+          }
+        }
+      });
+      
+      print('✅ Restauración completada exitosamente');
+      return true;
+    } catch (e) {
+      print('❌ Error en restauración: $e');
+      return false;
+    }
+  }
+
+  // 🆕 OBTENER HISTORIAL DE RESPALDOS
+  Future<List<Map<String, Object?>>> obtenerHistorialRespaldos() async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT * FROM respaldos 
+      ORDER BY fecha_respaldo DESC
+    ''');
+  }
+
+  // 🆕 ELIMINAR RESPALDO
+  Future<int> eliminarRespaldo(String respaldoId) async {
+    final db = await database;
+    return await db.delete(
+      'respaldos',
+      where: 'id = ?',
+      whereArgs: [respaldoId]
+    );
+  }
+
+  // =================================================================
+  // 🆕 MÉTODOS MEJORADOS PARA CÁLCULO DE NOTAS CON PUNTUALIDAD
+  // =================================================================
+
+  // 🆕 MÉTODO MEJORADO PARA CÁLCULO DE NOTAS CON PUNTUALIDAD
+  Future<Map<String, dynamic>> calcularNotaAsistenciaCompleta(
+    String estudianteId, String materiaId, String periodoId, String bimestreId) async {
+    final db = await database;
+    
+    final config = await obtenerConfiguracionNotasAsistenciaActiva();
+    if (config == null) {
+      throw Exception('No hay configuración de notas activa');
+    }
+
+    final asistenciaData = await db.rawQuery('''
+      SELECT 
+        COUNT(*) as total_clases,
+        SUM(CASE WHEN da.estado = 'A' THEN 1 ELSE 0 END) as clases_asistidas,
+        SUM(CASE WHEN da.estado_puntualidad = 'PUNTUAL' THEN 1 ELSE 0 END) as clases_puntuales,
+        SUM(CASE WHEN da.estado_puntualidad = 'TARDANZA' THEN 1 ELSE 0 END) as clases_tardanza,
+        SUM(CASE WHEN da.estado_puntualidad = 'AUSENTE' THEN 1 ELSE 0 END) as clases_ausente,
+        AVG(CASE WHEN da.minutos_retraso > 0 THEN da.minutos_retraso ELSE NULL END) as promedio_retraso
+      FROM asistencias a
+      JOIN detalle_asistencias da ON a.id = da.asistencia_id
+      JOIN bimestres b ON a.periodo_id = b.periodo_id
+      WHERE a.estudiante_id = ? AND a.materia_id = ? AND a.periodo_id = ? AND b.id = ?
+    ''', [estudianteId, materiaId, periodoId, bimestreId]);
+
+    if (asistenciaData.isEmpty) {
+      throw Exception('No se encontraron datos de asistencia para el bimestre');
+    }
+
+    final data = asistenciaData.first;
+    final totalClases = data['total_clases'] as int? ?? 0;
+    final clasesAsistidas = data['clases_asistidas'] as int? ?? 0;
+    final clasesPuntuales = data['clases_puntuales'] as int? ?? 0;
+    final clasesTardanza = data['clases_tardanza'] as int? ?? 0;
+    final promedioRetraso = data['promedio_retraso'] as double? ?? 0.0;
+    
+    final porcentajeAsistencia = totalClases > 0 ? (clasesAsistidas / totalClases) * 100 : 0.0;
+    final porcentajePuntualidad = clasesAsistidas > 0 ? (clasesPuntuales / clasesAsistidas) * 100 : 0.0;
+
+    double notaCalculada = _aplicarFormulaNota(
+      porcentajeAsistencia, 
+      porcentajePuntualidad, 
+      promedioRetraso, 
+      config
+    );
+
+    final resultado = {
+      'estudiante_id': estudianteId,
+      'materia_id': materiaId,
+      'periodo_id': periodoId,
+      'bimestre_id': bimestreId,
+      'total_clases': totalClases,
+      'clases_asistidas': clasesAsistidas,
+      'clases_faltadas': totalClases - clasesAsistidas,
+      'clases_puntuales': clasesPuntuales,
+      'clases_tardanza': clasesTardanza,
+      'promedio_retraso': promedioRetraso,
+      'porcentaje_asistencia': porcentajeAsistencia,
+      'porcentaje_puntualidad': porcentajePuntualidad,
+      'nota_calculada': notaCalculada,
+      'configuracion_usada': config['nombre'],
+      'fecha_calculo': DateTime.now().toIso8601String()
+    };
+
+    await _guardarNotaCalculada(resultado, config['id'] as String);
+    
+    return resultado;
+  }
+
+  double _aplicarFormulaNota(double porcentajeAsistencia, double porcentajePuntualidad, 
+                            double promedioRetraso, Map<String, Object?> config) {
+    final puntajeMaximo = config['puntaje_maximo'] as double? ?? 10.0;
+    
+    double notaAsistencia = (porcentajeAsistencia / 100) * (puntajeMaximo * 0.7);
+    double notaPuntualidad = (porcentajePuntualidad / 100) * (puntajeMaximo * 0.3);
+    
+    if (promedioRetraso > 15) {
+      double penalizacion = (promedioRetraso - 15) * 0.01;
+      notaPuntualidad *= (1 - penalizacion.clamp(0.0, 0.5));
+    }
+    
+    return (notaAsistencia + notaPuntualidad).clamp(0.0, puntajeMaximo);
+  }
+
+  Future<void> _guardarNotaCalculada(Map<String, dynamic> resultado, String configId) async {
+    final db = await database;
+    
+    final notaExistente = await db.query(
+      'notas_asistencia',
+      where: 'estudiante_id = ? AND materia_id = ? AND periodo_id = ? AND bimestre_id = ?',
+      whereArgs: [
+        resultado['estudiante_id'],
+        resultado['materia_id'],
+        resultado['periodo_id'],
+        resultado['bimestre_id']
+      ]
+    );
+    
+    final notaData = {
+      'estudiante_id': resultado['estudiante_id'],
+      'materia_id': resultado['materia_id'],
+      'periodo_id': resultado['periodo_id'],
+      'bimestre_id': resultado['bimestre_id'],
+      'config_asistencia_id': configId,
+      'total_clases': resultado['total_clases'],
+      'clases_asistidas': resultado['clases_asistidas'],
+      'clases_faltadas': resultado['clases_faltadas'],
+      'porcentaje_asistencia': resultado['porcentaje_asistencia'],
+      'nota_calculada': resultado['nota_calculada'],
+      'estado': 'CALCULADO',
+      'fecha_calculo': resultado['fecha_calculo'],
+      'observaciones': 'Calculado con puntualidad - ${resultado['configuracion_usada']}'
+    };
+    
+    if (notaExistente.isNotEmpty) {
+      await db.update(
+        'notas_asistencia',
+        notaData,
+        where: 'id = ?',
+        whereArgs: [notaExistente.first['id']]
+      );
+    } else {
+      notaData['id'] = 'nota_${resultado['estudiante_id']}_${resultado['materia_id']}_${resultado['periodo_id']}_${resultado['bimestre_id']}';
+      await db.insert('notas_asistencia', notaData);
+    }
+  }
+
+  // =================================================================
   // ✅ MÉTODOS EXISTENTES COMPLETOS (LOS QUE YA TENÍAS)
   // =================================================================
 
@@ -2362,6 +2095,16 @@ class DatabaseHelper {
     return await db.insert('docente_materia', asignacion);
   }
 
+  Future<List<Map<String, Object?>>> obtenerMateriasPorDocente(String docenteId) async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT m.*, dm.* 
+      FROM docente_materia dm
+      JOIN materias m ON dm.materia_id = m.id
+      WHERE dm.docente_id = ? AND dm.activo = 1
+    ''', [docenteId]);
+  }
+
   Future<List<Map<String, Object?>>> obtenerDocentesPorMateria(String materiaId) async {
     final db = await database;
     return await db.rawQuery('''
@@ -2437,7 +2180,7 @@ class DatabaseHelper {
         whereArgs: [notaExistente.first['id']]
       );
     } else {
-      notaData['id'] = 'nota_${estudianteId}_${materiaId}_${periodoId}_${bimestreId}';
+      notaData['id'] = 'nota_${estudianteId}_${materiaId}_${periodoId}_$bimestreId';
       return await db.insert('notas_asistencia', notaData);
     }
   }
@@ -2517,24 +2260,22 @@ class DatabaseHelper {
     return resultado;
   }
 
-  // 🆕 EXPORTAR DATOS PARA MIGRACIÓN - CORREGIDO
+  // 🆕 EXPORTAR DATOS PARA MIGRACIÓN
   Future<Map<String, dynamic>> exportarDatosParaMigracion() async {
     final db = await database;
     
     final datosExportacion = {
       'fecha_exportacion': DateTime.now().toIso8601String(),
       'version_sistema': '1.0.0',
-      'datos': <String, dynamic>{} // Inicializado como mapa vacío
+      'datos': {} // Inicializado como mapa vacío
     };
     
     final tablasExportacion = ['estudiantes', 'docentes', 'materias', 'usuarios', 'config_notas_asistencia'];
     
-    // ✅ CORRECCIÓN: Cast explícito a Map<String, dynamic>
-    final datosMap = datosExportacion['datos'] as Map<String, dynamic>;
-    
     for (String tabla in tablasExportacion) {
       final datos = await db.rawQuery('SELECT * FROM $tabla');
-      datosMap[tabla] = datos;
+      // ✅ SOLUCIÓN: Cast explícito a Map<String, dynamic>
+      (datosExportacion['datos'] as Map<String, dynamic>)[tabla] = datos;
     }
     
     return datosExportacion;
@@ -2588,9 +2329,7 @@ class DatabaseHelper {
       horario['hora_inicio'],
       horario['hora_fin'],
       horario['activo'] ? 1 : 0,
-      (horario['fecha_creacion'] is DateTime 
-        ? horario['fecha_creacion'].toIso8601String()
-        : DateTime.now().toIso8601String()),
+      horario['fecha_creacion'].toIso8601String(),
     ]);
   }
 

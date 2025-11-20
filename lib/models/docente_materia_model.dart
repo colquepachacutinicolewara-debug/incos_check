@@ -1,122 +1,118 @@
-class DocenteMateria {
+// models/docente_model.dart
+class Docente {
   final String id;
-  final String docenteId;
-  final String materiaId;
-  final String? paraleloId;
-  final String? turnoId;
-  final String? horario;
-  final String? diasSemana;
-  final String? horaInicio;
-  final String? horaFin;
-  final String fechaAsignacion;
-  final bool activo;
+  final String apellidoPaterno;
+  final String apellidoMaterno;
+  final String nombres;
+  final String ci;
+  final String carrera;
+  final String turno;
+  final String email;
+  final String telefono;
+  final String estado;
+  final String fechaCreacion;
+  final String fechaActualizacion;
 
-  DocenteMateria({
+  Docente({
     required this.id,
-    required this.docenteId,
-    required this.materiaId,
-    this.paraleloId,
-    this.turnoId,
-    this.horario,
-    this.diasSemana,
-    this.horaInicio,
-    this.horaFin,
-    required this.fechaAsignacion,
-    this.activo = true,
+    required this.apellidoPaterno,
+    required this.apellidoMaterno,
+    required this.nombres,
+    required this.ci,
+    required this.carrera,
+    required this.turno,
+    required this.email,
+    required this.telefono,
+    required this.estado,
+    required this.fechaCreacion,
+    required this.fechaActualizacion,
   });
 
-  // Constructor desde Map
-  factory DocenteMateria.fromMap(Map<String, dynamic> map) {
-    return DocenteMateria(
-      id: map['id']?.toString() ?? '',
-      docenteId: map['docente_id']?.toString() ?? '',
-      materiaId: map['materia_id']?.toString() ?? '',
-      paraleloId: map['paralelo_id']?.toString(),
-      turnoId: map['turno_id']?.toString(),
-      horario: map['horario']?.toString(),
-      diasSemana: map['dias_semana']?.toString(),
-      horaInicio: map['hora_inicio']?.toString(),
-      horaFin: map['hora_fin']?.toString(),
-      fechaAsignacion: map['fecha_asignacion']?.toString() ?? DateTime.now().toIso8601String(),
-      activo: (map['activo'] ?? 1) == 1,
+  // ✅ CONSTRUCTOR FROM MAP COMPLETO
+  factory Docente.fromMap(Map<String, dynamic> map) {
+    return Docente(
+      id: map['id'] as String? ?? '',
+      apellidoPaterno: map['apellido_paterno'] as String? ?? '',
+      apellidoMaterno: map['apellido_materno'] as String? ?? '',
+      nombres: map['nombres'] as String? ?? '',
+      ci: map['ci'] as String? ?? '',
+      carrera: map['carrera'] as String? ?? 'Informática',
+      turno: map['turno'] as String? ?? 'MAÑANA',
+      email: map['email'] as String? ?? '',
+      telefono: map['telefono'] as String? ?? '',
+      estado: map['estado'] as String? ?? 'ACTIVO',
+      fechaCreacion: map['fecha_creacion'] as String? ?? DateTime.now().toIso8601String(),
+      fechaActualizacion: map['fecha_actualizacion'] as String? ?? DateTime.now().toIso8601String(),
     );
   }
 
-  // Convertir a Map para SQLite
+  // ✅ MÉTODO COPYWITH COMPLETO
+  Docente copyWith({
+    String? id,
+    String? apellidoPaterno,
+    String? apellidoMaterno,
+    String? nombres,
+    String? ci,
+    String? carrera,
+    String? turno,
+    String? email,
+    String? telefono,
+    String? estado,
+    String? fechaCreacion,
+    String? fechaActualizacion,
+  }) {
+    return Docente(
+      id: id ?? this.id,
+      apellidoPaterno: apellidoPaterno ?? this.apellidoPaterno,
+      apellidoMaterno: apellidoMaterno ?? this.apellidoMaterno,
+      nombres: nombres ?? this.nombres,
+      ci: ci ?? this.ci,
+      carrera: carrera ?? this.carrera,
+      turno: turno ?? this.turno,
+      email: email ?? this.email,
+      telefono: telefono ?? this.telefono,
+      estado: estado ?? this.estado,
+      fechaCreacion: fechaCreacion ?? this.fechaCreacion,
+      fechaActualizacion: fechaActualizacion ?? this.fechaActualizacion,
+    );
+  }
+
+  // ✅ MÉTODO TO MAP COMPLETO
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'docente_id': docenteId,
-      'materia_id': materiaId,
-      'paralelo_id': paraleloId,
-      'turno_id': turnoId,
-      'horario': horario,
-      'dias_semana': diasSemana,
-      'hora_inicio': horaInicio,
-      'hora_fin': horaFin,
-      'fecha_asignacion': fechaAsignacion,
-      'activo': activo ? 1 : 0,
+      'apellido_paterno': apellidoPaterno,
+      'apellido_materno': apellidoMaterno,
+      'nombres': nombres,
+      'ci': ci,
+      'carrera': carrera,
+      'turno': turno,
+      'email': email,
+      'telefono': telefono,
+      'estado': estado,
+      'fecha_creacion': fechaCreacion,
+      'fecha_actualizacion': fechaActualizacion,
     };
   }
 
-  // Propiedades computadas
-  List<String> get diasList {
-    if (diasSemana == null || diasSemana!.isEmpty) return [];
-    return diasSemana!.split(',').map((d) => d.trim()).toList();
-  }
-
-  String get horarioDisplay {
-    if (horaInicio != null && horaFin != null) {
-      return '$horaInicio - $horaFin';
-    }
-    return horario ?? 'Horario no definido';
-  }
-
-  String get diasDisplay {
-    if (diasList.isEmpty) return 'Días no definidos';
-    return diasList.join(', ');
-  }
-
-  bool get tieneHorarioDefinido => horaInicio != null && horaFin != null;
-
-  // Método para copiar
-  DocenteMateria copyWith({
-    String? id,
-    String? docenteId,
-    String? materiaId,
-    String? paraleloId,
-    String? turnoId,
-    String? horario,
-    String? diasSemana,
-    String? horaInicio,
-    String? horaFin,
-    String? fechaAsignacion,
-    bool? activo,
-  }) {
-    return DocenteMateria(
-      id: id ?? this.id,
-      docenteId: docenteId ?? this.docenteId,
-      materiaId: materiaId ?? this.materiaId,
-      paraleloId: paraleloId ?? this.paraleloId,
-      turnoId: turnoId ?? this.turnoId,
-      horario: horario ?? this.horario,
-      diasSemana: diasSemana ?? this.diasSemana,
-      horaInicio: horaInicio ?? this.horaInicio,
-      horaFin: horaFin ?? this.horaFin,
-      fechaAsignacion: fechaAsignacion ?? this.fechaAsignacion,
-      activo: activo ?? this.activo,
-    );
+  // ✅ GETTERS ÚTILES
+  bool get estaActivo => estado == 'ACTIVO';
+  
+  String get nombreCompleto {
+    return '$apellidoPaterno ${apellidoMaterno.isNotEmpty ? apellidoMaterno : ''} $nombres'
+        .replaceAll('  ', ' ')
+        .trim();
   }
 
   @override
   String toString() {
-    return 'DocenteMateria($docenteId - $materiaId)';
+    return 'Docente($nombreCompleto, CI: $ci, $carrera, $turno)';
   }
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is DocenteMateria && other.id == id;
+    return other is Docente && other.id == id;
   }
 
   @override

@@ -565,8 +565,8 @@ class RegistrarAsistenciaViewModel with ChangeNotifier {
   bool _isLoading = false;
   bool _biometricAvailable = false;
   String _fechaActual = '';
-  String _materiaId = 'materia_actual';
-  String _periodoId = 'periodo_actual';
+  final String _materiaId = 'materia_actual';
+  final String _periodoId = 'periodo_actual';
 
   List<Estudiante> get estudiantes => _estudiantes;
   List<bool> get asistencia => _asistencia;

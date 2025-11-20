@@ -402,7 +402,7 @@ class DocenteService {
 
           // Guardar o actualizar nota
           await db.insert('notas_asistencia', {
-            'id': 'nota_${estudianteId}_${materiaId}_${bimestreId}',
+            'id': 'nota_${estudianteId}_${materiaId}_$bimestreId',
             'estudiante_id': estudianteId,
             'materia_id': materiaId,
             'periodo_id': 'periodo_2024', // Esto debería venir del bimestre

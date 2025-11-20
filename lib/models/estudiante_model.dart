@@ -1,9 +1,4 @@
-// models/estudiante_model.dart - VERSIÓN FINAL CORREGIDA
 import 'package:intl/intl.dart';
-import 'package:flutter/material.dart';
-
-// REMOVEMOS la importación circular
-// import '../models/usuario_model.dart';
 
 class Estudiante {
   final String id;
@@ -23,7 +18,6 @@ class Estudiante {
   final String? email;
   final String? telefono;
   final String? codigoEstudiante;
-  final String? usuarioId;
 
   Estudiante({
     required this.id,
@@ -43,10 +37,8 @@ class Estudiante {
     this.email,
     this.telefono,
     this.codigoEstudiante,
-    this.usuarioId,
   });
 
-  // ========== CONVERSIÓN SQLITE MEJORADA ==========
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -66,7 +58,6 @@ class Estudiante {
       'email': email,
       'telefono': telefono,
       'codigo_estudiante': codigoEstudiante,
-      'usuario_id': usuarioId,
     };
   }
 
@@ -90,100 +81,9 @@ class Estudiante {
       email: map['email']?.toString(),
       telefono: map['telefono']?.toString(),
       codigoEstudiante: map['codigo_estudiante']?.toString(),
-      usuarioId: map['usuario_id']?.toString(),
     );
   }
 
-  // ========== PROPIEDADES CALCULADAS MEJORADAS ==========
-  String get nombreCompleto => '$nombres $apellidoPaterno $apellidoMaterno';
-  String get nombreCorto => '$nombres $apellidoPaterno';
-  String get iniciales => nombres.isNotEmpty && apellidoPaterno.isNotEmpty 
-      ? '${nombres[0]}${apellidoPaterno[0]}' 
-      : '??';
-  bool get tieneTodasLasHuellas => huellasRegistradas >= 3;
-  bool get tieneHuellasRegistradas => huellasRegistradas > 0;
-  bool get estaActivo => activo;
-  bool get puedeMarcarAsistencia => activo && tieneTodasLasHuellas;
-
-  String get infoAcademica {
-    final parts = [carreraId, nivelId, paraleloId, turnoId].where((p) => p != null && p!.isNotEmpty);
-    return parts.isNotEmpty ? parts.join(' - ') : 'Sin información académica';
-  }
-
-  String get estadoHuellas {
-    if (huellasRegistradas >= 3) return 'Completas';
-    if (huellasRegistradas > 0) return 'Parciales';
-    return 'Sin registrar';
-  }
-
-  Color get colorEstadoHuellas {
-    if (huellasRegistradas >= 3) return Colors.green;
-    if (huellasRegistradas > 0) return Colors.orange;
-    return Colors.red;
-  }
-
-  // ========== MÉTODOS DE NEGOCIO ==========
-  double calcularNotaAsistenciaBimestral(int totalSesionesBimestre, int asistenciasBimestre) {
-    if (totalSesionesBimestre == 0) return 0.0;
-    
-    double porcentaje = (asistenciasBimestre / totalSesionesBimestre) * 100;
-    double nota = (porcentaje * 10) / 100;
-    
-    return double.parse(nota.toStringAsFixed(2));
-  }
-
-  double calcularPorcentajeAsistencia(int totalSesiones, int asistencias) {
-    if (totalSesiones == 0) return 0.0;
-    return (asistencias / totalSesiones) * 100;
-  }
-
-  String getEstadoAsistencia(int totalSesiones, int asistencias) {
-    final porcentaje = calcularPorcentajeAsistencia(totalSesiones, asistencias);
-    if (porcentaje >= 80) return 'Excelente';
-    if (porcentaje >= 70) return 'Bueno';
-    if (porcentaje >= 60) return 'Regular';
-    return 'Bajo';
-  }
-
-  Color getColorEstadoAsistencia(int totalSesiones, int asistencias) {
-    final porcentaje = calcularPorcentajeAsistencia(totalSesiones, asistencias);
-    if (porcentaje >= 80) return Colors.green;
-    if (porcentaje >= 70) return Colors.blue;
-    if (porcentaje >= 60) return Colors.orange;
-    return Colors.red;
-  }
-
-  // ========== MÉTODOS DE AUTENTICACIÓN ==========
-  Map<String, dynamic> toAuthMap() {
-    return {
-      'id': id,
-      'ci': ci,
-      'nombre_completo': nombreCompleto,
-      'codigo_estudiante': codigoEstudiante,
-      'huellas_registradas': huellasRegistradas,
-      'carrera': carreraId,
-      'nivel': nivelId,
-      'paralelo': paraleloId,
-      'turno': turnoId,
-      'usuario_id': usuarioId,
-    };
-  }
-
-  // ========== MÉTODO PARA CREAR USUARIO AUTOMÁTICO ==========
-  // Este método se implementará en el servicio para evitar importación circular
-  Map<String, dynamic> toUserCreationMap() {
-    return {
-      'id': 'est_$id',
-      'ci': ci,
-      'nombre_completo': nombreCompleto,
-      'email': email,
-      'telefono': telefono,
-      'carrera_id': carreraId,
-      'turno_id': turnoId,
-    };
-  }
-
-  // ========== COPIA Y COMPARACIÓN ==========
   Estudiante copyWith({
     String? id,
     String? nombres,
@@ -202,7 +102,6 @@ class Estudiante {
     String? email,
     String? telefono,
     String? codigoEstudiante,
-    String? usuarioId,
   }) {
     return Estudiante(
       id: id ?? this.id,
@@ -222,15 +121,69 @@ class Estudiante {
       email: email ?? this.email,
       telefono: telefono ?? this.telefono,
       codigoEstudiante: codigoEstudiante ?? this.codigoEstudiante,
-      usuarioId: usuarioId ?? this.usuarioId,
     );
   }
 
-  @override
-  String toString() => 'Estudiante($id: $nombreCompleto - $ci)';
+  // 🔐 PROPIEDADES PARA AUTENTICACIÓN
+  String get nombreCompleto => '$apellidoPaterno $apellidoMaterno $nombres';
+  String get nombreCorto => '$nombres $apellidoPaterno';
+  bool get tieneTodasLasHuellas => huellasRegistradas >= 3;
+  bool get tieneHuellasRegistradas => huellasRegistradas > 0;
+  bool get estaActivo => activo;
+  
+  // 📊 PARA ASISTENCIA Y NOTAS
+  bool get puedeMarcarAsistencia => activo && tieneTodasLasHuellas;
+  
+  // 🎓 INFORMACIÓN ACADÉMICA
+  String get infoAcademica {
+    return '$carreraId - $nivelId$paraleloId - $turnoId';
+  }
+
+  String get estadoHuellas {
+    if (huellasRegistradas >= 3) return 'Completas';
+    if (huellasRegistradas > 0) return 'Parciales';
+    return 'Sin registrar';
+  }
+
+  // 📈 MÉTODO PARA CÁLCULO DE NOTA DE ASISTENCIA BIMESTRAL (sobre 10 puntos)
+  double calcularNotaAsistenciaBimestral(int totalSesionesBimestre, int asistenciasBimestre) {
+    if (totalSesionesBimestre == 0) return 0.0;
+    
+    // Calcular porcentaje de asistencia
+    double porcentaje = (asistenciasBimestre / totalSesionesBimestre) * 100;
+    
+    // Convertir a nota sobre 10 puntos
+    // 100% = 10 puntos, 80% = 8 puntos, 50% = 5 puntos, etc.
+    double nota = (porcentaje * 10) / 100;
+    
+    // Redondear a 2 decimales
+    return double.parse(nota.toStringAsFixed(2));
+  }
+
+  // 🔐 PARA AUTENTICACIÓN MÓVIL
+  Map<String, dynamic> toAuthMap() {
+    return {
+      'id': id,
+      'ci': ci,
+      'nombre_completo': nombreCompleto,
+      'codigo_estudiante': codigoEstudiante,
+      'huellas_registradas': huellasRegistradas,
+      'carrera': carreraId,
+      'nivel': nivelId,
+      'paralelo': paraleloId,
+    };
+  }
 
   @override
-  bool operator ==(Object other) => identical(this, other) || other is Estudiante && other.id == id;
+  String toString() {
+    return 'Estudiante($id: $nombreCompleto - $ci)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is Estudiante && other.id == id;
+  }
 
   @override
   int get hashCode => id.hashCode;

@@ -22,10 +22,10 @@ class _PruebaConexionScreenState extends State<PruebaConexionScreen> {
 
     try {
       // Probar endpoint /status
-      _resultado += '🌐 Conectando a: http://192.168.0.58/status\n\n';
+      _resultado += '🌐 Conectando a: http://10.64.241.202/status\n\n';
       
       final response = await http.get(
-        Uri.parse('http://192.168.0.58/status')
+        Uri.parse('http://10.64.241.202/status')
       ).timeout(const Duration(seconds: 5));
 
       _resultado += '📡 Código HTTP: ${response.statusCode}\n';
@@ -42,7 +42,7 @@ class _PruebaConexionScreenState extends State<PruebaConexionScreen> {
       _resultado += '❌ ERROR DE CONEXIÓN:\n$e\n\n';
       _resultado += '🔧 Solución:\n';
       _resultado += '• Verifica que el celular esté en Tenda_FD7CA0\n';
-      _resultado += '• Revisa que la IP 192.168.0.58 sea correcta\n';
+      _resultado += '• Revisa que la IP 10.64.241.202 sea correcta\n';
       _resultado += '• Reinicia el ESP32 si es necesario';
     }
 
@@ -78,11 +78,11 @@ class _PruebaConexionScreenState extends State<PruebaConexionScreen> {
                       ),
                     ),
                     Text(
-                      'IP: 192.168.0.58',
+                      'IP: 10.64.241.202',
                       style: AppTextStyles.body,
                     ),
                     Text(
-                      'WiFi: Tenda_FD7CA0',
+                      'WiFi:realme 8i',
                       style: AppTextStyles.body,
                     ),
                   ],

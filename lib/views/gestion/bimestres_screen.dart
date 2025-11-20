@@ -854,7 +854,7 @@ class _BimestresScreenState extends State<BimestresScreen> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: estadoSeleccionado,
+                    initialValue: estadoSeleccionado,
                     decoration: const InputDecoration(
                       labelText: 'Estado',
                       border: OutlineInputBorder(),

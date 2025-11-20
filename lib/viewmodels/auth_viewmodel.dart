@@ -1,10 +1,9 @@
-// viewmodels/auth_viewmodel.dart - VERSIÓN CON MÉTODOS EXISTENTES
+// viewmodels/auth_viewmodel.dart - VERSIÓN COMPLETA CON TODOS LOS GETTERS
 import 'package:flutter/foundation.dart';
 import '../services/auth_service.dart';
 import '../services/permission_service.dart';
 import '../models/usuario_model.dart';
 import '../utils/permissions.dart';
-import '../models/database_helper.dart';
 
 class AuthViewModel with ChangeNotifier {
   final AuthService _authService = AuthService();
@@ -28,7 +27,16 @@ class AuthViewModel with ChangeNotifier {
   Map<String, bool> get availableModules => _availableModules;
   List<Usuario> get allUsers => _allUsers;
 
-  // 🌟 GETTERS DE PERMISOS ESPECÍFICOS
+  // 🌟 VERIFICAR PERMISO EN TIEMPO REAL
+  bool tienePermiso(String permission) {
+    return _currentUserPermissions.contains(permission);
+  }
+
+  bool puedeAccederModulo(String modulo) {
+    return _availableModules[modulo] ?? false;
+  }
+
+  // 🌟 VERIFICACIONES ESPECÍFICAS - TODOS LOS GETTERS NECESARIOS
   bool get puedeGestionarEstudiantes => tienePermiso(AppPermissions.MANAGE_ESTUDIANTES);
   bool get puedeGestionarDocentes => tienePermiso(AppPermissions.MANAGE_DOCENTES);
   bool get puedeGestionarCarreras => tienePermiso(AppPermissions.MANAGE_CARRERAS);
@@ -41,7 +49,6 @@ class AuthViewModel with ChangeNotifier {
   bool get puedeRegistrarAsistencia => tienePermiso(AppPermissions.REGISTER_ASISTENCIA);
   bool get puedeVerHistorialAsistencia => tienePermiso(AppPermissions.VIEW_HISTORIAL_ASISTENCIA);
   bool get puedeGestionarBiometrico => tienePermiso(AppPermissions.MANAGE_BIOMETRICO);
-  bool get puedeTomarAsistencia => tienePermiso(AppPermissions.TAKE_ATTENDANCE);
   
   bool get puedeGenerarReportes => tienePermiso(AppPermissions.GENERATE_REPORTES);
   bool get puedeExportarDatos => tienePermiso(AppPermissions.EXPORT_DATA);
@@ -59,22 +66,9 @@ class AuthViewModel with ChangeNotifier {
   bool get puedeAccederReportes => tienePermiso(AppPermissions.ACCESS_REPORTES);
   bool get puedeAccederConfiguracion => tienePermiso(AppPermissions.ACCESS_CONFIGURACION);
 
-  // 🌟 MÉTODO ESPECIAL PARA DOCENTES
+  // 🌟 MÉTODO ESPECIAL PARA DOCENTES - VER SOLO SUS ESTUDIANTES
   bool get esDocente => _currentUser?.role.toLowerCase() == 'docente';
   bool get puedeVerSusEstudiantes => esDocente || puedeGestionarEstudiantes;
-
-  // 🌟 PROPIEDADES DE COMPATIBILIDAD
-  String get rolDisplay => _currentUser?.role ?? 'Usuario';
-  List<String> get permisos => _currentUserPermissions;
-
-  // 🌟 VERIFICAR PERMISO EN TIEMPO REAL
-  bool tienePermiso(String permission) {
-    return _currentUserPermissions.contains(permission);
-  }
-
-  bool puedeAccederModulo(String modulo) {
-    return _availableModules[modulo] ?? false;
-  }
 
   // 🌟 INICIALIZACIÓN CON PERMISOS
   Future<void> initializeSession() async {
@@ -142,25 +136,28 @@ class AuthViewModel with ChangeNotifier {
     }
   }
 
-  // 🌟 VERIFICAR SESIÓN CON PERMISOS
+  // 🌟 VERIFICAR SESIÓN CON PERMISOS - VERSIÓN CORREGIDA
   Future<bool> _checkStoredSession() async {
     try {
       _isLoading = true;
       
-      await _authService.cargarSesionGuardada();
-      final storedUser = _authService.currentUser;
+      final storedUserId = await _authService.obtenerSesionGuardada();
       
-      if (storedUser != null) {
-        _currentUser = storedUser;
+      if (storedUserId != null && storedUserId.isNotEmpty) {
+        final usuario = await _authService.obtenerUsuarioPorId(storedUserId);
         
-        // Cargar permisos y módulos
-        await _loadUserPermissions();
-        await _loadAvailableModules();
-        
-        _error = null;
-        _sessionChecked = true;
-        _notifySafely();
-        return true;
+        if (usuario != null && usuario.estaActivo) {
+          _currentUser = usuario;
+          
+          // Cargar permisos y módulos
+          await _loadUserPermissions();
+          await _loadAvailableModules();
+          
+          _error = null;
+          _sessionChecked = true;
+          _notifySafely();
+          return true;
+        }
       }
       
       _sessionChecked = true;
@@ -193,7 +190,7 @@ class AuthViewModel with ChangeNotifier {
     }
   }
 
-  // 🌟 CAMBIO DE CONTRASEÑA - USANDO MÉTODO EXISTENTE
+  // 🌟 CAMBIO DE CONTRASEÑA MEJORADO
   Future<bool> cambiarPassword(String currentPassword, String newPassword) async {
     try {
       if (_currentUser == null) {
@@ -204,10 +201,10 @@ class AuthViewModel with ChangeNotifier {
       _setLoading(true);
       _setError(null);
 
-      // ✅ USAR MÉTODO EXISTENTE actualizarPerfil con password
-      final result = await _authService.actualizarPerfil(
+      final result = await _authService.cambiarPassword(
         userId: _currentUser!.id,
-        password: newPassword, // Solo enviar nueva contraseña
+        currentPassword: currentPassword,
+        newPassword: newPassword,
       );
 
       if (result['success'] == true) {
@@ -225,7 +222,7 @@ class AuthViewModel with ChangeNotifier {
     }
   }
 
-  // 🌟 ACTUALIZAR PERFIL - MÉTODO EXISTENTE
+  // 🌟 ACTUALIZAR PERFIL MEJORADO
   Future<bool> actualizarPerfil({
     String? username,
     String? nombre,
@@ -242,7 +239,6 @@ class AuthViewModel with ChangeNotifier {
       _setLoading(true);
       _setError(null);
 
-      // ✅ MÉTODO EXISTENTE
       final result = await _authService.actualizarPerfil(
         userId: _currentUser!.id,
         username: username,
@@ -269,16 +265,15 @@ class AuthViewModel with ChangeNotifier {
     }
   }
 
-  // 🌟 GESTIÓN DE USUARIOS - MÉTODOS EXISTENTES
+  // 🌟 GESTIÓN DE USUARIOS (SOLO ADMIN)
   Future<void> cargarTodosLosUsuarios() async {
-    if (_currentUser == null || !puedeGestionarUsuarios) {
+    if (_currentUser == null || !_currentUser!.puedeGestionarUsuarios) {
       _setError('No tienes permisos para gestionar usuarios');
       return;
     }
 
     try {
       _setLoading(true);
-      // ✅ MÉTODO EXISTENTE
       _allUsers = await _authService.obtenerTodosLosUsuarios();
       _notifySafely();
     } catch (e) {
@@ -298,7 +293,7 @@ class AuthViewModel with ChangeNotifier {
     required String departamento,
     String? telefono,
   }) async {
-    if (_currentUser == null || !puedeGestionarUsuarios) {
+    if (_currentUser == null || !_currentUser!.puedeGestionarUsuarios) {
       _setError('No tienes permisos para crear usuarios');
       return false;
     }
@@ -307,31 +302,18 @@ class AuthViewModel with ChangeNotifier {
       _setLoading(true);
       _setError(null);
 
-      // ✅ USAR MÉTODO EXISTENTE registrarUsuario (si lo añades)
-      // O usar actualizarPerfil para crear usuarios básicos
-      final result = await _authService.actualizarPerfil(
-        userId: 'user_${DateTime.now().millisecondsSinceEpoch}',
+      final result = await _authService.registrarUsuario(
         username: username,
+        password: password,
         nombre: nombre,
         email: email,
+        role: role,
+        carnet: carnet,
+        departamento: departamento,
         telefono: telefono,
-        password: password, // Incluir password
       );
 
-      // Actualizar rol y otros campos manualmente
       if (result['success'] == true) {
-        final db = await _authService.database;
-        await db.update(
-          'usuarios',
-          {
-            'role': role,
-            'carnet': carnet,
-            'departamento': departamento,
-          },
-          where: 'username = ?',
-          whereArgs: [username],
-        );
-        
         // Recargar lista de usuarios
         await cargarTodosLosUsuarios();
         return true;
@@ -348,14 +330,13 @@ class AuthViewModel with ChangeNotifier {
   }
 
   Future<bool> toggleUsuarioActivo(String userId, bool activo) async {
-    if (_currentUser == null || !puedeGestionarUsuarios) {
+    if (_currentUser == null || !_currentUser!.puedeGestionarUsuarios) {
       _setError('No tienes permisos para modificar usuarios');
       return false;
     }
 
     try {
       _setLoading(true);
-      // ✅ MÉTODO EXISTENTE
       final success = await _authService.toggleEstadoUsuario(userId, activo);
       
       if (success) {
@@ -382,10 +363,9 @@ class AuthViewModel with ChangeNotifier {
   }) async {
     if (_currentUser == null) return false;
 
-    final tieneAcceso = puedeAccederModulo(modulo);
+    final tieneAcceso = _currentUser!.puedeAccederA(modulo);
     
     if (!tieneAcceso && registrarIntento) {
-      // ✅ MÉTODO EXISTENTE
       await _permissionService.registrarIntentoAccesoNoAutorizado(
         userId: _currentUser!.id,
         modulo: modulo,
@@ -435,6 +415,6 @@ class AuthViewModel with ChangeNotifier {
   }
 
   // 🌟 VERIFICAR PERMISOS (COMPATIBILIDAD)
-  bool get puedeGestionarCursos => puedeGestionarMaterias;
-  bool get puedeVerReportes => puedeGenerarReportes;
+  bool get puedeGestionarCursos => _currentUser?.puedeGestionarCursos == true;
+  bool get puedeVerReportes => _currentUser?.puedeVerReportes == true;
 }

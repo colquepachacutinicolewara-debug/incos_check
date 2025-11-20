@@ -120,7 +120,7 @@ class _AgregarHorarioScreenState extends State<AgregarHorarioScreen> {
 
                     // Día de la semana
                     DropdownButtonFormField<String>(
-                      value: _diaSeleccionado,
+                      initialValue: _diaSeleccionado,
                       items: _diasSemana.map((dia) {
                         return DropdownMenuItem(
                           value: dia,
@@ -143,7 +143,7 @@ class _AgregarHorarioScreenState extends State<AgregarHorarioScreen> {
 
                     // Período
                     DropdownButtonFormField<int>(
-                      value: _periodoSeleccionado,
+                      initialValue: _periodoSeleccionado,
                       items: [1, 2, 3].map((periodo) {
                         return DropdownMenuItem(
                           value: periodo,

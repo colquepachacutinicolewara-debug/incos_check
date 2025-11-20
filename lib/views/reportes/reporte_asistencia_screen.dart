@@ -229,8 +229,7 @@ class _ReportesScreenBody extends StatelessWidget {
           children: [
             Text('Tipo: ${_formatearTipo(reporte.tipoReporte)}'),
             Text('Generado: ${_formatearFecha(reporte.fechaGeneracion)}'),
-            if (reporte.usuarioGenerador != null)
-              Text('Por: ${reporte.usuarioGenerador}'),
+            Text('Por: ${reporte.usuarioGenerador}'),
             if (reporte.tamanoBytes != null)
               Text('Tamaño: ${_formatearTamano(reporte.tamanoBytes!)}'),
           ],
@@ -469,12 +468,10 @@ class _ReportesScreenBody extends StatelessWidget {
               _buildDetalleItem('Tipo', _formatearTipo(reporte.tipoReporte)),
               _buildDetalleItem('Formato', reporte.formato),
               _buildDetalleItem('Fecha', _formatearFecha(reporte.fechaGeneracion)),
-              if (reporte.usuarioGenerador != null)
-                _buildDetalleItem('Generado por', reporte.usuarioGenerador!),
+              _buildDetalleItem('Generado por', reporte.usuarioGenerador!),
               if (reporte.tamanoBytes != null)
                 _buildDetalleItem('Tamaño', _formatearTamano(reporte.tamanoBytes!)),
-              if (reporte.periodoId != null)
-                _buildDetalleItem('Período', reporte.periodoId!),
+              _buildDetalleItem('Período', reporte.periodoId!),
               if (reporte.materiaId != null)
                 _buildDetalleItem('Materia', reporte.materiaId!),
             ],

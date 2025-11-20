@@ -62,7 +62,7 @@ class _GestionScreenState extends State<GestionScreen> {
           _modoOscuro = value;
         });
       },
-      activeColor: AppColors.secondary,
+      activeThumbColor: AppColors.secondary,
     );
   }
 

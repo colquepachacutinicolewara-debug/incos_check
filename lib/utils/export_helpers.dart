@@ -87,7 +87,7 @@ class ExportHelpers {
           await getApplicationDocumentsDirectory();
       String fileName =
           'asistencia_${DateTime.now().millisecondsSinceEpoch}.xlsx';
-      String filePath = '${directory?.path}/$fileName';
+      String filePath = '${directory.path}/$fileName';
 
       var file = File(filePath);
       await file.writeAsBytes(excel.encode()!);
@@ -170,7 +170,7 @@ class ExportHelpers {
                       children: [
                         pw.Text('CARRERA: $institucion'),
                         pw.Text(
-                          'TURNO: ${turno}${turnoHorario != null ? ' ($turnoHorario)' : ''}',
+                          'TURNO: $turno${turnoHorario != null ? ' ($turnoHorario)' : ''}',
                         ),
                       ],
                     ),

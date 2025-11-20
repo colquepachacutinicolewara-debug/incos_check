@@ -234,7 +234,7 @@ class _ParalelosScreenState extends State<ParalelosScreen> {
               onChanged: (value) {
                 _cambiarEstadoParalelo(viewModel, paralelo, value);
               },
-              activeColor: color,
+              activeThumbColor: color,
             ),
             PopupMenuButton<String>(
               onSelected: (value) =>

@@ -72,7 +72,7 @@ class _HorariosScreenContent extends StatelessWidget {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: viewModel.filtroDia,
+                    initialValue: viewModel.filtroDia,
                     items: ['Todos', ...viewModel.diasSemana].map((dia) {
                       return DropdownMenuItem(
                         value: dia,
@@ -93,7 +93,7 @@ class _HorariosScreenContent extends StatelessWidget {
                 const SizedBox(width: 16),
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: viewModel.filtroPeriodo,
+                    initialValue: viewModel.filtroPeriodo,
                     items: ['Todos', '1', '2', '3'].map((periodo) {
                       return DropdownMenuItem(
                         value: periodo,

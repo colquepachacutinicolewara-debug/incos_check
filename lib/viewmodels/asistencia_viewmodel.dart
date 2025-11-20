@@ -83,7 +83,7 @@ class AsistenciaViewModel extends ChangeNotifier {
   }
 
   Color getTextColor(BuildContext context) {
-    return Theme.of(context).colorScheme.onBackground;
+    return Theme.of(context).colorScheme.onSurface;
   }
 
   Color getAppBarColor(BuildContext context) {

@@ -144,7 +144,7 @@ class _DocentesScreenContent extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.medium),
       child: DropdownButtonFormField<String>(
-        value: viewModel.selectedCarrera,
+        initialValue: viewModel.selectedCarrera,
         isExpanded: true,
         dropdownColor: _getCardColor(context),
         style: TextStyle(color: _getTextColor(context)),
@@ -995,7 +995,7 @@ class _DocentesScreenContent extends StatelessWidget {
 
                             // Selector de Carrera
                             DropdownButtonFormField<String>(
-                              value: selectedCarrera,
+                              initialValue: selectedCarrera,
                               isExpanded: true,
                               dropdownColor: _getCardColor(context),
                               style: TextStyle(color: _getTextColor(context)),
@@ -1033,7 +1033,7 @@ class _DocentesScreenContent extends StatelessWidget {
 
                             // Selector de Turno
                             DropdownButtonFormField<String>(
-                              value: selectedTurno,
+                              initialValue: selectedTurno,
                               isExpanded: true,
                               dropdownColor: _getCardColor(context),
                               style: TextStyle(color: _getTextColor(context)),
@@ -1117,7 +1117,7 @@ class _DocentesScreenContent extends StatelessWidget {
 
                             // Estado
                             DropdownButtonFormField<String>(
-                              value: selectedEstado,
+                              initialValue: selectedEstado,
                               isExpanded: true,
                               dropdownColor: _getCardColor(context),
                               style: TextStyle(color: _getTextColor(context)),
@@ -1189,7 +1189,7 @@ class _DocentesScreenContent extends StatelessWidget {
                               }
 
                               final nuevoDocente = Docente(
-                                id: isEditing ? docente!.id : '',
+                                id: isEditing ? docente.id : '',
                                 ci: ciController.text,
                                 apellidoPaterno: apellidoPaternoController.text
                                     .trim()

@@ -1,4 +1,3 @@
-//view/dasboar/login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:incos_check/utils/constants.dart';

@@ -1,195 +1,137 @@
-// services/api_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String _baseUrl = "http://192.168.1.100/incos_check/api"; // Cambia por tu IP
-  static String? _token;
+  static const String _baseUrl = "http://localhost/incos_api";
+  // Para dispositivo físico: "http://192.168.1.X/incos_api"
   
-  // Método para login
-  static Future<Map<String, dynamic>> login(String username, String password) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/index.php?action=login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'username': username,
-          'password': password,
-        }),
-      );
-      
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) {
-          _token = data['token'];
-          await _saveToken(_token!);
-          return {'success': true, 'user': data['user']};
-        }
-      }
-      
-      final errorData = jsonDecode(response.body);
-      return {'success': false, 'error': errorData['error'] ?? 'Credenciales incorrectas'};
-    } catch (e) {
-      return {'success': false, 'error': 'Error de conexión: $e'};
+  static final ApiService _instance = ApiService._internal();
+  factory ApiService() => _instance;
+  ApiService._internal();
+
+  // HEADERS comunes
+  Map<String, String> get _headers => {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
+
+  // MANEJAR errores HTTP
+  dynamic _handleResponse(http.Response response) {
+    print('🔗 API Response: ${response.statusCode} - ${response.body}');
+    
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Error HTTP ${response.statusCode}: ${response.body}');
     }
   }
-  
-  // Método para sincronizar datos individuales
-  static Future<Map<String, dynamic>> syncData(
-    String table, 
-    Map<String, dynamic> data, 
-    String operation
-  ) async {
-    await _loadToken();
-    
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/index.php?action=sync&table=$table'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $_token',
-        },
-        body: jsonEncode({
-          'operation': operation,
-          'data': data,
-        }),
-      );
-      
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        final errorData = jsonDecode(response.body);
-        return {'success': false, 'error': errorData['error'] ?? 'Error del servidor'};
-      }
-    } catch (e) {
-      return {'success': false, 'error': 'Error de conexión: $e'};
-    }
-  }
-  
-  // Método para sincronización masiva
-  static Future<Map<String, dynamic>> syncBatch(List<Map<String, dynamic>> batch) async {
-    await _loadToken();
-    
-    try {
-      final response = await http.put(
-        Uri.parse('$_baseUrl/index.php?action=sync'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $_token',
-        },
-        body: jsonEncode({'batch': batch}),
-      );
-      
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        final errorData = jsonDecode(response.body);
-        return {'success': false, 'error': errorData['error'] ?? 'Error del servidor'};
-      }
-    } catch (e) {
-      return {'success': false, 'error': 'Error de conexión: $e'};
-    }
-  }
-  
-  // Método para obtener cambios desde última sincronización
-  static Future<Map<String, dynamic>> getChangesSince(
-    String table, 
-    String lastSync
-  ) async {
-    await _loadToken();
-    
+
+  // TEST de conexión
+  Future<bool> testConnection() async {
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/index.php?action=sync&table=$table&lastSync=$lastSync'),
-        headers: {
-          'Authorization': 'Bearer $_token',
-        },
-      );
+        Uri.parse('$_baseUrl/test'),
+        headers: _headers,
+      ).timeout(Duration(seconds: 10));
       
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        final errorData = jsonDecode(response.body);
-        return {'success': false, 'error': errorData['error'] ?? 'Error del servidor'};
-      }
+      final data = _handleResponse(response);
+      return data['success'] == true;
     } catch (e) {
-      return {'success': false, 'error': 'Error de conexión: $e'};
+      print('❌ Error testing connection: $e');
+      return false;
     }
   }
-  
-  // Método para crear respaldo
-  static Future<Map<String, dynamic>> createBackup() async {
-    await _loadToken();
+
+  // ========== ESTUDIANTES ==========
+
+  // OBTENER todos los estudiantes
+  Future<List<dynamic>> obtenerEstudiantes() async {
+    final response = await http.get(
+      Uri.parse('$_baseUrl/estudiantes'),
+      headers: _headers,
+    );
     
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/index.php?action=backup'),
-        headers: {
-          'Authorization': 'Bearer $_token',
-        },
-      );
-      
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        final errorData = jsonDecode(response.body);
-        return {'success': false, 'error': errorData['error'] ?? 'Error del servidor'};
-      }
-    } catch (e) {
-      return {'success': false, 'error': 'Error de conexión: $e'};
-    }
+    final data = _handleResponse(response);
+    return data['data'] ?? [];
   }
-  
-  // Método para restaurar respaldo
-  static Future<Map<String, dynamic>> restoreBackup(String backupId) async {
-    await _loadToken();
+
+  // CREAR estudiante
+  Future<dynamic> crearEstudiante(Map<String, dynamic> estudiante) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/estudiantes'),
+      headers: _headers,
+      body: json.encode(estudiante),
+    );
     
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/index.php?action=restore'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $_token',
-        },
-        body: jsonEncode({'backup_id': backupId}),
-      );
-      
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        final errorData = jsonDecode(response.body);
-        return {'success': false, 'error': errorData['error'] ?? 'Error del servidor'};
-      }
-    } catch (e) {
-      return {'success': false, 'error': 'Error de conexión: $e'};
+    return _handleResponse(response);
+  }
+
+  // SINCRONIZAR lote de estudiantes
+  Future<dynamic> sincronizarEstudiantes(List<Map<String, dynamic>> estudiantes) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/estudiantes'),
+      headers: _headers,
+      body: json.encode({'estudiantes': estudiantes}),
+    );
+    
+    return _handleResponse(response);
+  }
+
+  // ========== ASISTENCIAS ==========
+
+  // REGISTRAR asistencia
+  Future<dynamic> registrarAsistencia(Map<String, dynamic> asistencia) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/asistencias'),
+      headers: _headers,
+      body: json.encode(asistencia),
+    );
+    
+    return _handleResponse(response);
+  }
+
+  // SINCRONIZAR lote de asistencias
+  Future<dynamic> sincronizarAsistencias(List<Map<String, dynamic>> asistencias) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/asistencias'),
+      headers: _headers,
+      body: json.encode({'asistencias': asistencias}),
+    );
+    
+    return _handleResponse(response);
+  }
+
+  // OBTENER asistencias por fecha
+  Future<List<dynamic>> obtenerAsistenciasPorFecha(String fecha, {String? materiaId}) async {
+    String url = '$_baseUrl/asistencias?fecha=$fecha';
+    if (materiaId != null) {
+      url += '&materia_id=$materiaId';
     }
+    
+    final response = await http.get(
+      Uri.parse(url),
+      headers: _headers,
+    );
+    
+    final data = _handleResponse(response);
+    return data['data'] ?? [];
   }
-  
-  // Métodos auxiliares para manejo del token
-  static Future<void> _saveToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('auth_token', token);
+
+  // ========== SINCRONIZACIÓN COMPLETA ==========
+
+  Future<dynamic> sincronizarCompleta({
+    required List<Map<String, dynamic>> estudiantes,
+    required List<Map<String, dynamic>> asistencias,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/sync'),
+      headers: _headers,
+      body: json.encode({
+        'estudiantes': estudiantes,
+        'asistencias': asistencias,
+      }),
+    );
+    
+    return _handleResponse(response);
   }
-  
-  static Future<void> _loadToken() async {
-    if (_token == null) {
-      final prefs = await SharedPreferences.getInstance();
-      _token = prefs.getString('auth_token');
-    }
-  }
-  
-  static Future<void> logout() async {
-    _token = null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token');
-  }
-  
-  static Future<bool> get isLoggedIn async {
-    await _loadToken();
-    return _token != null;
-  }
-  
-  // Obtener token actual
-  static String? get token => _token;
 }

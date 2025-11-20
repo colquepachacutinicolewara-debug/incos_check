@@ -14,10 +14,10 @@ class GestionViewModel extends ChangeNotifier {
 
   bool _loading = false;
   String _error = '';
-  Map<String, int> _counts = {};
-  Map<String, List<String>> _turnos = {};
-  Map<String, List<String>> _paralelos = {};
-  Map<String, List<String>> _niveles = {};
+  final Map<String, int> _counts = {};
+  final Map<String, List<String>> _turnos = {};
+  final Map<String, List<String>> _paralelos = {};
+  final Map<String, List<String>> _niveles = {};
 
   // Getters
   GestionEstado get estado => _estado;

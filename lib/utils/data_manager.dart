@@ -201,8 +201,9 @@ class DataManager {
         _carrerasData[key]!['turnos'] = [];
       }
       final stored = Map<String, dynamic>.from(turno);
-      if (stored.containsKey('icon'))
+      if (stored.containsKey('icon')) {
         stored['icon'] = _serializeIcon(stored['icon']);
+      }
       final safe = _ensureJsonCompatible(stored);
       _carrerasData[key]!['turnos'].add(safe);
     }
@@ -222,8 +223,9 @@ class DataManager {
         );
         if (index != -1) {
           final stored = Map<String, dynamic>.from(turnoActualizado);
-          if (stored.containsKey('icon'))
+          if (stored.containsKey('icon')) {
             stored['icon'] = _serializeIcon(stored['icon']);
+          }
           final safe = _ensureJsonCompatible(stored);
           turnos[index] = safe;
         }
@@ -582,12 +584,14 @@ class DataManager {
         if (cp is int) return IconData(cp, fontFamily: ff as String?);
         if (cp is String) {
           final parsed = int.tryParse(cp);
-          if (parsed != null)
+          if (parsed != null) {
             return IconData(parsed, fontFamily: ff as String?);
+          }
         }
       }
-      if (iconField is int)
+      if (iconField is int) {
         return IconData(iconField, fontFamily: 'MaterialIcons');
+      }
     } catch (e) {
       // fallback below
     }
@@ -611,8 +615,9 @@ class DataManager {
       } else if (value is List) {
         out[key] = value.map((e) {
           if (e is IconData) return _serializeIcon(e);
-          if (e is Map)
+          if (e is Map) {
             return _ensureJsonCompatible(Map<String, dynamic>.from(e));
+          }
           return e;
         }).toList();
       } else {

@@ -106,6 +106,8 @@ class Docente {
     String? telefono,
     String? estado,
     String? usuarioId,
+    DateTime? fechaCreacion,
+    DateTime? fechaActualizacion, 
   }) {
     return Docente(
       id: id ?? this.id,

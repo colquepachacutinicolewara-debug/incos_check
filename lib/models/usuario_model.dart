@@ -1,10 +1,6 @@
-// models/usuario_model.dart - VERSIÓN CORREGIDA
+// models/usuario_model.dart - VERSIÓN COMPLETA Y CORREGIDA
 import 'package:flutter/material.dart';
 import '../utils/permissions.dart';
-
-// Importaciones con alias para evitar conflictos
-import 'estudiante_model.dart' as estudiante_model;
-import 'docente_model.dart' as docente_model;
 
 class Usuario {
   final String id;
@@ -20,8 +16,6 @@ class Usuario {
   final DateTime updatedAt;
   final String? telefono;
   final String? fotoUrl;
-  final String? carreraId;
-  final String? turnoId;
 
   Usuario({
     required this.id,
@@ -37,62 +31,102 @@ class Usuario {
     required this.updatedAt,
     this.telefono,
     this.fotoUrl,
-    this.carreraId,
-    this.turnoId,
   });
 
-  // ========== CONSTRUCTORES MEJORADOS ==========
-  factory Usuario.fromEstudiante(estudiante_model.Estudiante estudiante) {
-    final userData = AppPermissions.getDefaultUserForRole(
-      'estudiante', 
-      estudiante.ci, 
-      estudiante.nombreCompleto
-    );
-    
+  // Constructor para datos de prueba
+  Usuario.demo({
+    required this.username,
+    required this.email,
+    required this.nombre,
+    required this.role,
+    required this.carnet,
+    required this.departamento,
+    this.telefono,
+    this.fotoUrl,
+  })  : id = username,
+        password = 'default123',
+        estaActivo = true,
+        fechaRegistro = DateTime.now(),
+        updatedAt = DateTime.now();
+
+  // Método para obtener color según rol
+  Color get colorRol {
+    switch (role.toLowerCase()) {
+      case 'administrador':
+        return const Color(0xFF1565C0);
+      case 'docente':
+        return const Color(0xFF42A5F5);
+      case 'jefe de carrera':
+        return const Color(0xFF64B5F6);
+      case 'director académico':
+        return const Color(0xFF1976D2);
+      case 'estudiante':
+        return const Color(0xFF29B6F6);
+      default:
+        return const Color(0xFF1565C0);
+    }
+  }
+
+  // Método para obtener ícono según rol
+  IconData get iconoRol {
+    switch (role.toLowerCase()) {
+      case 'administrador':
+        return Icons.admin_panel_settings;
+      case 'docente':
+        return Icons.school;
+      case 'jefe de carrera':
+        return Icons.manage_accounts;
+      case 'director académico':
+        return Icons.supervisor_account;
+      case 'estudiante':
+        return Icons.person;
+      default:
+        return Icons.person;
+    }
+  }
+
+  // Para SQLite
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'username': username,
+      'email': email,
+      'nombre': nombre,
+      'password': password,
+      'role': role,
+      'carnet': carnet,
+      'departamento': departamento,
+      'esta_activo': estaActivo ? 1 : 0,
+      'fecha_registro': fechaRegistro.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+      'telefono': telefono,
+      'foto_url': fotoUrl,
+    };
+  }
+
+  factory Usuario.fromMap(Map<String, dynamic> map) {
     return Usuario(
-      id: 'est_${estudiante.id}',
-      username: userData['username']!,
-      email: userData['email']!,
-      nombre: estudiante.nombreCompleto,
-      password: userData['password']!,
-      role: 'estudiante',
-      carnet: estudiante.ci,
-      departamento: userData['departamento']!,
-      estaActivo: estudiante.activo,
-      fechaRegistro: DateTime.now(),
-      updatedAt: DateTime.now(),
-      telefono: estudiante.telefono,
-      carreraId: estudiante.carreraId,
-      turnoId: estudiante.turnoId,
+      id: map['id']?.toString() ?? '',
+      username: map['username']?.toString() ?? '',
+      email: map['email']?.toString() ?? '',
+      nombre: map['nombre']?.toString() ?? '',
+      password: map['password']?.toString() ?? '',
+      role: map['role']?.toString() ?? 'Docente',
+      carnet: map['carnet']?.toString() ?? '',
+      departamento: map['departamento']?.toString() ?? '',
+      estaActivo: (map['esta_activo'] ?? 1) == 1,
+      fechaRegistro: map['fecha_registro'] != null
+          ? DateTime.parse(map['fecha_registro'])
+          : DateTime.now(),
+      updatedAt: map['updated_at'] != null 
+          ? DateTime.parse(map['updated_at'])
+          : DateTime.now(),
+      telefono: map['telefono']?.toString(),
+      fotoUrl: map['foto_url']?.toString(),
     );
   }
 
-  factory Usuario.fromDocente(docente_model.Docente docente) {
-    final userData = AppPermissions.getDefaultUserForRole(
-      'docente', 
-      docente.ci, 
-      docente.nombreCompleto
-    );
-    
-    return Usuario(
-      id: 'doc_${docente.id}',
-      username: userData['username']!,
-      email: docente.email,
-      nombre: docente.nombreCompleto,
-      password: userData['password']!,
-      role: 'docente',
-      carnet: docente.ci,
-      departamento: userData['departamento']!,
-      estaActivo: docente.estaActivo,
-      fechaRegistro: DateTime.now(),
-      updatedAt: DateTime.now(),
-      telefono: docente.telefono,
-      carreraId: docente.carrera,
-      turnoId: docente.turno,
-    );
-  }
-
-  // ========== CONSTRUCTOR fromLoginData ==========
+  // Constructor desde datos de login
   factory Usuario.fromLoginData(Map<String, Object?> data) {
     return Usuario(
       id: data['id']?.toString() ?? '',
@@ -114,131 +148,10 @@ class Usuario {
           : DateTime.now(),
       telefono: data['telefono']?.toString(),
       fotoUrl: data['foto_url']?.toString(),
-      carreraId: data['carrera_id']?.toString(),
-      turnoId: data['turno_id']?.toString(),
     );
   }
 
-  // ========== CONVERSIÓN SQLITE MEJORADA ==========
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'username': username,
-      'email': email,
-      'nombre': nombre,
-      'password': password,
-      'role': role,
-      'carnet': carnet,
-      'departamento': departamento,
-      'esta_activo': estaActivo ? 1 : 0,
-      'fecha_registro': fechaRegistro.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
-      'telefono': telefono,
-      'foto_url': fotoUrl,
-      'carrera_id': carreraId,
-      'turno_id': turnoId,
-    };
-  }
-
-  factory Usuario.fromMap(Map<String, dynamic> map) {
-    return Usuario(
-      id: map['id']?.toString() ?? '',
-      username: map['username']?.toString() ?? '',
-      email: map['email']?.toString() ?? '',
-      nombre: map['nombre']?.toString() ?? '',
-      password: map['password']?.toString() ?? '',
-      role: map['role']?.toString() ?? 'estudiante',
-      carnet: map['carnet']?.toString() ?? '',
-      departamento: map['departamento']?.toString() ?? '',
-      estaActivo: (map['esta_activo'] ?? 1) == 1,
-      fechaRegistro: map['fecha_registro'] != null
-          ? DateTime.parse(map['fecha_registro'])
-          : DateTime.now(),
-      updatedAt: map['updated_at'] != null 
-          ? DateTime.parse(map['updated_at'])
-          : DateTime.now(),
-      telefono: map['telefono']?.toString(),
-      fotoUrl: map['foto_url']?.toString(),
-      carreraId: map['carrera_id']?.toString(),
-      turnoId: map['turno_id']?.toString(),
-    );
-  }
-
-  // ========== PROPIEDADES DE UI MEJORADAS ==========
-  Color get colorRol => AppPermissions.getRoleColor(role);
-  IconData get iconoRol => AppPermissions.getRoleIcon(role);
-  String get rolDisplay => role[0].toUpperCase() + role.substring(1);
-  String get descripcionRol => AppPermissions.getRoleDescription(role);
-  int get nivelAcceso => AppPermissions.availableRoles.indexOf(role) + 1;
-
-  // ========== MÉTODOS DE PERMISOS MEJORADOS ==========
-  bool tienePermiso(String permission) => AppPermissions.hasPermission(role, permission);
-  bool tieneAlgunPermiso(List<String> permissions) => AppPermissions.hasAnyPermission(role, permissions);
-  bool tieneTodosPermisos(List<String> permissions) => AppPermissions.hasAllPermissions(role, permissions);
-  List<String> get permisos => AppPermissions.getPermissionsForRole(role);
-
-  // ========== PERMISOS POR MÓDULO ==========
-  bool get puedeAccederDashboard => tienePermiso(AppPermissions.ACCESS_DASHBOARD);
-  bool get puedeAccederGestion => AppPermissions.canAccessGestion(role);
-  bool get puedeAccederAsistencia => AppPermissions.canAccessAsistencia(role);
-  bool get puedeAccederReportes => AppPermissions.canAccessReportes(role);
-  bool get puedeAccederConfiguracion => AppPermissions.canAccessConfiguracion(role);
-
-  // ========== PERMISOS ESPECÍFICOS ==========
-  bool get puedeGestionarEstudiantes => tienePermiso(AppPermissions.MANAGE_ESTUDIANTES);
-  bool get puedeGestionarDocentes => tienePermiso(AppPermissions.MANAGE_DOCENTES);
-  bool get puedeGestionarMaterias => tienePermiso(AppPermissions.MANAGE_MATERIAS);
-  bool get puedeRegistrarAsistencia => tienePermiso(AppPermissions.REGISTER_ASISTENCIA);
-  bool get puedeTomarAsistencia => tienePermiso(AppPermissions.TAKE_ATTENDANCE);
-  bool get puedeVerHistorial => tienePermiso(AppPermissions.VIEW_HISTORIAL_ASISTENCIA);
-  bool get puedeVerPropiaAsistencia => tienePermiso(AppPermissions.VIEW_OWN_ATTENDANCE);
-  bool get puedeGenerarReportes => tienePermiso(AppPermissions.GENERATE_REPORTES);
-  bool get puedeGestionarUsuarios => tienePermiso(AppPermissions.MANAGE_USUARIOS);
-
-  // ========== MÓDULOS DISPONIBLES ==========
-  Map<String, Map<String, dynamic>> get modulosDisponibles {
-    return {
-      'Gestión': {
-        'acceso': puedeAccederGestion,
-        'icon': Icons.manage_accounts,
-        'color': Colors.blue,
-        'submodulos': {
-          'Estudiantes': puedeGestionarEstudiantes,
-          'Docentes': puedeGestionarDocentes,
-          'Materias': puedeGestionarMaterias,
-        }
-      },
-      'Asistencia': {
-        'acceso': puedeAccederAsistencia,
-        'icon': Icons.fingerprint,
-        'color': Colors.green,
-        'submodulos': {
-          'Registrar': puedeRegistrarAsistencia,
-          'Tomar Lista': puedeTomarAsistencia,
-          'Historial': puedeVerHistorial,
-        }
-      },
-      'Reportes': {
-        'acceso': puedeAccederReportes,
-        'icon': Icons.analytics,
-        'color': Colors.orange,
-        'submodulos': {
-          'Generar': puedeGenerarReportes,
-          'Estadísticas': puedeVerHistorial,
-        }
-      },
-      'Configuración': {
-        'acceso': puedeAccederConfiguracion,
-        'icon': Icons.settings,
-        'color': Colors.purple,
-        'submodulos': {
-          'Usuarios': puedeGestionarUsuarios,
-        }
-      },
-    };
-  }
-
-  // ========== MÉTODOS DE UTILIDAD ==========
+  // Método para copiar con nuevos valores (para edición)
   Usuario copyWith({
     String? username,
     String? nombre,
@@ -246,9 +159,6 @@ class Usuario {
     String? telefono,
     String? fotoUrl,
     String? password,
-    bool? estaActivo,
-    String? carreraId,
-    String? turnoId,
   }) {
     return Usuario(
       id: id,
@@ -259,35 +169,175 @@ class Usuario {
       role: role,
       carnet: carnet,
       departamento: departamento,
-      estaActivo: estaActivo ?? this.estaActivo,
+      estaActivo: estaActivo,
       fechaRegistro: fechaRegistro,
       updatedAt: DateTime.now(),
       telefono: telefono ?? this.telefono,
       fotoUrl: fotoUrl ?? this.fotoUrl,
-      carreraId: carreraId ?? this.carreraId,
-      turnoId: turnoId ?? this.turnoId,
     );
   }
 
+  // 🌟 MÉTODOS DE PERMISOS MEJORADOS
+  bool tienePermiso(String permission) {
+    return AppPermissions.hasPermission(role, permission);
+  }
+
+  bool tieneAlgunPermiso(List<String> permissions) {
+    return AppPermissions.hasAnyPermission(role, permissions);
+  }
+
+  bool tieneTodosPermisos(List<String> permissions) {
+    return AppPermissions.hasAllPermissions(role, permissions);
+  }
+
+  List<String> get permisos => AppPermissions.getPermissionsForRole(role);
+
+  // 🌟 PERMISOS ESPECÍFICOS POR MÓDULO
+  bool get puedeAccederDashboard => tienePermiso(AppPermissions.ACCESS_DASHBOARD);
+  bool get puedeAccederGestion => tienePermiso(AppPermissions.ACCESS_GESTION);
+  bool get puedeAccederAsistencia => tienePermiso(AppPermissions.ACCESS_ASISTENCIA);
+  bool get puedeAccederReportes => tienePermiso(AppPermissions.ACCESS_REPORTES);
+  bool get puedeAccederConfiguracion => tienePermiso(AppPermissions.ACCESS_CONFIGURACION);
+
+  // Gestión académica
+  bool get puedeGestionarEstudiantes => tienePermiso(AppPermissions.MANAGE_ESTUDIANTES);
+  bool get puedeGestionarDocentes => tienePermiso(AppPermissions.MANAGE_DOCENTES);
+  bool get puedeGestionarCarreras => tienePermiso(AppPermissions.MANAGE_CARRERAS);
+  bool get puedeGestionarMaterias => tienePermiso(AppPermissions.MANAGE_MATERIAS);
+  bool get puedeGestionarParalelos => tienePermiso(AppPermissions.MANAGE_PARALELOS);
+  bool get puedeGestionarTurnos => tienePermiso(AppPermissions.MANAGE_TURNOS);
+  bool get puedeGestionarNiveles => tienePermiso(AppPermissions.MANAGE_NIVELES);
+  bool get puedeGestionarPeriodos => tienePermiso(AppPermissions.MANAGE_PERIODOS);
+
+  // Asistencia
+  bool get puedeRegistrarAsistencia => tienePermiso(AppPermissions.REGISTER_ASISTENCIA);
+  bool get puedeVerHistorialAsistencia => tienePermiso(AppPermissions.VIEW_HISTORIAL_ASISTENCIA);
+  bool get puedeGestionarBiometrico => tienePermiso(AppPermissions.MANAGE_BIOMETRICO);
+
+  // Reportes
+  bool get puedeGenerarReportes => tienePermiso(AppPermissions.GENERATE_REPORTES);
+  bool get puedeExportarDatos => tienePermiso(AppPermissions.EXPORT_DATA);
+  bool get puedeVerEstadisticas => tienePermiso(AppPermissions.VIEW_STATISTICS);
+
+  // Configuración
+  bool get puedeGestionarUsuarios => tienePermiso(AppPermissions.MANAGE_USUARIOS);
+  bool get puedeGestionarConfiguracion => tienePermiso(AppPermissions.MANAGE_CONFIGURACION);
+  bool get puedeGestionarRespaldos => tienePermiso(AppPermissions.MANAGE_BACKUPS);
+  bool get puedeVerLogs => tienePermiso(AppPermissions.VIEW_LOGS);
+
+  // 🌟 MÉTODO PARA OBTENER MÓDULOS DISPONIBLES
+  Map<String, bool> get modulosDisponibles {
+    return {
+      'Gestión Académica': puedeAccederGestion,
+      'Registro de Asistencia': puedeAccederAsistencia,
+      'Reportes e Informes': puedeAccederReportes,
+      'Configuración': puedeAccederConfiguracion,
+    };
+  }
+
+  // 🌟 MÉTODO PARA VERIFICAR ACCESO A SECCIÓN ESPECÍFICA
   bool puedeAccederA(String seccion) {
     switch (seccion.toLowerCase()) {
-      case 'estudiantes': return puedeGestionarEstudiantes;
-      case 'docentes': return puedeGestionarDocentes;
-      case 'materias': return puedeGestionarMaterias;
-      case 'asistencia': return puedeRegistrarAsistencia;
-      case 'historial': return puedeVerHistorial;
-      case 'reportes': return puedeGenerarReportes;
-      case 'configuracion': return puedeAccederConfiguracion;
-      case 'usuarios': return puedeGestionarUsuarios;
-      default: return false;
+      case 'estudiantes':
+        return puedeGestionarEstudiantes;
+      case 'docentes':
+        return puedeGestionarDocentes;
+      case 'carreras':
+        return puedeGestionarCarreras;
+      case 'materias':
+        return puedeGestionarMaterias;
+      case 'asistencia':
+        return puedeRegistrarAsistencia;
+      case 'historial':
+        return puedeVerHistorialAsistencia;
+      case 'reportes':
+        return puedeGenerarReportes;
+      case 'configuracion':
+        return puedeGestionarConfiguracion;
+      case 'usuarios':
+        return puedeGestionarUsuarios;
+      default:
+        return false;
+    }
+  }
+
+  // 🌟 MÉTODOS DE UTILIDAD (COMPATIBILIDAD CON CÓDIGO EXISTENTE)
+  bool get puedeGestionarAsistencias => 
+      role.toLowerCase() == 'administrador' || role.toLowerCase() == 'docente';
+  
+  bool get puedeVerReportes => 
+      role.toLowerCase() == 'administrador' || 
+      role.toLowerCase() == 'director académico' ||
+      role.toLowerCase() == 'jefe de carrera';
+  
+  bool get puedeGestionarCursos => role.toLowerCase() == 'administrador';
+  
+  bool get puedeGestionarEstudiantesLegacy => 
+      role.toLowerCase() == 'administrador' || role.toLowerCase() == 'docente';
+
+  String get rolDisplay {
+    switch (role.toLowerCase()) {
+      case 'administrador':
+        return 'Administrador';
+      case 'docente':
+        return 'Docente';
+      case 'jefe de carrera':
+        return 'Jefe de Carrera';
+      case 'director académico':
+        return 'Director Académico';
+      case 'estudiante':
+        return 'Estudiante';
+      default:
+        return role;
+    }
+  }
+
+  // 🌟 MÉTODO PARA OBTENER DESCRIPCIÓN DEL ROL
+  String get descripcionRol {
+    switch (role.toLowerCase()) {
+      case 'administrador':
+        return 'Acceso completo a todos los módulos y funciones del sistema';
+      case 'director académico':
+        return 'Puede gestionar datos académicos y ver reportes completos';
+      case 'jefe de carrera':
+        return 'Puede gestionar estudiantes, docentes y materias de su carrera';
+      case 'docente':
+        return 'Puede registrar asistencia y ver reportes de sus materias';
+      case 'estudiante':
+        return 'Puede ver su propio historial de asistencia';
+      default:
+        return 'Usuario con permisos básicos';
+    }
+  }
+
+  // 🌟 MÉTODO PARA OBTENER NIVEL DE ACCESO (1-5)
+  int get nivelAcceso {
+    switch (role.toLowerCase()) {
+      case 'administrador':
+        return 5;
+      case 'director académico':
+        return 4;
+      case 'jefe de carrera':
+        return 3;
+      case 'docente':
+        return 2;
+      case 'estudiante':
+        return 1;
+      default:
+        return 0;
     }
   }
 
   @override
-  String toString() => 'Usuario($id: $nombre - $role)';
+  String toString() {
+    return 'Usuario($id: $nombre - $role)';
+  }
 
   @override
-  bool operator ==(Object other) => identical(this, other) || other is Usuario && other.id == id;
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is Usuario && other.id == id;
+  }
 
   @override
   int get hashCode => id.hashCode;

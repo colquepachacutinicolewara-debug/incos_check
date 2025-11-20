@@ -291,7 +291,7 @@ class _PrimerBimestreScreenState extends State<PrimerBimestreScreen> {
               child: SingleChildScrollView(
                 scrollDirection: Axis.vertical,
                 child: DataTable(
-                  headingRowColor: MaterialStateProperty.resolveWith(
+                  headingRowColor: WidgetStateProperty.resolveWith(
                     (states) => viewModel.getHeaderBackgroundColor(context),
                   ),
                   columnSpacing: 8,
@@ -348,7 +348,7 @@ class _PrimerBimestreScreenState extends State<PrimerBimestreScreen> {
                   ],
                   rows: viewModel.filteredEstudiantes.map((estudiante) {
                     return DataRow(
-                      color: MaterialStateProperty.resolveWith<Color?>((states) {
+                      color: WidgetStateProperty.resolveWith<Color?>((states) {
                         return viewModel.getColorFila(estudiante.item, context);
                       }),
                       cells: [

@@ -10,8 +10,10 @@ import 'dart:async';
 import '../models/estudiante_model.dart';
 import '../models/database_helper.dart';
 
+import '../services/api_service.dart'; // ← IMPORTAR
+
 class EstudiantesViewModel with ChangeNotifier {
-  List<Estudiante> _estudiantes = [];
+  final List<Estudiante> _estudiantes = [];
   List<Estudiante> _estudiantesFiltrados = [];
   final TextEditingController searchController = TextEditingController();
   Timer? _searchDebounce;
@@ -1066,7 +1068,7 @@ class EstudiantesViewModel with ChangeNotifier {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Vista Previa - CSV'),
-        content: Container(
+        content: SizedBox(
           width: double.maxFinite,
           child: SingleChildScrollView(
             child: SelectableText(

@@ -1,4 +1,3 @@
-// utils/constants.dart
 import 'package:flutter/material.dart';
 
 /// ===========================
@@ -15,7 +14,7 @@ class AppColors {
   static const Color error = Color(0xFFDC3545);
   static const Color warning = Color(0xFFFFC107);
 
-  // COLORES ORIGINALES (se mantienen para compatibilidad)
+  // COLORES ORIGINALES (se mantienen para compatibilidad con el modo claro estricto)
   static const Color textPrimary = Colors.black87;
   static const Color textSecondary = Colors.black54;
 
@@ -46,6 +45,7 @@ class UserThemeColors {
 /// ✍ ESTILOS DE TEXTO
 /// ===========================
 class AppTextStyles {
+  // --- ESTILOS ESTÁTICOS (MODO CLARO / SIN CONTEXTO) ---
   static const TextStyle heading1 = TextStyle(
     fontSize: 24,
     fontWeight: FontWeight.bold,
@@ -58,7 +58,6 @@ class AppTextStyles {
     color: AppColors.textPrimary,
   );
 
-  /// 🆕 NUEVO ESTILO HEADING3 - SIGUIENDO EL PATRÓN EXISTENTE
   static const TextStyle heading3 = TextStyle(
     fontSize: 16,
     fontWeight: FontWeight.w500,
@@ -66,7 +65,7 @@ class AppTextStyles {
   );
 
   static const TextStyle body = TextStyle(
-    fontSize: 16, 
+    fontSize: 16,
     color: AppColors.textSecondary
   );
 
@@ -76,13 +75,19 @@ class AppTextStyles {
     color: Colors.white,
   );
 
-  // Añadido para el drawer
   static const TextStyle drawerItem = TextStyle(
     fontSize: 16,
     color: AppColors.textPrimary,
   );
+  
+  // Agregando la versión estática de bodySmall si la necesitas para Modo Claro
+  static const TextStyle bodySmall = TextStyle(
+    fontSize: 12,
+    color: AppColors.textSecondary,
+  );
 
-  // NUEVOS ESTILOS PARA TEMA OSCURO (usa estos en lugar de los originales)
+
+  // --- ESTILOS DINÁMICOS (MODO OSCURO / REQUIEREN CONTEXTO) ---
   static TextStyle heading1Dark(BuildContext context) => TextStyle(
         fontSize: 24,
         fontWeight: FontWeight.bold,
@@ -107,6 +112,15 @@ class AppTextStyles {
         fontSize: 16, 
         color: AppColors.textSecondaryDark(context)
       );
+
+  // ✅ CORRECCIÓN PARA bodySmall
+  // Si estabas usando AppTextStyles.bodySmall, debe existir.
+  // Si la quieres sensible al tema, debes añadir su versión "Dark" que recibe context.
+  static TextStyle bodySmallDark(BuildContext context) => TextStyle(
+        fontSize: 12, 
+        color: AppColors.textSecondaryDark(context) // Usa el color que cambia con el tema
+      );
+
 
   static TextStyle drawerItemDark(BuildContext context) => TextStyle(
         fontSize: 16, 

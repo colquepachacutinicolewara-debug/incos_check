@@ -1,8 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../viewmodels/horario_viewmodel.dart';
-import '../../models/horario_tercer_b.dart';
-import '../asistencia/tomar_asistencia_screen.dart';
 
 class TercerAnioBScreen extends StatefulWidget {
   const TercerAnioBScreen({super.key});

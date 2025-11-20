@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import '../models/inicio_model.dart';
 import '../models/database_helper.dart';
-import '../utils/helpers.dart';
 
 class InicioViewModel extends ChangeNotifier {
   final DatabaseHelper _databaseHelper = DatabaseHelper.instance; // ✅ Cambio aquí
